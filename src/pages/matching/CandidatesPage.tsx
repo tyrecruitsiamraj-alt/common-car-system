@@ -187,7 +187,7 @@ const CandidatesPage: React.FC = () => {
         subtitle={`${filtered.length} คน${filter !== 'all' ? ` (กรอง: ${statusFilters.find((f) => f.value === filter)?.label})` : ''}`}
         backPath="/matching"
         actions={
-          hasPermission('supervisor') ? (
+          hasPermission('staff') ? (
             <button
               onClick={() => navigate('/matching/candidates/add')}
               className="flex items-center gap-1 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-sm"

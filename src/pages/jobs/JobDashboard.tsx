@@ -64,7 +64,7 @@ const JobDashboard: React.FC = () => {
   return (
     <div>
       <PageHeader title="หน่วยงาน" subtitle="จัดการหน่วยงานและใบขอ"
-        actions={hasPermission('supervisor') ? (
+        actions={hasPermission('staff') ? (
           <button onClick={() => navigate('/jobs/add')} className="flex items-center gap-1 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-sm">
             <Plus className="w-4 h-4" /> สร้างงานใหม่
           </button>

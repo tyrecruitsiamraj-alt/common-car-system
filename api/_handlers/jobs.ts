@@ -1,6 +1,6 @@
 import { dbQuery } from '../_lib/postgres.js';
 import {
-  withAuthDataRoute,
+  withAuthStaffCreateSupervisorMutate,
   sendError,
   handleApiError,
   type ApiRes,
@@ -253,9 +253,6 @@ async function jobsHandler(req: AuthedReq, res: ApiRes) {
 
   if (method === 'PATCH') {
     try {
-      if (req.user.role !== 'admin') {
-        return sendError(res, 403, 'Forbidden', 'Only administrators can update job details');
-      }
       const raw = await readJsonBody(req);
       if (!isPlainObject(raw)) return sendError(res, 400, 'Bad request', 'Invalid JSON body');
       const id = getString(raw.id);
@@ -413,4 +410,4 @@ async function jobsHandler(req: AuthedReq, res: ApiRes) {
   return sendError(res, 405, 'Method not allowed');
 }
 
-export default withAuthDataRoute(jobsHandler);
+export default withAuthStaffCreateSupervisorMutate(jobsHandler);
