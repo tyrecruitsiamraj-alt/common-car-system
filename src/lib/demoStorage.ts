@@ -92,6 +92,8 @@ type CandidateInput = {
 };
 
 type JobInput = {
+  request_no?: string;
+  resigned_employee_name?: string;
   unit_name: string;
   request_date: string;
   required_date: string;
@@ -480,6 +482,8 @@ export function createJob(input: JobInput): JobRequest {
 
   const job = {
     id: crypto.randomUUID(),
+    request_no: input.request_no,
+    resigned_employee_name: input.resigned_employee_name,
     unit_name: input.unit_name,
     request_date: input.request_date,
     required_date: input.required_date,

@@ -77,6 +77,8 @@ const AddJobPage: React.FC = () => {
   const [formError, setFormError] = useState<string | null>(null);
 
   const [unitName, setUnitName] = useState('');
+  const [requestNo, setRequestNo] = useState('');
+  const [resignedEmployeeName, setResignedEmployeeName] = useState('');
   const [requestDate, setRequestDate] = useState(() => toYmdLocal(new Date()));
   const [requiredDate, setRequiredDate] = useState(() => toYmdLocal(new Date()));
   const [jobType, setJobType] = useState<JobType>('thai_executive');
@@ -207,6 +209,8 @@ const AddJobPage: React.FC = () => {
     }
 
     const payload = {
+      request_no: requestNo.trim() || undefined,
+      resigned_employee_name: resignedEmployeeName.trim() || undefined,
       unit_name: normalizedUnitName,
       request_date: requestDate,
       required_date: requiredDate,
@@ -228,6 +232,8 @@ const AddJobPage: React.FC = () => {
       setSaving(true);
       try {
         createJob({
+          request_no: payload.request_no,
+          resigned_employee_name: payload.resigned_employee_name,
           unit_name: payload.unit_name,
           request_date: payload.request_date,
           required_date: payload.required_date,
@@ -302,6 +308,28 @@ const AddJobPage: React.FC = () => {
                 type="text"
                 value={unitName}
                 onChange={(e) => setUnitName(e.target.value)}
+                className="w-full bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-foreground"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">เลขที่ใบขอ</label>
+              <input
+                type="text"
+                value={requestNo}
+                onChange={(e) => setRequestNo(e.target.value)}
+                placeholder="เช่น REQ-2026-001"
+                className="w-full bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-foreground"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">ชื่อคนลาออก</label>
+              <input
+                type="text"
+                value={resignedEmployeeName}
+                onChange={(e) => setResignedEmployeeName(e.target.value)}
+                placeholder="กรอกชื่อพนักงานที่ลาออก"
                 className="w-full bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-foreground"
               />
             </div>

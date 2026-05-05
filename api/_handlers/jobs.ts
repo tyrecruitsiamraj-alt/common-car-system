@@ -10,6 +10,8 @@ import { readJsonBody, getString } from '../_lib/body.js';
 
 type JobRow = {
   id: string;
+  request_no: string | null;
+  resigned_employee_name: string | null;
   unit_name: string;
   request_date: string | Date;
   required_date: string | Date;
@@ -76,6 +78,8 @@ const isJobStatus = (v: unknown): v is 'open' | 'in_progress' | 'closed' | 'canc
 function toJobResponse(row: JobRow) {
   return {
     id: row.id,
+    request_no: row.request_no || undefined,
+    resigned_employee_name: row.resigned_employee_name || undefined,
     unit_name: row.unit_name,
     request_date: toYmd(row.request_date),
     required_date: toYmd(row.required_date),
@@ -153,6 +157,8 @@ async function jobsHandler(req: AuthedReq, res: ApiRes) {
       if (!isPlainObject(raw)) return sendError(res, 400, 'Bad request', 'Invalid JSON body');
 
       const unit_name = getString(raw.unit_name);
+      const request_no = getString(raw.request_no);
+      const resigned_employee_name = getString(raw.resigned_employee_name);
       const request_date = raw.request_date;
       const required_date = raw.required_date;
       const job_type = raw.job_type;
@@ -197,6 +203,7 @@ async function jobsHandler(req: AuthedReq, res: ApiRes) {
       const { rows } = await dbQuery<JobRow>(
         `
           insert into jarvis_rm.jobs (
+            request_no, resigned_employee_name,
             unit_name, request_date, required_date,
             urgency, total_income,
             location_address, lat, lng,
@@ -208,19 +215,22 @@ async function jobsHandler(req: AuthedReq, res: ApiRes) {
             status
           )
           values (
-            $1, $2, $3,
-            $4, $5,
-            $6, $7, $8,
-            $9, $10,
+            $1, $2,
+            $3, $4, $5,
+            $6, $7,
+            $8, $9, $10,
             $11, $12,
             $13, $14,
             $15, $16,
-            $17, $18, $19,
-            $20
+            $17, $18,
+            $19, $20, $21,
+            $22
           )
           returning *
         `,
         [
+          request_no,
+          resigned_employee_name,
           unit_name,
           request_date,
           required_date,
@@ -266,6 +276,11 @@ async function jobsHandler(req: AuthedReq, res: ApiRes) {
       if (!cur) return sendError(res, 404, 'Not found', 'Job not found');
 
       const unit_name = raw.unit_name !== undefined ? getString(raw.unit_name) : cur.unit_name;
+      const request_no = raw.request_no !== undefined ? getString(raw.request_no) : cur.request_no;
+      const resigned_employee_name =
+        raw.resigned_employee_name !== undefined
+          ? getString(raw.resigned_employee_name)
+          : cur.resigned_employee_name;
       const request_date =
         raw.request_date !== undefined
           ? isDateYmd(raw.request_date)
@@ -346,20 +361,23 @@ async function jobsHandler(req: AuthedReq, res: ApiRes) {
       const { rows } = await dbQuery<JobRow>(
         `
         update jarvis_rm.jobs set
-          unit_name = $2, request_date = $3::date, required_date = $4::date,
-          urgency = $5, total_income = $6,
-          location_address = $7, lat = $8, lng = $9,
-          job_type = $10, job_category = $11,
-          recruiter_name = $12, screener_name = $13,
-          age_range_min = $14, age_range_max = $15,
-          vehicle_required = $16, work_schedule = $17,
-          penalty_per_day = $18, days_without_worker = $19, total_penalty = $20,
-          status = $21, closed_date = $22::date
+          request_no = $2, resigned_employee_name = $3,
+          unit_name = $4, request_date = $5::date, required_date = $6::date,
+          urgency = $7, total_income = $8,
+          location_address = $9, lat = $10, lng = $11,
+          job_type = $12, job_category = $13,
+          recruiter_name = $14, screener_name = $15,
+          age_range_min = $16, age_range_max = $17,
+          vehicle_required = $18, work_schedule = $19,
+          penalty_per_day = $20, days_without_worker = $21, total_penalty = $22,
+          status = $23, closed_date = $24::date
         where id = $1
         returning *
       `,
         [
           id,
+          request_no,
+          resigned_employee_name,
           unit_name,
           request_date,
           required_date,

@@ -64,7 +64,10 @@ function resolveHttpMethod(req: VercelishReq): string {
 }
 
 export default async function handler(req: VercelishReq, res: VercelishRes): Promise<void> {
-  res.setHeader('Access-Control-Allow-Origin', '*');
+  const originHeader = typeof req.headers?.origin === 'string' ? req.headers.origin.trim() : '';
+  // ถ้ามี Origin ให้ตอบกลับแบบระบุ origin จริงเพื่อให้เบราว์เซอร์ส่ง cookie เมื่อใช้ credentials: 'include'
+  res.setHeader('Access-Control-Allow-Origin', originHeader ? originHeader : '*');
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, Cookie');
 

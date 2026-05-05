@@ -51,8 +51,10 @@ async function readBodyString(req: IncomingMessage): Promise<string> {
   return Buffer.concat(chunks).toString('utf8');
 }
 
-function setCors(res: ServerResponse) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
+function setCors(res: ServerResponse, origin?: string) {
+  // ระบุ origin จริงเพื่อให้เบราว์เซอร์ส่ง cookie เมื่อใช้ credentials: 'include'
+  res.setHeader('Access-Control-Allow-Origin', origin && origin.trim() ? origin.trim() : '*');
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, Cookie');
 }
@@ -72,7 +74,8 @@ const routes = apiRoutes as Record<string, Handler>;
 const port = Number(process.env.LOCAL_API_PORT || process.env.PORT || 3000);
 
 const server = createServer(async (req, res) => {
-  setCors(res);
+  const origin = typeof req.headers.origin === 'string' ? req.headers.origin : undefined;
+  setCors(res, origin);
   if (req.method === 'OPTIONS') {
     res.statusCode = 204;
     res.end();

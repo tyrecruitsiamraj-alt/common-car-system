@@ -12,7 +12,9 @@ export function getJwtSecret(): string | null {
 }
 
 export function isProductionLike(): boolean {
-  return process.env.VERCEL_ENV === 'production' || process.env.NODE_ENV === 'production';
+  // ใช้เฉพาะ Vercel production (หรือบังคับผ่าน env) เพื่อหลีกเลี่ยงเคส local/preview ที่ตั้ง NODE_ENV=production
+  // แล้ว cookie ถูกทำเครื่องหมาย `Secure` ทำให้เบราว์เซอร์ไม่ส่ง cookie กลับไปบน http
+  return process.env.VERCEL_ENV === 'production' || process.env.AUTH_COOKIE_SECURE === 'true';
 }
 
 export type JwtUserPayload = {
