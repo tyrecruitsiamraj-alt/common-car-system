@@ -102,6 +102,11 @@ export type JobStatus = 'open' | 'in_progress' | 'closed' | 'cancelled';
 export interface JobRequest {
   id: string;
   request_no?: string;
+  resigned_title_prefix?: string;
+  resigned_first_name?: string;
+  resigned_last_name?: string;
+  resigned_age?: number;
+  resigned_reason?: string;
   resigned_employee_name?: string;
   unit_name: string;
   request_date: string;

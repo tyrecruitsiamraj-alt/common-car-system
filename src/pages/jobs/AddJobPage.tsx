@@ -78,7 +78,11 @@ const AddJobPage: React.FC = () => {
 
   const [unitName, setUnitName] = useState('');
   const [requestNo, setRequestNo] = useState('');
-  const [resignedEmployeeName, setResignedEmployeeName] = useState('');
+  const [resignedTitlePrefix, setResignedTitlePrefix] = useState('');
+  const [resignedFirstName, setResignedFirstName] = useState('');
+  const [resignedLastName, setResignedLastName] = useState('');
+  const [resignedAge, setResignedAge] = useState('');
+  const [resignedReason, setResignedReason] = useState('');
   const [requestDate, setRequestDate] = useState(() => toYmdLocal(new Date()));
   const [requiredDate, setRequiredDate] = useState(() => toYmdLocal(new Date()));
   const [jobType, setJobType] = useState<JobType>('thai_executive');
@@ -208,9 +212,19 @@ const AddJobPage: React.FC = () => {
       return;
     }
 
+    const resignedAgeNum = resignedAge.trim() ? Number(resignedAge.trim()) : undefined;
+    if (resignedAgeNum !== undefined && (!Number.isFinite(resignedAgeNum) || resignedAgeNum <= 0)) {
+      setFormError('อายุผู้ลาออกต้องเป็นตัวเลขมากกว่า 0');
+      return;
+    }
+
     const payload = {
       request_no: requestNo.trim() || undefined,
-      resigned_employee_name: resignedEmployeeName.trim() || undefined,
+      resigned_title_prefix: resignedTitlePrefix.trim() || undefined,
+      resigned_first_name: resignedFirstName.trim() || undefined,
+      resigned_last_name: resignedLastName.trim() || undefined,
+      resigned_age: resignedAgeNum ? Math.trunc(resignedAgeNum) : undefined,
+      resigned_reason: resignedReason.trim() || undefined,
       unit_name: normalizedUnitName,
       request_date: requestDate,
       required_date: requiredDate,
@@ -233,7 +247,11 @@ const AddJobPage: React.FC = () => {
       try {
         createJob({
           request_no: payload.request_no,
-          resigned_employee_name: payload.resigned_employee_name,
+          resigned_title_prefix: payload.resigned_title_prefix,
+          resigned_first_name: payload.resigned_first_name,
+          resigned_last_name: payload.resigned_last_name,
+          resigned_age: payload.resigned_age,
+          resigned_reason: payload.resigned_reason,
           unit_name: payload.unit_name,
           request_date: payload.request_date,
           required_date: payload.required_date,
@@ -324,12 +342,57 @@ const AddJobPage: React.FC = () => {
             </div>
 
             <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">ชื่อคนลาออก</label>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">คำนำหน้าผู้ลาออก</label>
               <input
                 type="text"
-                value={resignedEmployeeName}
-                onChange={(e) => setResignedEmployeeName(e.target.value)}
-                placeholder="กรอกชื่อพนักงานที่ลาออก"
+                value={resignedTitlePrefix}
+                onChange={(e) => setResignedTitlePrefix(e.target.value)}
+                placeholder="เช่น นาย / นาง / น.ส."
+                className="w-full bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-foreground"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">ชื่อผู้ลาออก</label>
+              <input
+                type="text"
+                value={resignedFirstName}
+                onChange={(e) => setResignedFirstName(e.target.value)}
+                placeholder="กรอกชื่อ"
+                className="w-full bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-foreground"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">นามสกุลผู้ลาออก</label>
+              <input
+                type="text"
+                value={resignedLastName}
+                onChange={(e) => setResignedLastName(e.target.value)}
+                placeholder="กรอกนามสกุล"
+                className="w-full bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-foreground"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">อายุผู้ลาออก</label>
+              <input
+                type="number"
+                min={1}
+                value={resignedAge}
+                onChange={(e) => setResignedAge(e.target.value)}
+                placeholder="เช่น 35"
+                className="w-full bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-foreground"
+              />
+            </div>
+
+            <div className="md:col-span-2">
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">เหตุผลการลาออก</label>
+              <input
+                type="text"
+                value={resignedReason}
+                onChange={(e) => setResignedReason(e.target.value)}
+                placeholder="ระบุเหตุผลการลาออก"
                 className="w-full bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-foreground"
               />
             </div>

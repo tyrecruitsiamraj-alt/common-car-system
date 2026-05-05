@@ -11,6 +11,11 @@ import { readJsonBody, getString } from '../_lib/body.js';
 type JobRow = {
   id: string;
   request_no: string | null;
+  resigned_title_prefix: string | null;
+  resigned_first_name: string | null;
+  resigned_last_name: string | null;
+  resigned_age: number | null;
+  resigned_reason: string | null;
   resigned_employee_name: string | null;
   unit_name: string;
   request_date: string | Date;
@@ -76,10 +81,21 @@ const isJobStatus = (v: unknown): v is 'open' | 'in_progress' | 'closed' | 'canc
   v === 'open' || v === 'in_progress' || v === 'closed' || v === 'cancelled';
 
 function toJobResponse(row: JobRow) {
+  const resignedEmployeeName =
+    [row.resigned_title_prefix, row.resigned_first_name, row.resigned_last_name]
+      .map((v) => (typeof v === 'string' ? v.trim() : ''))
+      .filter(Boolean)
+      .join(' ') || undefined;
+
   return {
     id: row.id,
     request_no: row.request_no || undefined,
-    resigned_employee_name: row.resigned_employee_name || undefined,
+    resigned_title_prefix: row.resigned_title_prefix || undefined,
+    resigned_first_name: row.resigned_first_name || undefined,
+    resigned_last_name: row.resigned_last_name || undefined,
+    resigned_age: row.resigned_age === null ? undefined : row.resigned_age,
+    resigned_reason: row.resigned_reason || undefined,
+    resigned_employee_name: (resignedEmployeeName ?? row.resigned_employee_name) || undefined,
     unit_name: row.unit_name,
     request_date: toYmd(row.request_date),
     required_date: toYmd(row.required_date),
@@ -158,7 +174,14 @@ async function jobsHandler(req: AuthedReq, res: ApiRes) {
 
       const unit_name = getString(raw.unit_name);
       const request_no = getString(raw.request_no);
-      const resigned_employee_name = getString(raw.resigned_employee_name);
+      const resigned_title_prefix = getString(raw.resigned_title_prefix);
+      const resigned_first_name = getString(raw.resigned_first_name);
+      const resigned_last_name = getString(raw.resigned_last_name);
+      const resigned_age = parseIntOrNull(raw.resigned_age);
+      const resigned_reason = getString(raw.resigned_reason);
+      const resigned_employee_name =
+        [resigned_title_prefix, resigned_first_name, resigned_last_name].filter(Boolean).join(' ') ||
+        getString(raw.resigned_employee_name);
       const request_date = raw.request_date;
       const required_date = raw.required_date;
       const job_type = raw.job_type;
@@ -203,7 +226,8 @@ async function jobsHandler(req: AuthedReq, res: ApiRes) {
       const { rows } = await dbQuery<JobRow>(
         `
           insert into jarvis_rm.jobs (
-            request_no, resigned_employee_name,
+            request_no,
+            resigned_title_prefix, resigned_first_name, resigned_last_name, resigned_age, resigned_reason, resigned_employee_name,
             unit_name, request_date, required_date,
             urgency, total_income,
             location_address, lat, lng,
@@ -215,21 +239,27 @@ async function jobsHandler(req: AuthedReq, res: ApiRes) {
             status
           )
           values (
-            $1, $2,
-            $3, $4, $5,
-            $6, $7,
+            $1,
+            $2, $3, $4, $5, $6, $7,
             $8, $9, $10,
             $11, $12,
-            $13, $14,
-            $15, $16,
-            $17, $18,
-            $19, $20, $21,
-            $22
+            $13, $14, $15,
+            $16, $17,
+            $18, $19,
+            $20, $21,
+            $22, $23,
+            $24, $25, $26,
+            $27
           )
           returning *
         `,
         [
           request_no,
+          resigned_title_prefix,
+          resigned_first_name,
+          resigned_last_name,
+          resigned_age,
+          resigned_reason,
           resigned_employee_name,
           unit_name,
           request_date,
@@ -277,10 +307,17 @@ async function jobsHandler(req: AuthedReq, res: ApiRes) {
 
       const unit_name = raw.unit_name !== undefined ? getString(raw.unit_name) : cur.unit_name;
       const request_no = raw.request_no !== undefined ? getString(raw.request_no) : cur.request_no;
+      const resigned_title_prefix =
+        raw.resigned_title_prefix !== undefined ? getString(raw.resigned_title_prefix) : cur.resigned_title_prefix;
+      const resigned_first_name =
+        raw.resigned_first_name !== undefined ? getString(raw.resigned_first_name) : cur.resigned_first_name;
+      const resigned_last_name =
+        raw.resigned_last_name !== undefined ? getString(raw.resigned_last_name) : cur.resigned_last_name;
+      const resigned_age = raw.resigned_age !== undefined ? parseIntOrNull(raw.resigned_age) : cur.resigned_age;
+      const resigned_reason = raw.resigned_reason !== undefined ? getString(raw.resigned_reason) : cur.resigned_reason;
       const resigned_employee_name =
-        raw.resigned_employee_name !== undefined
-          ? getString(raw.resigned_employee_name)
-          : cur.resigned_employee_name;
+        [resigned_title_prefix, resigned_first_name, resigned_last_name].filter(Boolean).join(' ') ||
+        (raw.resigned_employee_name !== undefined ? getString(raw.resigned_employee_name) : cur.resigned_employee_name);
       const request_date =
         raw.request_date !== undefined
           ? isDateYmd(raw.request_date)
@@ -361,22 +398,28 @@ async function jobsHandler(req: AuthedReq, res: ApiRes) {
       const { rows } = await dbQuery<JobRow>(
         `
         update jarvis_rm.jobs set
-          request_no = $2, resigned_employee_name = $3,
-          unit_name = $4, request_date = $5::date, required_date = $6::date,
-          urgency = $7, total_income = $8,
-          location_address = $9, lat = $10, lng = $11,
-          job_type = $12, job_category = $13,
-          recruiter_name = $14, screener_name = $15,
-          age_range_min = $16, age_range_max = $17,
-          vehicle_required = $18, work_schedule = $19,
-          penalty_per_day = $20, days_without_worker = $21, total_penalty = $22,
-          status = $23, closed_date = $24::date
+          request_no = $2,
+          resigned_title_prefix = $3, resigned_first_name = $4, resigned_last_name = $5, resigned_age = $6, resigned_reason = $7, resigned_employee_name = $8,
+          unit_name = $9, request_date = $10::date, required_date = $11::date,
+          urgency = $12, total_income = $13,
+          location_address = $14, lat = $15, lng = $16,
+          job_type = $17, job_category = $18,
+          recruiter_name = $19, screener_name = $20,
+          age_range_min = $21, age_range_max = $22,
+          vehicle_required = $23, work_schedule = $24,
+          penalty_per_day = $25, days_without_worker = $26, total_penalty = $27,
+          status = $28, closed_date = $29::date
         where id = $1
         returning *
       `,
         [
           id,
           request_no,
+          resigned_title_prefix,
+          resigned_first_name,
+          resigned_last_name,
+          resigned_age,
+          resigned_reason,
           resigned_employee_name,
           unit_name,
           request_date,
