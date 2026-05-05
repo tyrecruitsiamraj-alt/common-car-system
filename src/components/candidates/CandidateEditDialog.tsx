@@ -20,20 +20,10 @@ import { isDemoMode } from '@/lib/demoMode';
 import { apiFetch } from '@/lib/apiFetch';
 import { upsertCandidateInDemoStorage, hydrateCandidateStaffing } from '@/lib/demoStorage';
 import DateSelectDmyBe from '@/components/shared/DateSelectDmyBe';
-
-const TITLE_PREFIX_SELECT = [
-  { value: '', label: '— ไม่มี —' },
-  { value: 'นาย', label: 'นาย' },
-  { value: 'นาง', label: 'นาง' },
-  { value: 'นางสาว', label: 'นางสาว' },
-  { value: 'เด็กชาย', label: 'เด็กชาย' },
-  { value: 'เด็กหญิง', label: 'เด็กหญิง' },
-  { value: '__custom__', label: 'อื่น ๆ (พิมพ์เอง)' },
-] as const;
+import { TITLE_PREFIX_OPTIONS, normalizeTitlePrefix } from '@/lib/titlePrefixOptions';
 
 type FormState = {
-  title_prefix_select: string;
-  title_prefix_custom: string;
+  title_prefix: string;
   first_name: string;
   last_name: string;
   phone: string;
@@ -55,20 +45,8 @@ type FormState = {
 };
 
 function candidateToForm(c: Candidate): FormState {
-  const tp = c.title_prefix?.trim() ?? '';
-  let title_prefix_select = '';
-  let title_prefix_custom = '';
-  const fixed = TITLE_PREFIX_SELECT.find((o) => o.value === tp && o.value !== '__custom__');
-  if (fixed) {
-    title_prefix_select = tp;
-  } else if (tp) {
-    title_prefix_select = '__custom__';
-    title_prefix_custom = tp;
-  }
-
   return {
-    title_prefix_select,
-    title_prefix_custom,
+    title_prefix: normalizeTitlePrefix(c.title_prefix),
     first_name: c.first_name,
     last_name: c.last_name,
     phone: c.phone,
@@ -122,10 +100,7 @@ export const CandidateEditDialog: React.FC<CandidateEditDialogProps> = ({
     if (!candidate || !form) return;
     setError(null);
 
-    const tp =
-      form.title_prefix_select === '__custom__'
-        ? form.title_prefix_custom.trim()
-        : form.title_prefix_select.trim();
+    const tp = form.title_prefix.trim();
 
     if (!form.first_name.trim()) {
       setError('กรุณากรอกชื่อ');
@@ -270,31 +245,16 @@ export const CandidateEditDialog: React.FC<CandidateEditDialogProps> = ({
               <div>
                 <label className="text-xs font-medium text-muted-foreground mb-1 block">คำนำหน้า</label>
                 <select
-                  value={form.title_prefix_select}
-                  onChange={(e) =>
-                    setForm({
-                      ...form,
-                      title_prefix_select: e.target.value,
-                      title_prefix_custom: e.target.value === '__custom__' ? form.title_prefix_custom : '',
-                    })
-                  }
+                  value={form.title_prefix}
+                  onChange={(e) => setForm({ ...form, title_prefix: e.target.value })}
                   className="w-full bg-secondary border border-border rounded-lg px-2 py-2 text-sm"
                 >
-                  {TITLE_PREFIX_SELECT.map((opt) => (
+                  {TITLE_PREFIX_OPTIONS.map((opt) => (
                     <option key={opt.value || 'none'} value={opt.value}>
                       {opt.label}
                     </option>
                   ))}
                 </select>
-                {form.title_prefix_select === '__custom__' && (
-                  <input
-                    type="text"
-                    value={form.title_prefix_custom}
-                    onChange={(e) => setForm({ ...form, title_prefix_custom: e.target.value })}
-                    placeholder="พิมพ์คำนำหน้า"
-                    className="mt-1 w-full bg-secondary border border-border rounded-lg px-2 py-2 text-sm"
-                  />
-                )}
               </div>
               <div>
                 <label className="text-xs font-medium text-muted-foreground mb-1 block">ชื่อ *</label>

@@ -8,21 +8,12 @@ import { isConfiguredDemoMode } from '@/lib/demoMode';
 import DateSelectDmyBe from '@/components/shared/DateSelectDmyBe';
 import { createCandidate } from '@/lib/demoStorage';
 import type { DrivingResult, Gender, YesNo } from '@/types';
-const TITLE_PREFIX_SELECT = [
-  { value: '', label: '— ไม่มี —' },
-  { value: 'นาย', label: 'นาย' },
-  { value: 'นาง', label: 'นาง' },
-  { value: 'นางสาว', label: 'นางสาว' },
-  { value: 'เด็กชาย', label: 'เด็กชาย' },
-  { value: 'เด็กหญิง', label: 'เด็กหญิง' },
-  { value: '__custom__', label: 'อื่น ๆ (พิมพ์เอง)' },
-] as const;
+import { TITLE_PREFIX_OPTIONS } from '@/lib/titlePrefixOptions';
 
 const AddCandidatePage: React.FC = () => {
   const navigate = useNavigate();
 
-  const [titlePrefixSelect, setTitlePrefixSelect] = useState('');
-  const [titlePrefixCustom, setTitlePrefixCustom] = useState('');
+  const [titlePrefix, setTitlePrefix] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [phone, setPhone] = useState('');
@@ -67,11 +58,6 @@ const AddCandidatePage: React.FC = () => {
 
   const uiToYesNo = (ui: string, yesUi: string): YesNo => (ui === yesUi ? 'yes' : 'no');
 
-  const effectiveTitlePrefix = useMemo(() => {
-    if (titlePrefixSelect === '__custom__') return titlePrefixCustom.trim();
-    return titlePrefixSelect.trim();
-  }, [titlePrefixSelect, titlePrefixCustom]);
-
   const handleSave = async () => {
     if (saving) return;
     setError(null);
@@ -91,7 +77,7 @@ const AddCandidatePage: React.FC = () => {
     if (!province.trim()) return setError('กรุณากรอกจังหวัด');
 
     const payload = {
-      ...(effectiveTitlePrefix ? { title_prefix: effectiveTitlePrefix } : {}),
+      ...(titlePrefix.trim() ? { title_prefix: titlePrefix.trim() } : {}),
       first_name: normalizedFirstName,
       last_name: normalizedLastName,
       phone: normalizedPhone,
@@ -170,28 +156,16 @@ const AddCandidatePage: React.FC = () => {
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-1 block">คำนำหน้า</label>
               <select
-                value={titlePrefixSelect}
-                onChange={(e) => {
-                  setTitlePrefixSelect(e.target.value);
-                  if (e.target.value !== '__custom__') setTitlePrefixCustom('');
-                }}
+                value={titlePrefix}
+                onChange={(e) => setTitlePrefix(e.target.value)}
                 className="w-full bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-foreground"
               >
-                {TITLE_PREFIX_SELECT.map((opt) => (
+                {TITLE_PREFIX_OPTIONS.map((opt) => (
                   <option key={opt.value || 'none'} value={opt.value}>
                     {opt.label}
                   </option>
                 ))}
               </select>
-              {titlePrefixSelect === '__custom__' && (
-                <input
-                  type="text"
-                  value={titlePrefixCustom}
-                  onChange={(e) => setTitlePrefixCustom(e.target.value)}
-                  placeholder="พิมพ์คำนำหน้า"
-                  className="mt-2 w-full bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-foreground"
-                />
-              )}
             </div>
 
             <div>

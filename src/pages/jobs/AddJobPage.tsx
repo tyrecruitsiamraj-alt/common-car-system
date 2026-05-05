@@ -11,6 +11,7 @@ import { apiFetch } from '@/lib/apiFetch';
 import { apiUnreachableHint } from '@/lib/apiUnreachableHint';
 import { toYmdLocal } from '@/lib/dateTh';
 import DateSelectDmyBe from '@/components/shared/DateSelectDmyBe';
+import { TITLE_PREFIX_OPTIONS } from '@/lib/titlePrefixOptions';
 
 const WORK_DAY_OPTIONS: { value: string; label: string }[] = [
   { value: '', label: '— เลือก —' },
@@ -343,13 +344,17 @@ const AddJobPage: React.FC = () => {
 
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-1 block">คำนำหน้าผู้ลาออก</label>
-              <input
-                type="text"
+              <select
                 value={resignedTitlePrefix}
                 onChange={(e) => setResignedTitlePrefix(e.target.value)}
-                placeholder="เช่น นาย / นาง / น.ส."
                 className="w-full bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-foreground"
-              />
+              >
+                {TITLE_PREFIX_OPTIONS.map((opt) => (
+                  <option key={opt.value || 'none'} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div>
