@@ -17,15 +17,15 @@ export function useDockKnob(activeIndex: number, itemCount: number) {
   const measure = useCallback(() => {
     const track = trackRef.current;
     if (!track || itemCount <= 0) return;
-    const cs = window.getComputedStyle(track);
-    const paddingLeft = Number.parseFloat(cs.paddingLeft || '0') || 0;
-    const paddingRight = Number.parseFloat(cs.paddingRight || '0') || 0;
-    const usableWidth = Math.max(0, track.clientWidth - paddingLeft - paddingRight);
-    const slotWidth = usableWidth / itemCount;
     const btn = itemRefs.current[activeIndex];
-    const btnWidth = btn?.getBoundingClientRect().width ?? slotWidth;
-    const w = Math.min(56, Math.max(44, btnWidth * 0.68));
-    const centerX = paddingLeft + slotWidth * activeIndex + slotWidth / 2;
+    if (!btn) return;
+    const tr = track.getBoundingClientRect();
+    const br = btn.getBoundingClientRect();
+    const icon = btn.querySelector<HTMLElement>('.bottom-dock__icon-wrap');
+    const ir = icon?.getBoundingClientRect();
+    const visualWidth = ir?.width ?? br.width;
+    const w = Math.min(56, Math.max(44, visualWidth * 0.68));
+    const centerX = (ir?.left ?? br.left) - tr.left + (ir?.width ?? br.width) / 2;
     const left = centerX - w / 2;
     setKnob({ left, width: w });
   }, [activeIndex, itemCount]);
