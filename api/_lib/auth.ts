@@ -74,6 +74,18 @@ export function getTokenFromReq(req: { headers?: Record<string, string | string[
   return t && t.trim() ? t.trim() : null;
 }
 
+export function getTokenFromAuthHeader(
+  req: { headers?: Record<string, string | string[] | undefined> },
+): string | null {
+  const raw = req.headers?.authorization;
+  const authHeader = Array.isArray(raw) ? raw[0] : raw;
+  if (!authHeader || typeof authHeader !== 'string') return null;
+  const m = authHeader.match(/^Bearer\s+(.+)$/i);
+  if (!m) return null;
+  const token = m[1]?.trim();
+  return token || null;
+}
+
 export function buildSetCookieHeader(token: string, maxAgeSeconds: number): string {
   const secure = isProductionLike() ? 'Secure; ' : '';
   const sameSite = process.env.AUTH_COOKIE_SAMESITE === 'strict' ? 'Strict' : 'Lax';

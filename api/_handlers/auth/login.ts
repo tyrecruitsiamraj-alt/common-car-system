@@ -92,7 +92,7 @@ export default async function handler(req: ApiReq, res: ApiRes) {
     });
 
     res.setHeader?.('Set-Cookie', buildSetCookieHeader(token, ttl));
-    return res.status(200).json({ user: toUserResponse(row) });
+    return res.status(200).json({ user: toUserResponse(row), token });
   } catch (e) {
     return handleApiError(res, e, 'auth/login');
   }

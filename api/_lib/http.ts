@@ -1,6 +1,7 @@
 import { logError } from './logger.js';
 import {
   getTokenFromReq,
+  getTokenFromAuthHeader,
   verifyAuthToken,
   type UserRole,
   type JwtUserPayload,
@@ -69,7 +70,7 @@ export function withAuth<T extends ApiReq>(
   const allowed = options?.roles;
 
   return async (req: ApiReq, res: ApiRes) => {
-    const token = getTokenFromReq(req);
+    const token = getTokenFromReq(req) || getTokenFromAuthHeader(req);
     if (!token) {
       return sendError(res, 401, 'Unauthorized', 'Missing auth cookie');
     }

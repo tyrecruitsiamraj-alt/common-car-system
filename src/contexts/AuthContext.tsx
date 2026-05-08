@@ -11,6 +11,7 @@ import { clearJobStaffApiCache, refreshJobStaffFromApi } from '@/lib/jobStaffRem
 import { refreshWorkCalendarFromApi } from '@/lib/workCalendarStore';
 
 const DEMO_STORAGE_KEY = 'jarvis_user_role';
+const AUTH_TOKEN_STORAGE_KEY = 'jarvis_auth_token';
 
 interface AuthContextType {
   user: User | null;
@@ -112,6 +113,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (!r.ok) {
           if (r.status === 401 || r.status === 403) {
             setUser(null);
+            localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
             clearJobStaffApiCache();
             return;
           }
@@ -173,6 +175,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             : 'Sign in failed';
       return msg;
     }
+    if (typeof data.token === 'string' && data.token.trim()) {
+      localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, data.token.trim());
+    }
     const rawUser = data.user as Record<string, unknown> | undefined;
     const u = rawUser ? mapApiUser(rawUser) : null;
     if (!u) return 'Invalid response from server';
@@ -222,6 +227,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (isDemoMode()) {
       setUser(null);
       localStorage.removeItem(DEMO_STORAGE_KEY);
+      localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
       clearRuntimeDemoFlag();
       return;
     }
@@ -230,6 +236,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch {
       /* still clear client state */
     }
+    localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
     clearJobStaffApiCache();
     setUser(null);
   }, []);
