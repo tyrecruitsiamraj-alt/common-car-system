@@ -330,7 +330,7 @@ const AddJobPage: React.FC = () => {
       <PageHeader title="สร้างงานใหม่" backPath="/jobs" />
 
       <div className="px-4 md:px-6">
-        <div className="glass-card rounded-xl p-4 md:p-6 border border-border max-w-3xl space-y-4">
+        <div className="glass-card rounded-xl p-4 md:p-6 border border-border w-full space-y-4">
           {formError && <div className="text-sm text-destructive">{formError}</div>}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -452,16 +452,6 @@ const AddJobPage: React.FC = () => {
               </select>
             </div>
 
-            <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">รายได้รวม</label>
-              <input
-                type="number"
-                value={totalIncome}
-                onChange={(e) => setTotalIncome(e.target.value)}
-                className="w-full bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-foreground"
-              />
-            </div>
-
             <RosterBackedStaffSelect
               role="recruiter"
               label="เจ้าหน้าที่สรรหา"
@@ -481,6 +471,16 @@ const AddJobPage: React.FC = () => {
               canManageRoster={canManageStaffRoster}
               rosterRev={staffRosterRev}
             />
+
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">รายได้รวม</label>
+              <input
+                type="number"
+                value={totalIncome}
+                onChange={(e) => setTotalIncome(e.target.value)}
+                className="w-full bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-foreground"
+              />
+            </div>
           </div>
 
           <div className="border-t border-border pt-4">
