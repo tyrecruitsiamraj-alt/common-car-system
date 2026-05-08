@@ -16,14 +16,14 @@ export function useDockKnob(activeIndex: number, itemCount: number) {
 
   const measure = useCallback(() => {
     const track = trackRef.current;
+    if (!track || itemCount <= 0) return;
+    const slotWidth = track.clientWidth / itemCount;
     const btn = itemRefs.current[activeIndex];
-    if (!track || !btn) return;
-    const tr = track.getBoundingClientRect();
-    const br = btn.getBoundingClientRect();
-    const w = Math.min(56, Math.max(44, br.width * 0.68));
-    const left = br.left - tr.left + br.width / 2 - w / 2;
+    const btnWidth = btn?.getBoundingClientRect().width ?? slotWidth;
+    const w = Math.min(56, Math.max(44, btnWidth * 0.68));
+    const left = slotWidth * activeIndex + slotWidth / 2 - w / 2;
     setKnob({ left, width: w });
-  }, [activeIndex]);
+  }, [activeIndex, itemCount]);
 
   useLayoutEffect(() => {
     measure();
