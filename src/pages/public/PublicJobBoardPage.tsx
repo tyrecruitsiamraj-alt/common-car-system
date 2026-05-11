@@ -25,7 +25,7 @@ import { MapPin, Search, Sparkles, Briefcase, Calendar, Banknote, ExternalLink }
 
 const SOWORK_APPLY_URL =
   (import.meta.env.VITE_SOWORK_APPLY_URL as string | undefined)?.trim() ||
-  'https://sowork.glide.page/dl/MapWork';
+  'https://s.siamrajathanee.dev/u/m82prvg2';
 
 type PublicFilter = 'all' | 'urgent';
 
