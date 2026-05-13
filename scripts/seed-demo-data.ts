@@ -1,5 +1,5 @@
 /**
- * โหลดข้อมูลตัวอย่างจาก src/data/mockData.ts เข้า PostgreSQL (schema จาก PGSCHEMA เช่น jarvis_rm)
+ * โหลดข้อมูลตัวอย่างจาก src/data/mockData.ts เข้า PostgreSQL (schema จาก PGSCHEMA เช่น car_stamp)
  * Idempotent: ON CONFLICT อัปเดตแถวเดิม
  *
  * mock ใช้ id สตริง (cd1, j1) — แปลงเป็น UUID คงที่ด้วยแฮชเพื่อให้ตรงกับคอลัมน์ uuid
@@ -23,6 +23,7 @@ import {
   mockCandidateWorkHistory,
 } from "../src/data/mockData";
 import type { Candidate } from "../src/types";
+import { DEFAULT_PG_SCHEMA } from "../api/_lib/env.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(__dirname, "..");
@@ -72,15 +73,13 @@ const env = loadEnvFromFiles();
 const databaseUrl = (env.DATABASE_URL || env.POSTGRES_URL || "").trim();
 const pgSsl = ["true", "1", "yes"].includes(String(env.PG_SSL || "").toLowerCase());
 const schema = String(env.PGSCHEMA || env.DATABASE_SCHEMA || "").trim();
-const validSchema = /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(schema) ? schema : "";
+const validSchema = /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(schema) ? schema : DEFAULT_PG_SCHEMA;
+if (!schema || !/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(schema)) {
+  console.warn(`PGSCHEMA ไม่ได้ตั้ง — ใช้ ${DEFAULT_PG_SCHEMA} สำหรับ seed-demo-data`);
+}
 
 if (!databaseUrl) {
   console.error("Missing DATABASE_URL or POSTGRES_URL");
-  process.exit(1);
-}
-
-if (!validSchema) {
-  console.error("Missing or invalid PGSCHEMA (e.g. jarvis_rm)");
   process.exit(1);
 }
 
@@ -317,7 +316,7 @@ async function upsertCandidateRow(
 async function main() {
   const client = await pool.connect();
   try {
-    await client.query(`SET search_path TO "${validSchema}", public`);
+    await client.query(`SET search_path TO "${String(validSchema).replace(/"/g, '')}", public`);
 
     const candCols = await tableColumnSet(client, validSchema, "candidates");
     const hasTP = candCols.has("title_prefix");

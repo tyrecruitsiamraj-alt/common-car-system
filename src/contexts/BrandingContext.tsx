@@ -25,6 +25,7 @@ const BrandingContext = createContext<BrandingContextValue | null>(null);
 
 function mergeServerPayload(remote: Record<string, unknown>): BrandingConfig {
   const merged = { ...DEFAULT_BRANDING, ...remote } as BrandingConfig;
+  if (merged.appName === 'Car Stamp') merged.appName = DEFAULT_BRANDING.appName;
   if (!merged.logoDataUrl || !String(merged.logoDataUrl).trim()) {
     merged.logoDataUrl = DEFAULT_BRANDING.logoDataUrl;
   }

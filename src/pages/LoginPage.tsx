@@ -1,42 +1,33 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { useBranding } from '@/contexts/BrandingContext';
-import { getAppShellBackgroundStyle } from '@/lib/brandingStorage';
-import { BrandMark, BrandTitle } from '@/components/shared/BrandMark';
-import { motion } from 'framer-motion';
-import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
+import { PasswordField } from '@/components/ui/password-field';
 import { Label } from '@/components/ui/label';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { apiFetch } from '@/lib/apiFetch';
-import { Eye, EyeOff } from 'lucide-react';
+import AuthPageShell from '@/components/auth/AuthPageShell';
+
+/** ตรงกับผลลัพธ์ default ของ npm run db:seed (ถ้าตั้ง SEED_USER_PASSWORD ให้ใช้รหัสนั้นแทน) */
+const TRIAL_EMAIL =
+  typeof import.meta.env.VITE_LOGIN_TRIAL_EMAIL === 'string' && import.meta.env.VITE_LOGIN_TRIAL_EMAIL.trim()
+    ? import.meta.env.VITE_LOGIN_TRIAL_EMAIL.trim()
+    : 'admin@example.com';
+const TRIAL_PASSWORD_HINT =
+  typeof import.meta.env.VITE_LOGIN_TRIAL_PASSWORD_HINT === 'string' && import.meta.env.VITE_LOGIN_TRIAL_PASSWORD_HINT.trim()
+    ? import.meta.env.VITE_LOGIN_TRIAL_PASSWORD_HINT.trim()
+    : 'ChangeMe123!';
 
 const LoginPage: React.FC = () => {
   const navigate = useNavigate();
-  const { signIn, signUp } = useAuth();
-  const { config } = useBranding();
-  const shellBg = getAppShellBackgroundStyle(config);
-  const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
-
+  const location = useLocation();
+  const { signIn } = useAuth();
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
-  const [forgotOpen, setForgotOpen] = useState(false);
-  const [forgotEmail, setForgotEmail] = useState('');
-  const [forgotBusy, setForgotBusy] = useState(false);
-  const [forgotMsg, setForgotMsg] = useState<string | null>(null);
-  const [showPassword, setShowPassword] = useState(false);
+
+  const forgotHref = email.trim()
+    ? `/forgot-password?email=${encodeURIComponent(email.trim())}`
+    : '/forgot-password';
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,338 +36,91 @@ const LoginPage: React.FC = () => {
     try {
       const msg = await signIn(email, password);
       if (msg) setError(msg);
-      else navigate('/', { replace: true });
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleRegister = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-    setSubmitting(true);
-    try {
-      const msg = await signUp({
-        email,
-        password,
-        first_name: firstName,
-        last_name: lastName,
-      });
-      if (msg) {
-        setError(msg);
-        return;
+      else {
+        const from = (location.state as { from?: { pathname: string } })?.from;
+        const path = from?.pathname && from.pathname !== '/login' ? from.pathname : '/';
+        navigate(path, { replace: true });
       }
-      setAuthMode('login');
-      setFirstName('');
-      setLastName('');
-      setPassword('');
-      setError('สมัครสำเร็จแล้ว — กรุณาเข้าสู่ระบบ');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'เกิดข้อผิดพลาด ลองใหม่อีกครั้ง');
     } finally {
       setSubmitting(false);
-    }
-  };
-
-  const submitForgot = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setForgotMsg(null);
-    const em = forgotEmail.trim() || email.trim();
-    if (!em) {
-      setForgotMsg('กรุณากรอกอีเมล');
-      return;
-    }
-    setForgotBusy(true);
-    try {
-      const r = await apiFetch('/api/auth/forgot-password', {
-        method: 'POST',
-        body: JSON.stringify({ email: em }),
-      });
-      const data = (await r.json().catch(() => ({}))) as { message?: string; error?: string };
-      setForgotMsg(
-        typeof data.message === 'string'
-          ? data.message
-          : typeof data.error === 'string'
-            ? data.error
-            : r.ok
-              ? 'ส่งคำขอแล้ว'
-              : 'ไม่สามารถดำเนินการได้',
-      );
-    } catch {
-      setForgotMsg('เชื่อมต่อเซิร์ฟเวอร์ไม่ได้');
-    } finally {
-      setForgotBusy(false);
     }
   };
 
   return (
-    <div
-      className={cn(
-        'min-h-[100dvh] min-h-screen flex items-center justify-center p-4 sm:p-6',
-        config.pageBackgroundMode === 'solid' && 'bg-background',
-      )}
-      style={shellBg}
-    >
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-md mx-auto"
-      >
-        <div className="text-center mb-8">
-          <div className="mx-auto mb-4 flex justify-center">
-            <BrandMark size="lg" />
-          </div>
-          <h1 className="text-2xl font-bold text-foreground">
-            <BrandTitle />
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">Workforce Management System</p>
-        </div>
-
-        <div className="glass-card rounded-2xl border border-border/80 p-5 sm:p-6 shadow-lg shadow-black/[0.04] space-y-4">
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                setAuthMode('login');
-                setShowPassword(false);
-              }}
-              className={cn(
-                'rounded-lg px-3 py-2 text-sm font-medium',
-                authMode === 'login' ? 'bg-primary text-primary-foreground' : 'bg-secondary text-muted-foreground',
-              )}
-            >
-              Login
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setAuthMode('register');
-                setShowPassword(false);
-              }}
-              className={cn(
-                'rounded-lg px-3 py-2 text-sm font-medium',
-                authMode === 'register' ? 'bg-primary text-primary-foreground' : 'bg-secondary text-muted-foreground',
-              )}
-            >
-              Register
-            </button>
-          </div>
-
-          {authMode === 'login' ? (
-            <form onSubmit={handleLogin} className="space-y-3">
-              <div className="space-y-1.5">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  autoComplete="username"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                />
-              </div>
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between gap-2">
-                  <Label htmlFor="password">Password</Label>
-                  <button
-                    type="button"
-                    className="text-xs font-medium text-primary hover:underline underline-offset-4 touch-manipulation py-1"
-                    onClick={() => {
-                      setForgotEmail(email);
-                      setForgotMsg(null);
-                      setForgotOpen(true);
-                    }}
-                  >
-                    ลืมรหัสผ่าน?
-                  </button>
-                </div>
-                <div className="relative">
-                  <Input
-                    id="password"
-                    type={showPassword ? 'text' : 'password'}
-                    autoComplete="current-password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    className="min-h-[44px] pr-11"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword((v) => !v)}
-                    aria-label={showPassword ? 'ซ่อนรหัสผ่าน' : 'แสดงรหัสผ่าน'}
-                    aria-pressed={showPassword}
-                    title={showPassword ? 'ซ่อนรหัสผ่าน' : 'แสดงรหัสผ่าน'}
-                    className="absolute right-1 top-1/2 z-10 -translate-y-1/2 rounded-md p-2 text-muted-foreground hover:bg-muted hover:text-foreground touch-manipulation"
-                  >
-                    {showPassword ? <EyeOff className="h-4 w-4" aria-hidden /> : <Eye className="h-4 w-4" aria-hidden />}
-                  </button>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((v) => !v)}
-                  className="text-xs text-muted-foreground hover:text-foreground underline-offset-2 hover:underline touch-manipulation py-0.5"
-                >
-                  {showPassword ? 'ซ่อนรหัสผ่าน' : 'แสดงรหัสผ่าน'}
-                </button>
-              </div>
-              <button
-                type="submit"
-                disabled={submitting}
-                className="w-full min-h-[48px] p-3 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-60 touch-manipulation"
-              >
-                {submitting ? 'Signing in…' : 'Sign in'}
-              </button>
-            </form>
-          ) : (
-            <form onSubmit={handleRegister} className="space-y-3">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label htmlFor="firstName">ชื่อ</Label>
-                  <Input
-                    id="firstName"
-                    name="givenName"
-                    autoComplete="given-name"
-                    value={firstName}
-                    onChange={(e) => setFirstName(e.target.value)}
-                    required
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="lastName">นามสกุล</Label>
-                  <Input
-                    id="lastName"
-                    name="familyName"
-                    autoComplete="family-name"
-                    value={lastName}
-                    onChange={(e) => setLastName(e.target.value)}
-                    required
-                  />
-                </div>
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="emailRegister">Email</Label>
-                <Input
-                  id="emailRegister"
-                  type="email"
-                  autoComplete="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="passwordRegister">Password (ขั้นต่ำ 8 ตัวอักษร)</Label>
-                <div className="relative">
-                  <Input
-                    id="passwordRegister"
-                    type={showPassword ? 'text' : 'password'}
-                    autoComplete="new-password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    className="pr-11 min-h-[44px]"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword((v) => !v)}
-                    aria-label={showPassword ? 'ซ่อนรหัสผ่าน' : 'แสดงรหัสผ่าน'}
-                    aria-pressed={showPassword}
-                    title={showPassword ? 'ซ่อนรหัสผ่าน' : 'แสดงรหัสผ่าน'}
-                    className="absolute right-1 top-1/2 z-10 -translate-y-1/2 rounded-md p-2 text-muted-foreground hover:bg-muted hover:text-foreground touch-manipulation"
-                  >
-                    {showPassword ? <EyeOff className="h-4 w-4" aria-hidden /> : <Eye className="h-4 w-4" aria-hidden />}
-                  </button>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((v) => !v)}
-                  className="text-xs text-muted-foreground hover:text-foreground underline-offset-2 hover:underline touch-manipulation py-0.5"
-                >
-                  {showPassword ? 'ซ่อนรหัสผ่าน' : 'แสดงรหัสผ่าน'}
-                </button>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                สมัครใหม่ได้รับสิทธิ์ Staff อัตโนมัติ — ไม่มีตัวเลือกบทบาท
-              </p>
-              <button
-                type="submit"
-                disabled={submitting}
-                className="w-full p-3 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-60"
-              >
-                {submitting ? 'Creating account…' : 'Create account'}
-              </button>
-            </form>
-          )}
-
-          {error ? (
-            <p className="text-xs text-destructive text-center" role="alert">
-              {error}
-            </p>
-          ) : null}
-
-          <div className="pt-4 border-t border-border/80">
-            <button
-              type="button"
-              disabled
-              className="w-full p-3 rounded-xl border border-border bg-muted/50 text-muted-foreground text-sm opacity-60 cursor-not-allowed"
-            >
-              Sign in with Microsoft (Coming Soon)
-            </button>
-          </div>
-        </div>
-
-        <p className="mt-6 text-center text-xs text-muted-foreground px-1">
-          ต้องการสมัครงานภายนอก?{' '}
-          <Link to="/apply" className="font-medium text-primary hover:underline underline-offset-4 touch-manipulation">
-            ดูบอร์ดประกาศรับสมัคร
+    <AuthPageShell
+      footer={
+        <p>
+          ยังไม่มีบัญชี?{' '}
+          <Link to="/register" className="font-medium text-primary hover:underline underline-offset-4">
+            สมัครสมาชิก
           </Link>
         </p>
-      </motion.div>
+      }
+    >
+      <div className="glass-card rounded-2xl border border-border/80 p-5 sm:p-6 shadow-lg shadow-black/[0.04] space-y-4">
+        <div className="rounded-lg border border-border/70 bg-muted/30 px-3 py-2.5 space-y-1">
+          <p className="text-xs font-medium text-foreground">บัญชีทดลอง (หลังรัน db:seed)</p>
+          <p className="text-xs text-muted-foreground">
+            Email: <span className="font-mono text-foreground">{TRIAL_EMAIL}</span>
+          </p>
+          <p className="text-xs text-muted-foreground">
+            Password: <span className="font-mono text-foreground">{TRIAL_PASSWORD_HINT}</span>{' '}
+            <span className="italic">หรือรหัสที่ตั้งใน SEED_USER_PASSWORD</span>
+          </p>
+        </div>
 
-      <Dialog open={forgotOpen} onOpenChange={setForgotOpen}>
-        <DialogContent className="sm:max-w-md max-h-[90dvh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>ลืมรหัสผ่าน</DialogTitle>
-            <DialogDescription>
-              กรอกอีเมลที่ใช้ลงทะเบียน แล้วระบบจะสร้างรหัสชั่วคราวใหม่ให้ทันที
-            </DialogDescription>
-          </DialogHeader>
-          <form onSubmit={submitForgot} className="space-y-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="forgot-email">Email</Label>
-              <Input
-                id="forgot-email"
-                type="email"
-                autoComplete="email"
-                value={forgotEmail}
-                onChange={(e) => setForgotEmail(e.target.value)}
-                placeholder={email || 'your@email.com'}
-                className="min-h-[44px]"
-              />
+        <form onSubmit={handleLogin} className="space-y-3">
+          <div className="space-y-1.5">
+            <Label htmlFor="email">อีเมล</Label>
+            <Input
+              id="email"
+              type="email"
+              autoComplete="username"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder={TRIAL_EMAIL}
+              required
+              className="min-h-[44px]"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between gap-2">
+              <Label htmlFor="password">รหัสผ่าน</Label>
+              <Link
+                to={forgotHref}
+                className="text-xs font-medium text-primary hover:underline underline-offset-4 touch-manipulation py-1"
+              >
+                ลืมรหัสผ่าน?
+              </Link>
             </div>
-            {forgotMsg ? (
-              <p className="text-sm text-muted-foreground" role="status">
-                {forgotMsg}
-              </p>
-            ) : null}
-            <DialogFooter className="gap-2 sm:gap-0 flex-col sm:flex-row">
-              <button
-                type="button"
-                className="w-full sm:w-auto px-4 py-2.5 rounded-lg border border-border text-sm touch-manipulation min-h-[44px]"
-                onClick={() => setForgotOpen(false)}
-              >
-                ปิด
-              </button>
-              <button
-                type="submit"
-                disabled={forgotBusy}
-                className="w-full sm:w-auto px-4 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium disabled:opacity-60 touch-manipulation min-h-[44px]"
-              >
-                {forgotBusy ? 'กำลังส่ง…' : 'ส่งคำขอ'}
-              </button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-    </div>
+            <PasswordField
+              id="password"
+              autoComplete="current-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
+              required
+              className="min-h-[44px]"
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={submitting}
+            className="w-full min-h-[48px] p-3 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-60 touch-manipulation"
+          >
+            {submitting ? 'กำลังเข้าสู่ระบบ…' : 'เข้าสู่ระบบ'}
+          </button>
+        </form>
+
+        {error ? (
+          <p className="text-xs text-destructive text-center" role="alert">
+            {error}
+          </p>
+        ) : null}
+      </div>
+    </AuthPageShell>
   );
 };
 

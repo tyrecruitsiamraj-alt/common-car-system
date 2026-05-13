@@ -1,6 +1,6 @@
 /**
  * Run pending SQL migrations in order from migrations/*.sql
- * Uses DATABASE_URL / POSTGRES_URL and optional PGSCHEMA (search_path before each file).
+ * Uses DATABASE_URL / POSTGRES_URL and PGSCHEMA (search_path); ถ้าไม่ตั้ง PGSCHEMA ใช้ค่า default จาก scripts/schema-constants.mjs (car_stamp)
  *
  * Usage:
  *   node scripts/migrate.mjs           # apply pending
@@ -10,6 +10,7 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import pg from "pg";
+import { DEFAULT_PG_SCHEMA } from "./schema-constants.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(__dirname, "..");
@@ -36,6 +37,10 @@ function loadEnvFromFiles() {
       merged[key] = val;
     }
   }
+  const shellPg = String(process.env.PGSCHEMA ?? "").trim();
+  if (shellPg) merged.PGSCHEMA = shellPg;
+  const shellDs = String(process.env.DATABASE_SCHEMA ?? "").trim();
+  if (shellDs) merged.DATABASE_SCHEMA = shellDs;
   return merged;
 }
 
@@ -43,7 +48,13 @@ const env = loadEnvFromFiles();
 const databaseUrl = (env.DATABASE_URL || env.POSTGRES_URL || "").trim();
 const pgSsl = ["true", "1", "yes"].includes(String(env.PG_SSL || "").toLowerCase());
 const schema = String(env.PGSCHEMA || env.DATABASE_SCHEMA || "").trim();
-const validSchema = /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(schema) ? schema : "";
+const validSchema = /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(schema) ? schema : DEFAULT_PG_SCHEMA;
+const replayMigrations = ["1", "true", "yes"].includes(
+  String(process.env.DB_REPLAY_MIGRATIONS || "").toLowerCase(),
+);
+if (!schema || !/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(schema)) {
+  console.warn(`PGSCHEMA / DATABASE_SCHEMA ไม่ได้ตั้งหรือไม่ถูกต้อง — ใช้ ${DEFAULT_PG_SCHEMA} สำหรับ migration`);
+}
 
 if (!databaseUrl) {
   console.error("Missing DATABASE_URL or POSTGRES_URL");
@@ -76,6 +87,7 @@ function listMigrationFiles() {
   return fs
     .readdirSync(migrationsDir)
     .filter((f) => f.endsWith(".sql"))
+    .filter((f, i, a) => a.indexOf(f) === i)
     .sort();
 }
 
@@ -89,6 +101,12 @@ try {
   const client = await pool.connect();
   try {
     await ensureMigrationsTable(client);
+    if (replayMigrations && !statusOnly) {
+      console.warn(
+        `DB_REPLAY_MIGRATIONS — ลบประวัติใน public._jarvis_migrations แล้วรัน migration ใหม่ทั้งหมดใน schema "${validSchema}" (ใช้เมื่อ car_stamp ว่างแต่ระบบบันทึกว่า migrate แล้ว — ตารางอาจไปอยู่ public)`,
+      );
+      await client.query("DELETE FROM public._jarvis_migrations");
+    }
     const applied = await appliedNames(client);
     const files = listMigrationFiles();
 
@@ -105,9 +123,7 @@ try {
       console.log("Applying:", file);
       await client.query("BEGIN");
       try {
-        if (validSchema) {
-          await client.query(`SET LOCAL search_path TO "${validSchema}", public`);
-        }
+        await client.query(`SET LOCAL search_path TO "${String(validSchema).replace(/"/g, "")}", public`);
         await client.query(sql);
         await recordMigration(client, file);
         await client.query("COMMIT");

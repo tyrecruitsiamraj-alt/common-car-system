@@ -1,17 +1,17 @@
 import React from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
-import { KeyRound, LogOut, UserCircle } from 'lucide-react';
+import { Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { KeyRound, LogOut, UserCircle, Palette } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useBranding } from '@/contexts/BrandingContext';
 import { getAppShellBackgroundStyle } from '@/lib/brandingStorage';
 import { cn } from '@/lib/utils';
-import { isDemoMode, isRuntimeDemoFallback } from '@/lib/demoMode';
+import { isDemoMode, isRuntimeDemoFallback, clearRuntimeDemoFlag } from '@/lib/demoMode';
 import NotificationPanel from '@/components/notifications/NotificationPanel';
 import { BrandMark, BrandTitle } from '@/components/shared/BrandMark';
 import BottomDockNav from '@/components/layout/bottom-nav/BottomDockNav';
 import { DOCK_NAV_ITEMS, isDockPathActive } from '@/components/layout/bottom-nav/dockNavConfig';
 
-const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+const AppLayout: React.FC = () => {
   const { user, logout } = useAuth();
   const { config } = useBranding();
   const location = useLocation();
@@ -26,11 +26,32 @@ const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
       {(isDemoMode() || isRuntimeDemoFallback()) ? (
         <div
           role="status"
-          className="text-center text-xs py-2 px-4 sm:px-6 border-b border-amber-500/35 bg-amber-500/15 text-amber-950 dark:text-amber-100"
+          className="text-center text-xs sm:text-sm py-2.5 px-4 sm:px-6 border-b border-amber-500/35 bg-amber-500/15 text-amber-950 dark:text-amber-100"
         >
-          {isRuntimeDemoFallback()
-            ? 'ต่อ API ไม่ได้ — ใช้ข้อมูลตัวอย่างในเบราว์เซอร์อยู่ เมื่อเชื่อมฐานข้อมูลแล้วให้ออกจากระบบและรีเฟรชเพื่อใช้ข้อมูลจริง'
-            : 'โหมดสาธิต — ใช้ข้อมูลตัวอย่างในเบราว์เซอร์ บางส่วนอาจไม่ตรงกับฐานข้อมูลจริง'}
+          {isRuntimeDemoFallback() ? (
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-center gap-2 sm:gap-4 max-w-3xl mx-auto">
+              <p className="leading-snug text-left sm:text-center">
+                ต่อ API ไม่ได้ — กำลังใช้ข้อมูลตัวอย่างในเบราว์เซอร์อยู่ เมื่อเชื่อมฐานข้อมูลและ API พร้อมแล้ว
+                ให้กดปุ่มด้านล่างหรือออกจากระบบเองแล้วรีเฟรชหน้าเพื่อใช้ข้อมูลจริง
+              </p>
+              <button
+                type="button"
+                className="shrink-0 self-center px-3 py-1.5 rounded-lg bg-amber-600 text-white text-xs font-semibold hover:bg-amber-700 border border-amber-700/30 shadow-sm"
+                onClick={() => {
+                  clearRuntimeDemoFlag();
+                  void logout().finally(() => {
+                    window.location.reload();
+                  });
+                }}
+              >
+                ออกจากระบบและรีเฟรช
+              </button>
+            </div>
+          ) : (
+            <span>
+              โหมดสาธิต — ใช้ข้อมูลตัวอย่างในเบราว์เซอร์ บางส่วนอาจไม่ตรงกับฐานข้อมูลจริง
+            </span>
+          )}
         </div>
       ) : null}
 
@@ -75,6 +96,15 @@ const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
           </div>
           <button
             type="button"
+            onClick={() => navigate('/settings')}
+            className="p-2.5 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors touch-manipulation min-h-[44px] min-w-[44px] flex items-center justify-center"
+            aria-label="ตั้งค่าหน้าตา"
+            title="ตั้งค่าหน้าตา"
+          >
+            <Palette className="w-4 h-4" />
+          </button>
+          <button
+            type="button"
             onClick={() => navigate('/account/change-password')}
             className="p-2.5 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors touch-manipulation min-h-[44px] min-w-[44px] flex items-center justify-center"
             aria-label="เปลี่ยนรหัสผ่าน"
@@ -106,6 +136,15 @@ const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
           </span>
           <button
             type="button"
+            onClick={() => navigate('/settings')}
+            className="p-2.5 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 touch-manipulation min-h-[44px] min-w-[44px] flex items-center justify-center"
+            aria-label="ตั้งค่าหน้าตา"
+            title="ตั้งค่าหน้าตา"
+          >
+            <Palette className="w-4 h-4" />
+          </button>
+          <button
+            type="button"
             onClick={() => navigate('/account/change-password')}
             className="p-2.5 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 touch-manipulation min-h-[44px] min-w-[44px] flex items-center justify-center"
             aria-label="เปลี่ยนรหัสผ่าน"
@@ -124,7 +163,7 @@ const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
       </header>
 
       <main className="flex-1 w-full max-w-[1920px] mx-auto px-4 sm:px-5 md:px-6 lg:px-8 pb-[7.5rem] lg:pb-8">
-        {children}
+        <Outlet />
       </main>
 
       <div className="lg:hidden">

@@ -90,6 +90,7 @@ const server = createServer(async (req, res) => {
     res.end('Bad URL');
     return;
   }
+  if (pathname.length > 1 && pathname.endsWith('/')) pathname = pathname.slice(0, -1);
 
   const handler = routes[pathname];
   if (!handler) {
@@ -108,14 +109,19 @@ const server = createServer(async (req, res) => {
   if (req.method === 'POST' || req.method === 'PUT' || req.method === 'PATCH') {
     const raw = await readBodyString(req);
     const ct = (req.headers['content-type'] || '').toLowerCase();
-    if (raw.trim() && ct.includes('application/json')) {
-      try {
-        body = JSON.parse(raw) as unknown;
-      } catch {
+    if (raw.trim()) {
+      const looksJson =
+        ct.includes('application/json') ||
+        /^[\s]*[\[{]/.test(raw);
+      if (looksJson) {
+        try {
+          body = JSON.parse(raw) as unknown;
+        } catch {
+          body = raw;
+        }
+      } else {
         body = raw;
       }
-    } else if (raw.trim()) {
-      body = raw;
     }
   }
 
@@ -153,6 +159,7 @@ const server = createServer(async (req, res) => {
 });
 
 server.listen(port, '127.0.0.1', () => {
-  console.log(`[jarvis] Local API (no Vercel)  http://127.0.0.1:${port}`);
-  console.log(`[jarvis] เปิด Vite ด้วย npm run dev — proxy /api → พอร์ต ${port}`);
+  const label = process.env.APP_LOG_LABEL || 'car-stamp';
+  console.log(`[${label}] Local API  http://127.0.0.1:${port}`);
+  console.log(`[${label}] Vite proxy /api → ตั้ง VITE_API_PROXY_TARGET=http://127.0.0.1:${port} ถ้าใช้พอร์ตอื่น`);
 });

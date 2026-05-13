@@ -131,13 +131,13 @@ const WLEmployees: React.FC = () => {
   return (
     <div>
       <PageHeader
-        title="พนักงาน WL"
+        title="ผู้ขับ / ผู้ใช้รถ"
         subtitle={`${filtered.length} คน`}
-        backPath="/wl"
+        backPath="/fleet"
         actions={
           hasPermission('supervisor') ? (
             <button
-              onClick={() => navigate('/wl/employees/add')}
+              onClick={() => navigate('/fleet/drivers/add')}
               className="flex items-center gap-1 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-sm"
             >
               <Plus className="w-4 h-4" /> เพิ่ม
@@ -185,7 +185,7 @@ const WLEmployees: React.FC = () => {
             {filtered.map((emp) => (
               <button
                 key={emp.id}
-                onClick={() => navigate(`/wl/employees/${emp.id}`)}
+                onClick={() => navigate(`/fleet/drivers/${emp.id}`)}
                 className="w-full glass-card rounded-xl p-4 border border-border text-left hover:border-primary/40 transition-all"
               >
                 <div className="flex items-center justify-between mb-2">
@@ -239,7 +239,7 @@ const WLEmployees: React.FC = () => {
                 {filtered.map((emp) => (
                   <tr
                     key={emp.id}
-                    onClick={() => navigate(`/wl/employees/${emp.id}`)}
+                    onClick={() => navigate(`/fleet/drivers/${emp.id}`)}
                     className="border-b border-border/50 hover:bg-secondary/20 cursor-pointer"
                   >
                     <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{emp.employee_code}</td>

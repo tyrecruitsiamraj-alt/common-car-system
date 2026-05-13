@@ -1,10 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import PageHeader from '@/components/shared/PageHeader';
 import StatCard from '@/components/shared/StatCard';
 import StatusBadge from '@/components/shared/StatusBadge';
 import { mockEmployees, mockTrainingRecords } from '@/data/mockData';
-import { User, BarChart3, Award, AlertTriangle, ExternalLink } from 'lucide-react';
+import { User, BarChart3, Award, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatYmdDmyBe } from '@/lib/dateTh';
 import type { Candidate, Employee, TrainingRecord } from '@/types';
@@ -18,7 +18,6 @@ import { isWlStaffingTrack, parseWlEmployeeCandidateId } from '@/lib/wlFromCandi
 
 const EmployeeProfile: React.FC = () => {
   const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
   const workCalendar = useWorkCalendarEntries();
   const [employee, setEmployee] = useState<Employee | null>(null);
   const [wlCandidate, setWlCandidate] = useState<Candidate | null>(null);
@@ -160,7 +159,7 @@ const EmployeeProfile: React.FC = () => {
         <PageHeader
           title={formatCandidateDisplayName(wlCandidate)}
           subtitle="พนักงาน WL (จากผู้สมัคร)"
-          backPath="/wl/employees"
+          backPath="/fleet/drivers"
         />
         <div className="px-4 md:px-6 space-y-6">
           <div className="glass-card rounded-xl p-4 border border-border space-y-3">
@@ -176,16 +175,8 @@ const EmployeeProfile: React.FC = () => {
               <span className="text-xs px-2 py-0.5 rounded-full bg-info/15 text-info shrink-0">WL</span>
             </div>
             <p className="text-xs text-muted-foreground">
-              รายชื่อนี้มาจากผู้สมัครที่กำหนดประเภทเป็น WL ในหน้า &quot;ผู้สมัครทั้งหมด&quot; ดูประวัติเต็มได้ที่โปรไฟล์ผู้สมัคร
+              รายชื่อนี้เชื่อมกับผู้สมัครในระบบ (ประเภท WL) — แก้ไขข้อมูลผู้สมัครได้ผ่าน API/ฐานข้อมูลหรือเครื่องมือจัดการข้อมูลขององค์กร
             </p>
-            <button
-              type="button"
-              onClick={() => navigate(`/matching/candidates/${wlCandidate.id}`)}
-              className="inline-flex items-center gap-2 text-sm px-3 py-2 rounded-lg bg-primary text-primary-foreground"
-            >
-              <ExternalLink className="w-4 h-4" />
-              เปิดโปรไฟล์ผู้สมัคร
-            </button>
           </div>
         </div>
       </div>
@@ -203,7 +194,7 @@ const EmployeeProfile: React.FC = () => {
       <PageHeader
         title={`${employee.first_name} ${employee.last_name}`}
         subtitle={employee.employee_code}
-        backPath="/wl/employees"
+        backPath="/fleet/drivers"
       />
       <div className="px-4 md:px-6 space-y-6">
         {/* Info card */}

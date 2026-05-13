@@ -16,6 +16,7 @@ import {
   formatYmdDmyBe,
   buildDateRangeYmd,
 } from '@/lib/dateTh';
+import { TimeHm24Select } from '@/components/shared/TimeHm24Select';
 
 interface AssignDialogProps {
   open: boolean;
@@ -91,7 +92,7 @@ const AssignDialog: React.FC<AssignDialogProps> = ({ open, onOpenChange, date, e
           setApiClients(Array.isArray(cls) ? cls : []);
           setApiJobs(Array.isArray(jobs) ? jobs : []);
           if ((!emps || emps.length === 0) && (!cls || cls.length === 0) && (!jobs || jobs.length === 0)) {
-            setLoadError('ยังไม่มีพนักงานหรือลูกค้าในระบบ — เพิ่มใน Employees / Clients (Admin) ก่อน');
+            setLoadError('ยังไม่มีพนักงาน ลูกค้า หรือใบขอในระบบ — เพิ่มพนักงาน WL และข้อมูลลูกค้า/งานในฐานข้อมูลก่อน');
           }
         }
       })
@@ -363,25 +364,30 @@ const AssignDialog: React.FC<AssignDialogProps> = ({ open, onOpenChange, date, e
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">เวลาเริ่มงาน</label>
-              <input
-                type="time"
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">เวลาเริ่มงาน (24 ชม.)</label>
+              <TimeHm24Select
+                className="flex flex-wrap gap-2 items-center w-full"
+                selectClassName="h-9 flex-1 min-w-0 rounded-lg border border-border bg-secondary px-2 text-sm text-foreground"
+                minuteStep={1}
                 value={startTime}
-                onChange={(e) => setStartTime(e.target.value)}
-                className="w-full bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-foreground"
+                onChange={(hm) => setStartTime(hm)}
+                aria-label="เวลาเริ่มงาน"
               />
             </div>
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-1 block">เวลาเลิกงาน (ไม่บังคับ)</label>
-              <input
-                type="time"
+              <TimeHm24Select
+                className="flex flex-wrap gap-2 items-center w-full"
+                selectClassName="h-9 flex-1 min-w-0 rounded-lg border border-border bg-secondary px-2 text-sm text-foreground disabled:opacity-50"
+                minuteStep={1}
                 value={endTime}
+                allowEmpty
                 disabled={endTimeUnknown}
-                onChange={(e) => {
+                onChange={(hm) => {
                   setEndTimeUnknown(false);
-                  setEndTime(e.target.value);
+                  setEndTime(hm);
                 }}
-                className="w-full bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-foreground disabled:opacity-50"
+                aria-label="เวลาเลิกงาน"
               />
               <label className="mt-2 flex cursor-pointer items-start gap-2 text-xs text-muted-foreground">
                 <input

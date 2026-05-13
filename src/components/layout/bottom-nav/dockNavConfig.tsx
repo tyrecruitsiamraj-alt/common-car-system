@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
-import { Home, CalendarDays, Search, Users, Briefcase, BarChart3, Settings } from 'lucide-react';
+import { CalendarPlus, LayoutGrid, Car, Users, BarChart3 } from 'lucide-react';
 
 export type DockNavItem = {
   path: string;
@@ -7,29 +7,26 @@ export type DockNavItem = {
   icon: LucideIcon;
 };
 
-/** 7 เมนูหลัก — ลำดับต้องตรงกับ UI bottom dock */
+/** เมนูหลัก 5 รายการ — ลำดับต้องตรงกับ bottom dock / header */
 export const DOCK_NAV_ITEMS: DockNavItem[] = [
-  { path: '/', label: 'หน้าหลัก', icon: Home },
-  { path: '/wl', label: 'WL', icon: CalendarDays },
-  { path: '/matching', label: 'Matching', icon: Search },
-  { path: '/matching/candidates', label: 'ผู้สมัคร', icon: Users },
-  { path: '/jobs', label: 'หน่วยงาน', icon: Briefcase },
+  { path: '/fleet/bookings', label: 'จองรถ', icon: CalendarPlus },
+  { path: '/fleet/monitor', label: 'ดูภาพรวม', icon: LayoutGrid },
+  { path: '/fleet/vehicles', label: 'รายการรถ', icon: Car },
+  { path: '/fleet/drivers', label: 'ผู้ขับ', icon: Users },
   { path: '/dashboard', label: 'Dashboard', icon: BarChart3 },
-  { path: '/settings', label: 'ตั้งค่า', icon: Settings },
 ];
 
 export function isDockPathActive(path: string, pathname: string): boolean {
   const p = pathname;
-  if (path === '/') return p === '/';
-  if (path === '/matching/candidates') return p.startsWith('/matching/candidates');
-  if (path === '/matching') {
-    if (p.startsWith('/matching/candidates')) return false;
-    return p.startsWith('/matching');
-  }
-  return p.startsWith(path);
+  if (path === '/fleet/bookings') return p.startsWith('/fleet/bookings');
+  if (path === '/fleet/monitor') return p.startsWith('/fleet/monitor');
+  if (path === '/fleet/vehicles') return p.startsWith('/fleet/vehicles');
+  if (path === '/fleet/drivers') return p.startsWith('/fleet/drivers');
+  if (path === '/dashboard') return p.startsWith('/dashboard');
+  return false;
 }
 
 export function dockActiveIndex(pathname: string): number {
   const idx = DOCK_NAV_ITEMS.findIndex((item) => isDockPathActive(item.path, pathname));
-  return idx >= 0 ? idx : 0;
+  return idx;
 }

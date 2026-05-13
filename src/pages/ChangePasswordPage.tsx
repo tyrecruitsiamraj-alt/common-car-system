@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PageHeader from '@/components/shared/PageHeader';
 import { apiFetch } from '@/lib/apiFetch';
+import { PasswordField } from '@/components/ui/password-field';
 
 const ChangePasswordPage: React.FC = () => {
   const navigate = useNavigate();
@@ -69,34 +70,31 @@ const ChangePasswordPage: React.FC = () => {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-1 block">รหัสผ่านเดิม</label>
-              <input
-                type="password"
+              <PasswordField
                 autoComplete="current-password"
                 value={currentPassword}
                 onChange={(e) => setCurrentPassword(e.target.value)}
-                className="w-full bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-foreground"
+                className="w-full min-h-[44px] bg-secondary border-border"
               />
             </div>
 
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-1 block">รหัสผ่านใหม่</label>
-              <input
-                type="password"
+              <PasswordField
                 autoComplete="new-password"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
-                className="w-full bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-foreground"
+                className="w-full min-h-[44px] bg-secondary border-border"
               />
             </div>
 
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-1 block">ยืนยันรหัสผ่านใหม่</label>
-              <input
-                type="password"
+              <PasswordField
                 autoComplete="new-password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                className="w-full bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-foreground"
+                className="w-full min-h-[44px] bg-secondary border-border"
               />
             </div>
 

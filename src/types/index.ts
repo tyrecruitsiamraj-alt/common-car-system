@@ -47,6 +47,30 @@ export interface TrainingRecord {
   notes?: string;
 }
 
+// ============ FLEET / จองรถ ============
+export interface Vehicle {
+  id: string;
+  plate_no: string;
+  /** รุ่นรถ (เก็บในคอลัมน์ `label` ของตาราง vehicles) */
+  label?: string;
+  seats: number;
+  is_active: boolean;
+  notes?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface VehicleBooking {
+  id: string;
+  employee_id: string;
+  vehicle_id: string;
+  starts_at: string;
+  ends_at: string;
+  notes?: string;
+  created_at: string;
+  updated_at: string;
+}
+
 // ============ WORK CALENDAR ============
 export type WorkStatus = 'normal_work' | 'cancel_by_employee' | 'late' | 'cancel_by_client' | 'no_show' | 'day_off' | 'available';
 

@@ -93,12 +93,17 @@ export function isPgSslEnabled(): boolean {
 }
 
 /**
- * Schema ใน PostgreSQL (เช่น jarvis_rm) — ตั้ง search_path ทุกครั้งที่ได้ connection จาก pool
- * ใช้ PGSCHEMA หรือ DATABASE_SCHEMA
+ * ค่าเริ่มต้น schema แอป — ต้องตรงกับ migrations/000_create_schema_car_stamp.sql
+ * และ scripts/schema-constants.mjs (ใช้ตอน npm run db:migrate / db:seed)
  */
-export function getPgSchema(): string | null {
+export const DEFAULT_PG_SCHEMA = 'car_stamp';
+
+/**
+ * Schema ใน PostgreSQL — ตั้ง search_path ทุกครั้งที่ได้ connection จาก pool
+ * ใช้ PGSCHEMA หรือ DATABASE_SCHEMA; ถ้าไม่ตั้งใช้ car_stamp (ไม่แตะ jarvis_rm)
+ */
+export function getPgSchema(): string {
   const s = (process.env.PGSCHEMA || process.env.DATABASE_SCHEMA || '').trim();
-  if (!s) return null;
-  if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(s)) return null;
-  return s;
+  if (s && /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(s)) return s;
+  return DEFAULT_PG_SCHEMA;
 }

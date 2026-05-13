@@ -8,6 +8,9 @@ import {
 } from '../../_lib/http.js';
 import { readJsonBody, getString } from '../../_lib/body.js';
 import type { UserRole } from '../../_lib/auth.js';
+import { tableInAppSchema } from '../../_lib/schema.js';
+
+const usersTable = tableInAppSchema('users');
 
 async function registerHandler(req: ApiReq, res: ApiRes) {
   const method = (req.method || 'GET').toUpperCase();
@@ -62,7 +65,7 @@ async function registerHandler(req: ApiReq, res: ApiRes) {
       created_at: string | Date;
     }>(
       `
-      insert into users (email, password_hash, role, full_name)
+      insert into ${usersTable} (email, password_hash, role, full_name)
       values (lower($1::text), $2, $3, $4)
       returning id, email, role, full_name, is_active, created_at
     `,

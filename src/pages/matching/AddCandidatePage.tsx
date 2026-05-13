@@ -128,7 +128,7 @@ const AddCandidatePage: React.FC = () => {
           fromApi ||
             (r.status === 401
               ? 'ไม่มี session (Missing auth cookie) — ล็อกอินด้วยอีเมล/รหัสผ่าน หรือตั้ง VITE_DEMO_MODE=true แล้วรัน dev ใหม่เพื่อบันทึกแบบสาธิต'
-              : `บันทึกไม่สำเร็จ (HTTP ${r.status}) — ตรวจสอบ PostgreSQL และตาราง jarvis_rm.candidates`),
+              : `บันทึกไม่สำเร็จ (HTTP ${r.status}) — ตรวจสอบ PostgreSQL และ PGSCHEMA (เช่น car_stamp.candidates)`),
         );
         return;
       }

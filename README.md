@@ -15,16 +15,19 @@ React (Vite) SPA with serverless-style API routes (`api/`) and optional **local 
    Copy [`.env.example`](.env.example) to `.env.local` and set at least:
 
    - `DATABASE_URL` or `POSTGRES_URL`
-   - `PGSCHEMA` (e.g. `jarvis_rm`) if your tables live in a non-public schema
+   - `PGSCHEMA` (default **`car_stamp`**) — app tables live in this schema, not `jarvis_rm`
    - `PG_SSL` (`true` / `false`) as required by your host
    - `AUTH_JWT_SECRET` — long random string (required for real login and protected APIs)
 
-3. **Database migrations & seed**
+3. **Database migrations & seed** (สร้างตารางทั้งหมดใน schema `PGSCHEMA` เช่น `car_stamp`)
 
    ```bash
+   npm run db:inspect
    npm run db:migrate
    npm run db:seed
    ```
+
+   ถ้า `db:inspect` บอกว่า **car_stamp ว่าง** แต่มีประวัติใน `_jarvis_migrations` (ตารางอาจถูกสร้างใน `public` รอบเก่า): รัน **`npm run db:migrate:replay`** แล้ว **`npm run db:seed`** อีกครั้ง
 
    Default seeded users (password from `SEED_USER_PASSWORD` or `ChangeMe123!`):
 
@@ -55,7 +58,7 @@ React (Vite) SPA with serverless-style API routes (`api/`) and optional **local 
    | Variable | Where used | Notes |
    |----------|------------|--------|
    | `DATABASE_URL` | Serverless `api/*` | Same connection string as local |
-   | `PGSCHEMA` | API | e.g. `jarvis_rm` |
+   | `PGSCHEMA` | API | e.g. `car_stamp` (default if unset) |
    | `PG_SSL` | API | Hosted Postgres often needs `true` |
    | `AUTH_JWT_SECRET` | API | Long random secret; required for login / cookies |
    | `VITE_DEMO_MODE` | **Build** | `false` for real DB (default if unset in many setups—set explicitly) |
@@ -87,7 +90,8 @@ TypeScript for the API is configured in `api/tsconfig.json` (`moduleResolution: 
 | `npm run dev:local` | Same as `npm run dev` |
 | `npm run api:local` | `tsx watch server/local-api.ts` |
 | `npm run db:migrate` | Apply SQL files under `migrations/` |
-| `npm run db:migrate:status` | List applied migrations |
+| `npm run db:inspect` | ตรวจว่า schema `car_stamp` มีตารางหรือไม่ + มี `public.vehicles` หรือไม่ |
+| `npm run db:migrate:replay` | ลบประวัติ `public._jarvis_migrations` แล้วรัน migration ใหม่ทั้งหมดไปที่ `PGSCHEMA` (แก้ car_stamp ว่างแต่เคย migrate แล้ว) |
 | `npm run db:seed` | Upsert default users (after migrate) |
 | `npm run db:seed:demo` | Upsert mock jobs/candidates/employees from `mockData.ts` into `PGSCHEMA` |
 | `npm run db:ping` | Test Postgres connectivity |
@@ -148,7 +152,7 @@ Full integration tests against a live DB are optional; point `DATABASE_URL` in C
 | Security | CSRF strategy for cookie-based auth (e.g. double-submit token or SameSite-only flows) |
 | Security | Rate limiting on `/api/auth/login` |
 | Ops | Centralized log shipping (Datadog, etc.) and request IDs propagated to handlers |
-| Data | Formal migration history for `candidates` / `jarvis_rm.*` if not already managed elsewhere |
+| Data | Formal migration history for `candidates` / `car_stamp.*` (or your `PGSCHEMA`) if not already managed elsewhere |
 | API | Soft-delete vs hard-delete policy; audit columns (`updated_by`, `deleted_at`) |
 | Auth | SSO / Microsoft as hinted in UI |
 | Frontend | Wire `PATCH`/`DELETE` into all screens that need edit/remove |

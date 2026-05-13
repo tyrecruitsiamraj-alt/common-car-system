@@ -8,6 +8,9 @@ import {
 import { sendError, handleApiError, type ApiReq, type ApiRes } from '../../_lib/http.js';
 import { readJsonBody, getString } from '../../_lib/body.js';
 import type { UserRole } from '../../_lib/auth.js';
+import { tableInAppSchema } from '../../_lib/schema.js';
+
+const usersTable = tableInAppSchema('users');
 
 type UserRow = {
   id: string;
@@ -64,7 +67,7 @@ export default async function handler(req: ApiReq, res: ApiRes) {
     const { rows } = await dbQuery<UserRow>(
       `
       select id, email, password_hash, role, full_name, is_active, created_at
-      from users
+      from ${usersTable}
       where lower(email) = lower($1)
       limit 1
     `,

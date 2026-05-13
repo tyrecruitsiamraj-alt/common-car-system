@@ -2,6 +2,9 @@ import { dbQuery } from '../../_lib/postgres.js';
 import { getJwtSecret } from '../../_lib/auth.js';
 import { withAuth, sendError, handleApiError, type AuthedReq, type ApiRes } from '../../_lib/http.js';
 import type { UserRole } from '../../_lib/auth.js';
+import { tableInAppSchema } from '../../_lib/schema.js';
+
+const usersTable = tableInAppSchema('users');
 
 type UserRow = {
   id: string;
@@ -36,7 +39,7 @@ async function meHandler(req: AuthedReq, res: ApiRes) {
     const { rows } = await dbQuery<UserRow>(
       `
       select id, email, role, full_name, is_active, created_at
-      from users
+      from ${usersTable}
       where id = $1
       limit 1
     `,

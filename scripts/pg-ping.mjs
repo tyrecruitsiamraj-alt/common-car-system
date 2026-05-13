@@ -32,6 +32,10 @@ function loadEnvFromFiles() {
       merged[key] = val;
     }
   }
+  const shellPg = String(process.env.PGSCHEMA ?? "").trim();
+  if (shellPg) merged.PGSCHEMA = shellPg;
+  const shellDs = String(process.env.DATABASE_SCHEMA ?? "").trim();
+  if (shellDs) merged.DATABASE_SCHEMA = shellDs;
   return merged;
 }
 
@@ -40,6 +44,9 @@ const databaseUrl = (env.DATABASE_URL || env.POSTGRES_URL || "").trim();
 const pgSsl = ["true", "1", "yes"].includes(
   String(env.PG_SSL || "").toLowerCase(),
 );
+const schema = String(env.PGSCHEMA || env.DATABASE_SCHEMA || "").trim();
+const { DEFAULT_PG_SCHEMA } = await import("./schema-constants.mjs");
+const validSchema = /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(schema) ? schema : DEFAULT_PG_SCHEMA;
 
 if (!databaseUrl) {
   console.error(
@@ -72,8 +79,17 @@ const pool = new pg.Pool({
 });
 
 try {
-  const r = await pool.query("select current_user, current_database()");
-  console.log("OK — เชื่อมต่อได้:", r.rows[0]);
+  const client = await pool.connect();
+  try {
+    const safe = validSchema.replace(/"/g, "");
+    await client.query(`SET search_path TO "${safe}", public`);
+    const r = await client.query(
+      "select current_user, current_database(), current_schema() as app_schema",
+    );
+    console.log("OK — เชื่อมต่อได้:", r.rows[0]);
+  } finally {
+    client.release();
+  }
 } catch (e) {
   const msg = e instanceof Error ? e.message : String(e);
   console.error("ล้มเหลว:", msg);

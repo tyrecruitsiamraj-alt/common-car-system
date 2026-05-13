@@ -3,6 +3,7 @@ import { User, UserRole } from '@/types';
 import { mockUsers } from '@/data/mockData';
 import {
   isDemoMode,
+  isConfiguredDemoMode,
   enableRuntimeDemo,
   clearRuntimeDemoFlag,
 } from '@/lib/demoMode';
@@ -67,10 +68,49 @@ function userForDemoRole(role: UserRole): User | null {
   };
 }
 
+/** อีเมลแบบ db:seed ให้ตรงกับ mock ตาม role (โหมดสาธิตจาก env) */
+const DEMO_EMAIL_TO_ROLE: Record<string, UserRole> = {
+  'admin@example.com': 'admin',
+  'supervisor@example.com': 'supervisor',
+  'staff@example.com': 'staff',
+};
+
+function mockUserForConfiguredDemo(email: string): User | null {
+  const em = email.trim().toLowerCase();
+  const direct = mockUsers.find((u) => u.email.toLowerCase() === em);
+  if (direct) return direct;
+  const role = DEMO_EMAIL_TO_ROLE[em];
+  if (!role) return null;
+  return mockUsers.find((u) => u.role === role) ?? null;
+}
+
+function humanizeLoginFailure(status: number, message: string | undefined, error: string | undefined): string {
+  const combined = `${message ?? ''} ${error ?? ''}`.toLowerCase();
+  if (combined.includes('invalid email or password')) return 'อีเมลหรือรหัสผ่านไม่ถูกต้อง';
+  if (combined.includes('auth_jwt_secret')) return 'เซิร์ฟเวอร์ยังไม่ได้ตั้ง AUTH_JWT_SECRET — ดูใน .env.example';
+  if (combined.includes('service unavailable')) return 'ระบบล็อกอินไม่พร้อม (ตรวจ AUTH_JWT_SECRET และการเชื่อมต่อฐานข้อมูล)';
+  if (combined.includes('account is disabled') || combined.includes('inactive')) return 'บัญชีถูกปิดการใช้งาน';
+  if (message && message.trim()) return message.trim();
+  if (error && error.trim()) return error.trim();
+
+  if (status === 401) return 'อีเมลหรือรหัสผ่านไม่ถูกต้อง';
+  if (status === 403) return 'บัญชีถูกปิดหรือไม่มีสิทธิ์เข้าใช้';
+  if (status === 404)
+    return 'ไม่พบบริการล็อกอิน — เปิด API (npm run dev หรือ api:local) ให้พอร์ตตรงกับ VITE_API_PROXY_TARGET';
+  if (status === 503) return 'ระบบไม่พร้อม — ตรวจ AUTH_JWT_SECRET และ DATABASE_URL ใน .env.local';
+  if (status >= 500) return 'เซิร์ฟเวอร์ผิดพลาดชั่วคราว ลองใหม่ภายหลัง';
+
+  if (status === 0 || Number.isNaN(status))
+    return 'เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ — ตรวจว่า API รันอยู่แล้วลองใหม่';
+
+  return `เข้าสู่ระบบไม่สำเร็จ (HTTP ${status})`;
+}
+
 function mapApiUser(raw: Record<string, unknown>): User | null {
-  const id = typeof raw.id === 'string' ? raw.id : '';
-  const email = typeof raw.email === 'string' ? raw.email : '';
-  const role = raw.role;
+  const id = raw.id == null ? '' : String(raw.id).trim();
+  const email = raw.email == null ? '' : String(raw.email).trim();
+  const roleStr = typeof raw.role === 'string' ? raw.role.toLowerCase().trim() : '';
+  const role = roleStr as UserRole;
   if (!id || !email || (role !== 'admin' && role !== 'supervisor' && role !== 'staff')) {
     return null;
   }
@@ -130,6 +170,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const data = (await r.json()) as { user?: Record<string, unknown> };
         const u = data.user ? mapApiUser(data.user) : null;
         setUser(u);
+        clearRuntimeDemoFlag();
         if (u) {
           void refreshJobStaffFromApi();
           void refreshWorkCalendarFromApi();
@@ -156,10 +197,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const signIn = useCallback(async (email: string, password: string): Promise<string | null> => {
-    const r = await apiFetch('/api/auth/login', {
-      method: 'POST',
-      body: JSON.stringify({ email: email.trim(), password }),
-    });
+    if (isConfiguredDemoMode()) {
+      if (!password.trim()) return 'กรุณากรอกรหัสผ่าน';
+      const mockUser = mockUserForConfiguredDemo(email);
+      if (!mockUser) {
+        return `ไม่พบอีเมลในโหมดสาธิต — ลอง ${Object.keys(DEMO_EMAIL_TO_ROLE).join(', ')} หรือ ${mockUsers.map((u) => u.email).join(', ')} (รหัสผ่านใดก็ได้ที่ไม่ว่าง)`;
+      }
+      setUser(mockUser);
+      localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
+      clearRuntimeDemoFlag();
+      void refreshJobStaffFromApi();
+      void refreshWorkCalendarFromApi();
+      return null;
+    }
+
+    let r: Response;
+    try {
+      r = await apiFetch('/api/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ email: email.trim(), password }),
+      });
+    } catch {
+      return 'เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ — รัน npm run dev (รวม API) หรือ npm run api:local คู่กับ npm run dev:vite แล้วลองใหม่';
+    }
     let data: Record<string, unknown> = {};
     try {
       data = (await r.json()) as Record<string, unknown>;
@@ -167,21 +227,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       /* ignore */
     }
     if (!r.ok) {
-      const msg =
-        typeof data.message === 'string'
-          ? data.message
-          : typeof data.error === 'string'
-            ? data.error
-            : 'Sign in failed';
-      return msg;
+      const m = typeof data.message === 'string' ? data.message : undefined;
+      const err = typeof data.error === 'string' ? data.error : undefined;
+      return humanizeLoginFailure(r.status, m, err);
     }
     if (typeof data.token === 'string' && data.token.trim()) {
       localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, data.token.trim());
     }
     const rawUser = data.user as Record<string, unknown> | undefined;
     const u = rawUser ? mapApiUser(rawUser) : null;
-    if (!u) return 'Invalid response from server';
+    if (!u) return 'ข้อมูลผู้ใช้จากเซิร์ฟเวอร์ไม่ถูกต้อง';
     setUser(u);
+    clearRuntimeDemoFlag();
     void refreshJobStaffFromApi();
     void refreshWorkCalendarFromApi();
     return null;
@@ -238,6 +295,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
     localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
     clearJobStaffApiCache();
+    clearRuntimeDemoFlag();
     setUser(null);
   }, []);
 

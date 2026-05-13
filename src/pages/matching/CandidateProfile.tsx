@@ -148,7 +148,7 @@ const CandidateProfile: React.FC = () => {
             {(candidate.staffing_track ?? 'regular') === 'wl' && (
               <button
                 type="button"
-                onClick={() => navigate(`/wl/employees/${wlEmployeeIdFromCandidateId(candidate.id)}`)}
+                onClick={() => navigate(`/fleet/drivers/${wlEmployeeIdFromCandidateId(candidate.id)}`)}
                 className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-lg bg-info/15 text-info hover:bg-info/25"
               >
                 <Briefcase className="w-3.5 h-3.5" /> ดูในรายชื่อพนักงาน WL

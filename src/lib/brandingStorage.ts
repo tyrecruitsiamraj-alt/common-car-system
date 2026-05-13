@@ -21,7 +21,7 @@ const LEGACY_BRANDING_KEY = 'jarvis_branding_v1';
 const DEFAULT_LOGO_PATH = '/so-work-logo.png';
 
 export const DEFAULT_BRANDING: BrandingConfig = {
-  appName: 'So Recruit',
+  appName: 'Common Car System',
   logoDataUrl: DEFAULT_LOGO_PATH,
   primaryHsl: '0 72% 50%',
   backgroundHsl: '0 0% 98%',
@@ -40,7 +40,7 @@ export function loadBranding(): BrandingConfig {
     if (!raw) return DEFAULT_BRANDING;
     const p = JSON.parse(raw) as Partial<BrandingConfig>;
     const merged = { ...DEFAULT_BRANDING, ...p };
-    if (merged.appName === 'JARVIS' || merged.appName === 'Lovable App') {
+    if (merged.appName === 'JARVIS' || merged.appName === 'Lovable App' || merged.appName === 'Car Stamp') {
       merged.appName = DEFAULT_BRANDING.appName;
     }
     if (!merged.logoDataUrl || !String(merged.logoDataUrl).trim()) {

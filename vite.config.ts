@@ -7,11 +7,12 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
   // ใช้ 127.0.0.1 ให้ตรงกับ server/local-api.ts ที่ listen ที่ 127.0.0.1 (บน Windows localhost อาจไป ::1 แล้วต่อไม่ติด)
   const apiProxy = env.VITE_API_PROXY_TARGET || "http://127.0.0.1:3000";
+  const devPort = Number(env.VITE_DEV_SERVER_PORT || 8080);
 
   return {
   server: {
     host: "::",
-    port: 8080,
+    port: Number.isFinite(devPort) && devPort > 0 ? devPort : 8080,
     hmr: {
       overlay: false,
     },

@@ -31,19 +31,24 @@ function pathnameFromCatchAll(pathParam: string | string[] | undefined): string 
 }
 
 /** ถ้า catch-all query ว่าง ให้อ่าน path จาก req.url (พฤติกรรม Vercel / rewrite) */
+function normalizeApiPathname(pathname: string): string {
+  if (pathname.length > 1 && pathname.endsWith('/')) return pathname.slice(0, -1);
+  return pathname;
+}
+
 function resolveApiPathname(req: VercelishReq): string {
   const q = req.query ?? {};
   const fromCatchAll = pathnameFromCatchAll(q.path);
-  if (fromCatchAll !== '/api') return fromCatchAll;
+  if (fromCatchAll !== '/api') return normalizeApiPathname(fromCatchAll);
 
   const raw = req.url || '';
   try {
     const pathname = new URL(raw, 'http://localhost').pathname;
-    if (pathname.startsWith('/api') && pathname.length > 4) return pathname;
+    if (pathname.startsWith('/api') && pathname.length > 4) return normalizeApiPathname(pathname);
   } catch {
     /* ignore */
   }
-  return fromCatchAll;
+  return normalizeApiPathname(fromCatchAll);
 }
 
 /** Vercel / proxy บางกรณีส่ง method ว่าง — อ่านจาก header สำรอง */

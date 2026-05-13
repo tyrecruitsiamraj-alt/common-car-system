@@ -309,7 +309,7 @@ const AddJobPage: React.FC = () => {
             : '';
         setFormError(
           fromApi ||
-            `บันทึกไม่สำเร็จ (HTTP ${r.status}) — ตรวจสอบ API และตาราง jarvis_rm.jobs`,
+            `บันทึกไม่สำเร็จ (HTTP ${r.status}) — ตรวจสอบ API และ PGSCHEMA (เช่น car_stamp.jobs)`,
         );
         return;
       }

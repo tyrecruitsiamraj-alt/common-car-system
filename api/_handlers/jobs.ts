@@ -7,6 +7,9 @@ import {
   type AuthedReq,
 } from '../_lib/http.js';
 import { readJsonBody, getString } from '../_lib/body.js';
+import { tableInAppSchema } from '../_lib/schema.js';
+
+const tblJobs = tableInAppSchema('jobs');
 
 type JobRow = {
   id: string;
@@ -135,7 +138,7 @@ async function jobsHandler(req: AuthedReq, res: ApiRes) {
       const id = getString(req.query?.id);
       if (id) {
         const { rows } = await dbQuery<JobRow>(
-          `select * from jarvis_rm.jobs where id = $1 limit 1`,
+          `select * from ${tblJobs} where id = $1 limit 1`,
           [id],
         );
         if (rows.length === 0) return sendError(res, 404, 'Not found', 'Job not found');
@@ -149,13 +152,13 @@ async function jobsHandler(req: AuthedReq, res: ApiRes) {
       const { rows } = await dbQuery<JobRow>(
         statusOk
           ? `
-          select * from jarvis_rm.jobs
+          select * from ${tblJobs}
           where status = $1
           order by created_at desc
           limit $2 offset $3
         `
           : `
-          select * from jarvis_rm.jobs
+          select * from ${tblJobs}
           order by created_at desc
           limit $1 offset $2
         `,
@@ -225,7 +228,7 @@ async function jobsHandler(req: AuthedReq, res: ApiRes) {
 
       const { rows } = await dbQuery<JobRow>(
         `
-          insert into jarvis_rm.jobs (
+          insert into ${tblJobs} (
             request_no,
             resigned_title_prefix, resigned_first_name, resigned_last_name, resigned_age, resigned_reason, resigned_employee_name,
             unit_name, request_date, required_date,
@@ -299,7 +302,7 @@ async function jobsHandler(req: AuthedReq, res: ApiRes) {
       if (!id) return sendError(res, 400, 'Bad request', 'id is required');
 
       const { rows: curRows } = await dbQuery<JobRow>(
-        `select * from jarvis_rm.jobs where id = $1 limit 1`,
+        `select * from ${tblJobs} where id = $1 limit 1`,
         [id],
       );
       const cur = curRows[0];
@@ -397,7 +400,7 @@ async function jobsHandler(req: AuthedReq, res: ApiRes) {
 
       const { rows } = await dbQuery<JobRow>(
         `
-        update jarvis_rm.jobs set
+        update ${tblJobs} set
           request_no = $2,
           resigned_title_prefix = $3, resigned_first_name = $4, resigned_last_name = $5, resigned_age = $6, resigned_reason = $7, resigned_employee_name = $8,
           unit_name = $9, request_date = $10::date, required_date = $11::date,
@@ -458,7 +461,7 @@ async function jobsHandler(req: AuthedReq, res: ApiRes) {
       const id = getString(req.query?.id);
       if (!id) return sendError(res, 400, 'Bad request', 'Query id is required');
       const { rows } = await dbQuery<{ id: string }>(
-        `delete from jarvis_rm.jobs where id = $1 returning id`,
+        `delete from ${tblJobs} where id = $1 returning id`,
         [id],
       );
       if (rows.length === 0) return sendError(res, 404, 'Not found', 'Job not found');

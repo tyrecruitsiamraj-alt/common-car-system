@@ -133,7 +133,7 @@ const AddEmployeePage: React.FC = () => {
         throw new Error(body?.error || 'บันทึกไม่สำเร็จ');
       }
 
-      navigate('/wl/employees');
+      navigate('/fleet/drivers');
     } catch (e) {
       setFormError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -143,7 +143,7 @@ const AddEmployeePage: React.FC = () => {
 
   return (
     <div>
-      <PageHeader title="เพิ่มพนักงาน" backPath="/wl/employees" />
+      <PageHeader title="เพิ่มผู้ขับ" backPath="/fleet/drivers" />
       <div className="px-4 md:px-6">
         <div className="glass-card rounded-xl p-4 md:p-6 border border-border max-w-2xl space-y-4">
           {formError && <div className="text-sm text-destructive">{formError}</div>}
@@ -288,7 +288,7 @@ const AddEmployeePage: React.FC = () => {
               {saving ? 'กำลังบันทึก...' : 'บันทึก'}
             </button>
             <button
-              onClick={() => navigate('/wl/employees')}
+              onClick={() => navigate('/fleet/drivers')}
               className="px-6 py-2.5 rounded-lg bg-secondary text-foreground font-medium text-sm"
             >
               ยกเลิก

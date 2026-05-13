@@ -1,8 +1,11 @@
 {
-  "name": "vite_react_shadcn_ts",
+  "name": "car-stamp-wl",
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "dev": "concurrently -n api,vite -c blue,green \"npm run api:local\" \"npm run dev:vite\"",
     "dev:vite": "vite",
@@ -11,10 +14,14 @@
     "dev:api": "vercel dev",
     "db:ping": "node scripts/pg-ping.mjs",
     "db:migrate": "node scripts/migrate.mjs",
+    "db:migrate:replay": "node scripts/db-migrate-replay.mjs",
     "db:migrate:status": "node scripts/migrate.mjs --status",
+    "db:inspect": "node scripts/db-inspect.mjs",
     "db:seed": "node scripts/seed.mjs",
+    "db:init": "npm run db:ping && npm run db:migrate && npm run db:seed",
     "db:seed:demo": "tsx scripts/seed-demo-data.ts",
     "deploy:vercel": "vercel deploy --prod --yes",
+    "vercel:check": "npm run test && npx tsc --noEmit && npm run build",
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",

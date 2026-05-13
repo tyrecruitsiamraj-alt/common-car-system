@@ -12,6 +12,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import pg from "pg";
 import bcrypt from "bcryptjs";
+import { DEFAULT_PG_SCHEMA } from "./schema-constants.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(__dirname, "..");
@@ -37,6 +38,10 @@ function loadEnvFromFiles() {
       merged[key] = val;
     }
   }
+  const shellPg = String(process.env.PGSCHEMA ?? "").trim();
+  if (shellPg) merged.PGSCHEMA = shellPg;
+  const shellDs = String(process.env.DATABASE_SCHEMA ?? "").trim();
+  if (shellDs) merged.DATABASE_SCHEMA = shellDs;
   return merged;
 }
 
@@ -44,7 +49,10 @@ const env = loadEnvFromFiles();
 const databaseUrl = (env.DATABASE_URL || env.POSTGRES_URL || "").trim();
 const pgSsl = ["true", "1", "yes"].includes(String(env.PG_SSL || "").toLowerCase());
 const schema = String(env.PGSCHEMA || env.DATABASE_SCHEMA || "").trim();
-const validSchema = /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(schema) ? schema : "";
+const validSchema = /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(schema) ? schema : DEFAULT_PG_SCHEMA;
+if (!schema || !/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(schema)) {
+  console.warn(`PGSCHEMA ไม่ได้ตั้ง — ใช้ ${DEFAULT_PG_SCHEMA} สำหรับ seed`);
+}
 
 if (!databaseUrl) {
   console.error("Missing DATABASE_URL or POSTGRES_URL");
@@ -68,9 +76,7 @@ const pool = new pg.Pool({
 try {
   const client = await pool.connect();
   try {
-    if (validSchema) {
-      await client.query(`SET search_path TO "${validSchema}", public`);
-    }
+    await client.query(`SET search_path TO "${String(validSchema).replace(/"/g, "")}", public`);
     const hash = await bcrypt.hash(defaultPassword, 12);
     for (const u of users) {
       const email = u.email.toLowerCase();
@@ -129,6 +135,22 @@ try {
       console.warn("Set both SEED_SOLE_ADMIN_EMAIL and SEED_SOLE_ADMIN_PASSWORD to enable sole-admin bootstrap.");
     }
 
+    /* รถตัวอย่างสำหรับระบบจอง */
+    for (const row of [
+      { plate: "กข 1001", label: "Toyota Camry", seats: 5 },
+      { plate: "กข 1002", label: "Honda Civic", seats: 5 },
+    ]) {
+      await client.query(
+        `
+        insert into vehicles (plate_no, label, seats, updated_at)
+        select $1, $2, $3, now()
+        where not exists (
+          select 1 from vehicles v where lower(trim(v.plate_no)) = lower(trim($1::text))
+        )
+        `,
+        [row.plate, row.label, row.seats],
+      );
+    }
     console.log("Seed complete. Default password for all seeded users:", defaultPassword);
   } finally {
     client.release();

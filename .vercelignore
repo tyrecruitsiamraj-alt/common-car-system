@@ -1,0 +1,7 @@
+# ลดขนาดอัปโหลด — ไม่กระทบ build (Vercel รัน npm install + npm run build บนเซิร์ฟเวอร์)
+tests
+playwright-report
+test-results
+coverage
+.husky
+*.log

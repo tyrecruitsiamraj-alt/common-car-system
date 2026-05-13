@@ -1,6 +1,7 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
 import { useBranding } from '@/contexts/BrandingContext';
+import { DEFAULT_BRANDING } from '@/lib/brandingStorage';
 
 type Size = 'xs' | 'sm' | 'md' | 'lg';
 
@@ -14,7 +15,7 @@ const sizeClass: Record<Size, { box: string; text: string; img: string }> = {
 export const BrandMark: React.FC<{ size?: Size; className?: string }> = ({ size = 'md', className }) => {
   const { config } = useBranding();
   const s = sizeClass[size];
-  const letter = (config.appName || 'S').trim().charAt(0).toUpperCase() || 'S';
+  const letter = (config.appName || DEFAULT_BRANDING.appName).trim().charAt(0).toUpperCase() || 'C';
 
   if (config.logoDataUrl) {
     return (
@@ -35,5 +36,5 @@ export const BrandMark: React.FC<{ size?: Size; className?: string }> = ({ size 
 
 export const BrandTitle: React.FC<{ className?: string }> = ({ className }) => {
   const { config } = useBranding();
-  return <span className={className}>{config.appName || 'So Recruit'}</span>;
+  return <span className={className}>{config.appName || DEFAULT_BRANDING.appName}</span>;
 };

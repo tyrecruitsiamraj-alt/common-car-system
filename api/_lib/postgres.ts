@@ -31,11 +31,11 @@ function getOrCreatePool(): Pool {
   });
 
   const schema = getPgSchema();
-  if (schema) {
-    pool.on('connect', (client) => {
-      void client.query(`SET search_path TO "${schema}"`);
-    });
-  }
+  pool.on('connect', (client) => {
+    // public รองรับ extension / ตารางระบบ (Vercel / Neon มักวาง uuid ที่นี่)
+    const safe = schema.replace(/"/g, '');
+    void client.query(`SET search_path TO "${safe}", public`);
+  });
 
   globalForPg.__jarvisPgPool.pool = pool;
   return pool;

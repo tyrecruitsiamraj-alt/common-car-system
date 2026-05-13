@@ -4,6 +4,9 @@
 import { dbQuery } from '../../_lib/postgres.js';
 import { sendError, handleApiError, type ApiReq, type ApiRes } from '../../_lib/http.js';
 import { getString } from '../../_lib/body.js';
+import { tableInAppSchema } from '../../_lib/schema.js';
+
+const tblJobs = tableInAppSchema('jobs');
 
 type JobRow = {
   id: string;
@@ -83,7 +86,7 @@ export default async function handler(req: ApiReq, res: ApiRes) {
     const id = getString(req.query?.id);
     if (id) {
       const { rows } = await dbQuery<JobRow>(
-        `select * from jarvis_rm.jobs where id = $1 and status in ('open', 'in_progress') limit 1`,
+        `select * from ${tblJobs} where id = $1 and status in ('open', 'in_progress') limit 1`,
         [id],
       );
       if (rows.length === 0) return sendError(res, 404, 'Not found', 'Job not found');
@@ -92,7 +95,7 @@ export default async function handler(req: ApiReq, res: ApiRes) {
 
     const limit = Math.min(100, Math.max(1, parseIntOrNull(req.query?.limit) ?? 50));
     const { rows } = await dbQuery<JobRow>(
-      `select * from jarvis_rm.jobs where status in ('open', 'in_progress') order by created_at desc limit $1`,
+      `select * from ${tblJobs} where status in ('open', 'in_progress') order by created_at desc limit $1`,
       [limit],
     );
     return res.status(200).json(rows.map(toJobResponse));

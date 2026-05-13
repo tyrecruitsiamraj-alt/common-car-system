@@ -1,12 +1,15 @@
 import { dbQuery } from '../_lib/postgres.js';
 import {
-  withAuthDataRoute,
+  withAuthStaffCreateSupervisorMutate,
   sendError,
   handleApiError,
   type ApiRes,
   type AuthedReq,
 } from '../_lib/http.js';
 import { readJsonBody, getString } from '../_lib/body.js';
+import { tableInAppSchema } from '../_lib/schema.js';
+
+const tblEmp = tableInAppSchema('employees');
 
 type EmployeeRow = {
   id: string;
@@ -101,7 +104,7 @@ async function employeesHandler(req: AuthedReq, res: ApiRes) {
       const id = getString(req.query?.id);
       if (id) {
         const { rows } = await dbQuery<EmployeeRow>(
-          `select * from jarvis_rm.employees where id = $1 limit 1`,
+          `select * from ${tblEmp} where id = $1 limit 1`,
           [id],
         );
         if (rows.length === 0) return sendError(res, 404, 'Not found', 'Employee not found');
@@ -115,13 +118,13 @@ async function employeesHandler(req: AuthedReq, res: ApiRes) {
       const { rows } = await dbQuery<EmployeeRow>(
         statusOk
           ? `
-          select * from jarvis_rm.employees
+          select * from ${tblEmp}
           where status = $1
           order by created_at desc
           limit $2 offset $3
         `
           : `
-          select * from jarvis_rm.employees
+          select * from ${tblEmp}
           order by created_at desc
           limit $1 offset $2
         `,
@@ -176,7 +179,7 @@ async function employeesHandler(req: AuthedReq, res: ApiRes) {
 
       const { rows } = await dbQuery<EmployeeRow>(
         `
-          insert into jarvis_rm.employees (
+          insert into ${tblEmp} (
             employee_code, first_name, last_name, nickname,
             phone, status, position, join_date,
             address, lat, lng,
@@ -231,7 +234,7 @@ async function employeesHandler(req: AuthedReq, res: ApiRes) {
       if (!id) return sendError(res, 400, 'Bad request', 'id is required');
 
       const { rows: curRows } = await dbQuery<EmployeeRow>(
-        `select * from jarvis_rm.employees where id = $1 limit 1`,
+        `select * from ${tblEmp} where id = $1 limit 1`,
         [id],
       );
       const cur = curRows[0];
@@ -285,7 +288,7 @@ async function employeesHandler(req: AuthedReq, res: ApiRes) {
 
       const { rows } = await dbQuery<EmployeeRow>(
         `
-        update jarvis_rm.employees set
+        update ${tblEmp} set
           employee_code = $2, first_name = $3, last_name = $4, nickname = $5,
           phone = $6, status = $7, position = $8, join_date = $9::date,
           address = $10, lat = $11, lng = $12,
@@ -331,7 +334,7 @@ async function employeesHandler(req: AuthedReq, res: ApiRes) {
       const id = getString(req.query?.id);
       if (!id) return sendError(res, 400, 'Bad request', 'Query id is required');
       const { rows } = await dbQuery<{ id: string }>(
-        `delete from jarvis_rm.employees where id = $1 returning id`,
+        `delete from ${tblEmp} where id = $1 returning id`,
         [id],
       );
       if (rows.length === 0) return sendError(res, 404, 'Not found', 'Employee not found');
@@ -344,4 +347,4 @@ async function employeesHandler(req: AuthedReq, res: ApiRes) {
   return sendError(res, 405, 'Method not allowed');
 }
 
-export default withAuthDataRoute(employeesHandler);
+export default withAuthStaffCreateSupervisorMutate(employeesHandler);
