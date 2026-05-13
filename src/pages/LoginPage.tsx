@@ -17,6 +17,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { apiFetch } from '@/lib/apiFetch';
+import { Eye, EyeOff } from 'lucide-react';
 
 const LoginPage: React.FC = () => {
   const navigate = useNavigate();
@@ -35,6 +36,7 @@ const LoginPage: React.FC = () => {
   const [forgotEmail, setForgotEmail] = useState('');
   const [forgotBusy, setForgotBusy] = useState(false);
   const [forgotMsg, setForgotMsg] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -132,7 +134,10 @@ const LoginPage: React.FC = () => {
           <div className="grid grid-cols-2 gap-2">
             <button
               type="button"
-              onClick={() => setAuthMode('login')}
+              onClick={() => {
+                setAuthMode('login');
+                setShowPassword(false);
+              }}
               className={cn(
                 'rounded-lg px-3 py-2 text-sm font-medium',
                 authMode === 'login' ? 'bg-primary text-primary-foreground' : 'bg-secondary text-muted-foreground',
@@ -142,7 +147,10 @@ const LoginPage: React.FC = () => {
             </button>
             <button
               type="button"
-              onClick={() => setAuthMode('register')}
+              onClick={() => {
+                setAuthMode('register');
+                setShowPassword(false);
+              }}
               className={cn(
                 'rounded-lg px-3 py-2 text-sm font-medium',
                 authMode === 'register' ? 'bg-primary text-primary-foreground' : 'bg-secondary text-muted-foreground',
@@ -180,15 +188,34 @@ const LoginPage: React.FC = () => {
                     ลืมรหัสผ่าน?
                   </button>
                 </div>
-                <Input
-                  id="password"
-                  type="password"
-                  autoComplete="current-password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  className="min-h-[44px]"
-                />
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type={showPassword ? 'text' : 'password'}
+                    autoComplete="current-password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    className="min-h-[44px] pr-11"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((v) => !v)}
+                    aria-label={showPassword ? 'ซ่อนรหัสผ่าน' : 'แสดงรหัสผ่าน'}
+                    aria-pressed={showPassword}
+                    title={showPassword ? 'ซ่อนรหัสผ่าน' : 'แสดงรหัสผ่าน'}
+                    className="absolute right-1 top-1/2 z-10 -translate-y-1/2 rounded-md p-2 text-muted-foreground hover:bg-muted hover:text-foreground touch-manipulation"
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" aria-hidden /> : <Eye className="h-4 w-4" aria-hidden />}
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  className="text-xs text-muted-foreground hover:text-foreground underline-offset-2 hover:underline touch-manipulation py-0.5"
+                >
+                  {showPassword ? 'ซ่อนรหัสผ่าน' : 'แสดงรหัสผ่าน'}
+                </button>
               </div>
               <button
                 type="submit"
@@ -237,14 +264,34 @@ const LoginPage: React.FC = () => {
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="passwordRegister">Password (ขั้นต่ำ 8 ตัวอักษร)</Label>
-                <Input
-                  id="passwordRegister"
-                  type="password"
-                  autoComplete="new-password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                />
+                <div className="relative">
+                  <Input
+                    id="passwordRegister"
+                    type={showPassword ? 'text' : 'password'}
+                    autoComplete="new-password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    className="pr-11 min-h-[44px]"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((v) => !v)}
+                    aria-label={showPassword ? 'ซ่อนรหัสผ่าน' : 'แสดงรหัสผ่าน'}
+                    aria-pressed={showPassword}
+                    title={showPassword ? 'ซ่อนรหัสผ่าน' : 'แสดงรหัสผ่าน'}
+                    className="absolute right-1 top-1/2 z-10 -translate-y-1/2 rounded-md p-2 text-muted-foreground hover:bg-muted hover:text-foreground touch-manipulation"
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" aria-hidden /> : <Eye className="h-4 w-4" aria-hidden />}
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  className="text-xs text-muted-foreground hover:text-foreground underline-offset-2 hover:underline touch-manipulation py-0.5"
+                >
+                  {showPassword ? 'ซ่อนรหัสผ่าน' : 'แสดงรหัสผ่าน'}
+                </button>
               </div>
               <p className="text-xs text-muted-foreground">
                 สมัครใหม่ได้รับสิทธิ์ Staff อัตโนมัติ — ไม่มีตัวเลือกบทบาท
