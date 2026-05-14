@@ -21,6 +21,7 @@
     "db:init": "npm run db:ping && npm run db:migrate && npm run db:seed",
     "db:seed:demo": "tsx scripts/seed-demo-data.ts",
     "vercel:env:pull": "npx vercel@latest env pull .env.local --yes",
+    "deploy:vercel": "npx vercel@latest deploy --prod --yes",
     "vercel:check": "npm run test && npx tsc --noEmit && npm run build",
     "build": "vite build",
     "build:dev": "vite build --mode development",
