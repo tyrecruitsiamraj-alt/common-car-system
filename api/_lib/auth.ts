@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 
@@ -6,9 +7,36 @@ export type UserRole = 'admin' | 'supervisor' | 'staff';
 
 export const AUTH_COOKIE_NAME = process.env.AUTH_COOKIE_NAME || 'jarvis_auth';
 
+/** Stable salt so derived secrets never collide with arbitrary env strings */
+const JWT_DERIVE_SALT = 'car-stamp:jwt-from-database-url:v1';
+
+function databaseUrlForJwtDerive(): string {
+  return (process.env.DATABASE_URL || process.env.POSTGRES_URL || '').trim();
+}
+
+/** HS256 secret from DB URL when AUTH_JWT_SECRET is unset (e.g. Vercel only has DATABASE_URL). */
+function deriveJwtSecretFromDbUrl(dbUrl: string): string {
+  return createHash('sha256')
+    .update(JWT_DERIVE_SALT, 'utf8')
+    .update('\0')
+    .update(dbUrl, 'utf8')
+    .digest('base64url');
+}
+
 export function getJwtSecret(): string | null {
-  const s = (process.env.AUTH_JWT_SECRET || '').trim();
-  return s || null;
+  const explicit = (process.env.AUTH_JWT_SECRET || '').trim();
+  if (explicit) return explicit;
+
+  const legacy = (process.env.JWT_SECRET || '').trim();
+  if (legacy) return legacy;
+
+  if ((process.env.AUTH_JWT_NO_DERIVED_SECRET || '').trim() === '1') return null;
+
+  const dbUrl = databaseUrlForJwtDerive();
+  if (!dbUrl) return null;
+
+  const derived = deriveJwtSecretFromDbUrl(dbUrl);
+  return derived.length >= 32 ? derived : null;
 }
 
 export function isProductionLike(): boolean {
