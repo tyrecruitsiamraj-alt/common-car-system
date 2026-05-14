@@ -12,10 +12,27 @@ const KEYS = [
   'POSTGRES_URL_NON_POOLING',
   'DATABASE_URL_UNPOOLED',
   'PGHOST',
+  'POSTGRES_HOST',
+  'PG_HOST',
+  'DB_HOST',
   'PGUSER',
+  'POSTGRES_USER',
+  'PG_USER',
+  'DB_USER',
   'PGPASSWORD',
+  'POSTGRES_PASSWORD',
+  'PG_PASSWORD',
+  'DB_PASSWORD',
   'PGDATABASE',
+  'POSTGRES_DATABASE',
+  'POSTGRES_DB',
+  'PG_DATABASE',
+  'DB_NAME',
+  'DATABASE_NAME',
   'PGPORT',
+  'POSTGRES_PORT',
+  'PG_PORT',
+  'DB_PORT',
 ] as const;
 
 describe('getDatabaseUrl', () => {
@@ -51,5 +68,17 @@ describe('getDatabaseUrl', () => {
     expect(u).toMatch(/^postgresql:\/\//);
     expect(u).toContain('db.example.com');
     expect(u).toContain('car_stamp');
+  });
+
+  it('builds URL from POSTGRES_HOST / POSTGRES_USER / POSTGRES_DB', () => {
+    process.env.POSTGRES_HOST = 'neon.example';
+    process.env.POSTGRES_USER = 'u1';
+    process.env.POSTGRES_PASSWORD = 'sec';
+    process.env.POSTGRES_DB = 'mydb';
+    process.env.POSTGRES_PORT = '5432';
+    const u = getDatabaseUrl();
+    expect(u).toContain('neon.example');
+    expect(u).toContain('mydb');
+    expect(u).toContain('u1');
   });
 });

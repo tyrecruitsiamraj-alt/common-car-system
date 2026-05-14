@@ -30,12 +30,32 @@ const DB_ENV_KEYS = [
   'NEON_DATABASE_URL',
   'SUPABASE_DATABASE_URL',
   'PGHOST',
+  'POSTGRES_HOST',
+  'PG_HOST',
+  'DB_HOST',
   'PGUSER',
+  'POSTGRES_USER',
+  'PG_USER',
+  'DB_USER',
   'PGPASSWORD',
+  'POSTGRES_PASSWORD',
+  'PG_PASSWORD',
+  'DB_PASSWORD',
   'PGDATABASE',
+  'POSTGRES_DATABASE',
+  'POSTGRES_DB',
+  'PG_DATABASE',
+  'DB_NAME',
+  'DATABASE_NAME',
   'PGPORT',
+  'POSTGRES_PORT',
+  'PG_PORT',
+  'DB_PORT',
   'PGSCHEMA',
   'DATABASE_SCHEMA',
+  'POSTGRES_SCHEMA',
+  'DB_SCHEMA',
+  'SCHEMA',
   'PG_SSL',
 ] as const;
 
@@ -105,15 +125,38 @@ const DATABASE_URL_ENV_KEYS = [
   'DATABASE_URL_UNPOOLED',
 ] as const;
 
+/** อ่านค่าแรกที่ไม่ว่างจาก process.env (รองรับชื่อ alias จาก Vercel / Neon / template) */
+function firstEnvTrimmed(keys: readonly string[]): string {
+  for (const k of keys) {
+    const v = process.env[k];
+    if (v !== undefined && String(v).trim() !== '') return String(v).trim();
+  }
+  return '';
+}
+
 function buildDatabaseUrlFromPgEnv(): string | null {
-  const host = (process.env.PGHOST || '').trim();
-  const user = (process.env.PGUSER || '').trim();
-  const db = (process.env.PGDATABASE || '').trim();
+  const host = firstEnvTrimmed(['PGHOST', 'POSTGRES_HOST', 'PG_HOST', 'DB_HOST']);
+  const user = firstEnvTrimmed(['PGUSER', 'POSTGRES_USER', 'PG_USER', 'DB_USER']);
+  const db = firstEnvTrimmed([
+    'PGDATABASE',
+    'POSTGRES_DATABASE',
+    'POSTGRES_DB',
+    'PG_DATABASE',
+    'DB_NAME',
+    'DATABASE_NAME',
+  ]);
   if (!host || !user || !db) return null;
-  const port = (process.env.PGPORT || '5432').trim() || '5432';
-  const pass = process.env.PGPASSWORD;
-  const passStr = pass !== undefined ? String(pass) : '';
-  const auth = passStr !== '' ? `${encodeURIComponent(user)}:${encodeURIComponent(passStr)}` : encodeURIComponent(user);
+  const port = firstEnvTrimmed(['PGPORT', 'POSTGRES_PORT', 'PG_PORT', 'DB_PORT']) || '5432';
+  const passStr = firstEnvTrimmed([
+    'PGPASSWORD',
+    'POSTGRES_PASSWORD',
+    'PG_PASSWORD',
+    'DB_PASSWORD',
+  ]);
+  const auth =
+    passStr !== ''
+      ? `${encodeURIComponent(user)}:${encodeURIComponent(passStr)}`
+      : encodeURIComponent(user);
   return `postgresql://${auth}@${host}:${port}/${encodeURIComponent(db)}`;
 }
 
@@ -129,7 +172,7 @@ export function getDatabaseUrl(): string | null {
 
 /** ใช้ใน error message — sync กับ scripts/database-url-from-env.mjs */
 export const DATABASE_CONNECTION_ENV_HINT =
-  'Set DATABASE_URL, POSTGRES_URL, NEON_DATABASE_URL, SUPABASE_DATABASE_URL, POSTGRES_PRISMA_URL, PRISMA_DATABASE_URL, POSTGRES_URL_NON_POOLING, DATABASE_URL_UNPOOLED, or PGHOST+PGUSER+PGDATABASE (+PGPASSWORD, PGPORT). See .env.example.';
+  'Set DATABASE_URL (or POSTGRES_URL / NEON_DATABASE_URL / …), or split vars: PGHOST+PGUSER+PGDATABASE (aliases: POSTGRES_HOST+POSTGRES_USER+POSTGRES_DB, DB_HOST+DB_USER+DB_NAME) + password keys PGPASSWORD / POSTGRES_PASSWORD / DB_PASSWORD + PGPORT / POSTGRES_PORT. Schema: PGSCHEMA or DATABASE_SCHEMA. Names are case-sensitive on Vercel. See .env.example.';
 
 export function isPgSslEnabled(): boolean {
   const v = (process.env.PG_SSL || '').toLowerCase();
@@ -147,7 +190,13 @@ export const DEFAULT_PG_SCHEMA = 'car_stamp';
  * ใช้ PGSCHEMA หรือ DATABASE_SCHEMA; ถ้าไม่ตั้งใช้ car_stamp (ไม่แตะ jarvis_rm)
  */
 export function getPgSchema(): string {
-  const s = (process.env.PGSCHEMA || process.env.DATABASE_SCHEMA || '').trim();
+  const s = firstEnvTrimmed([
+    'PGSCHEMA',
+    'DATABASE_SCHEMA',
+    'POSTGRES_SCHEMA',
+    'DB_SCHEMA',
+    'SCHEMA',
+  ]);
   if (s && /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(s)) return s;
   return DEFAULT_PG_SCHEMA;
 }

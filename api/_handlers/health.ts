@@ -47,6 +47,9 @@ export default async function handler(req: ApiReq, res: ApiRes): Promise<void> {
     hintsTh.push(
       `ฐานข้อมูล: ยังไม่มี connection string ใน environment — ${DATABASE_CONNECTION_ENV_HINT}`,
     );
+    hintsTh.push(
+      'ถ้าคุณใส่ host/user แล้ว: ชื่อตัวแปรบน Vercel ต้องเป็น PGHOST, PGUSER, PGDATABASE (หรือ POSTGRES_HOST, POSTGRES_USER, POSTGRES_DB) — ตัวพิมพ์ใหญ่-เล็กต้องตรง และต้องติ๊ก Environment = Production แล้ว Redeploy',
+    );
   } else if (databaseReachable === false) {
     hintsTh.push(
       'ฐานข้อมูล: มีค่า connection แล้วแต่เชื่อมไม่ได้ — ตรวจ PG_SSL=true, รหัสผ่านใน URL (encode อักขระพิเศษ), และว่าโฮสต์ยอมรับ connection จาก Vercel',

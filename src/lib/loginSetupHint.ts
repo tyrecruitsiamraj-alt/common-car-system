@@ -2,7 +2,7 @@
 export const LOGIN_DATABASE_MISSING_HINT_TH = `เซิร์ฟเวอร์ยังเชื่อม PostgreSQL ไม่ได้ — ใน environment ของ API ยังไม่มี connection string (หรือชุด PGHOST+PGUSER+PGDATABASE)
 
 สิ่งที่ต้องทำให้ครบ (ล็อกอินจริงต้องมีทั้ง JWT + DB):
-1) Vercel → Project → Settings → Environment Variables → เลือก Production → ใส่ DATABASE_URL (หรือ POSTGRES_URL / NEON_DATABASE_URL / … ตามที่โฮสต์ให้) หรือใส่ PGHOST + PGUSER + PGDATABASE (+ PGPASSWORD)
+1) Vercel → Project → Settings → Environment Variables → เลือก Production → ใส่ **ชื่อตัวแปรมาตรฐาน** (ตัวพิมพ์ใหญ่ตามที่ระบุ) เช่น `DATABASE_URL` เป็นสตริงเต็ม **หรือ** แยกเป็น `PGHOST`+`PGUSER`+`PGDATABASE`+`PGPASSWORD`+`PGPORT` — ถ้าโฮสต์ใช้ชื่อแบบ `POSTGRES_HOST` / `POSTGRES_USER` / `POSTGRES_DB` ก็รองรับแล้ว (ห้ามใช้ชื่อสั้นๆ แบบ `host` / `user` อย่างเดียว เว้นแต่ตั้งเป็นชื่อตัวแปรใน Dashboard ตรงกับรายการที่ API อ่าน)
 2) ตั้ง AUTH_JWT_SECRET (แนะนำ) หรือให้ระบบ derive จาก URL / จาก VERCEL_PROJECT_ID (ต้องเปิด System Environment Variables บน Vercel แล้ว Redeploy)
 3) จากเครื่องคุณ ชี้ DB เดียวกับ production: npm run db:migrate && npm run db:seed
 

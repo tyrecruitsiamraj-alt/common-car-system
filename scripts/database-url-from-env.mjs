@@ -1,5 +1,5 @@
 /**
- * Mirror api/_lib/env.ts getDatabaseUrl() — keep key list in sync when changing either file.
+ * Mirror api/_lib/env.ts getDatabaseUrl() — keep alias lists in sync when changing either file.
  * @param {Record<string, string | undefined>} env
  */
 const DATABASE_URL_ENV_KEYS = [
@@ -13,14 +13,33 @@ const DATABASE_URL_ENV_KEYS = [
   "DATABASE_URL_UNPOOLED",
 ];
 
+function firstFromEnv(env, keys) {
+  for (const k of keys) {
+    const t = String(env[k] || "").trim();
+    if (t) return t;
+  }
+  return "";
+}
+
 function buildDatabaseUrlFromPgEnv(env) {
-  const host = String(env.PGHOST || "").trim();
-  const user = String(env.PGUSER || "").trim();
-  const db = String(env.PGDATABASE || "").trim();
+  const host = firstFromEnv(env, ["PGHOST", "POSTGRES_HOST", "PG_HOST", "DB_HOST"]);
+  const user = firstFromEnv(env, ["PGUSER", "POSTGRES_USER", "PG_USER", "DB_USER"]);
+  const db = firstFromEnv(env, [
+    "PGDATABASE",
+    "POSTGRES_DATABASE",
+    "POSTGRES_DB",
+    "PG_DATABASE",
+    "DB_NAME",
+    "DATABASE_NAME",
+  ]);
   if (!host || !user || !db) return "";
-  const port = String(env.PGPORT || "5432").trim() || "5432";
-  const pass = env.PGPASSWORD;
-  const passStr = pass !== undefined ? String(pass) : "";
+  const port = firstFromEnv(env, ["PGPORT", "POSTGRES_PORT", "PG_PORT", "DB_PORT"]) || "5432";
+  const passStr = firstFromEnv(env, [
+    "PGPASSWORD",
+    "POSTGRES_PASSWORD",
+    "PG_PASSWORD",
+    "DB_PASSWORD",
+  ]);
   const auth =
     passStr !== ""
       ? `${encodeURIComponent(user)}:${encodeURIComponent(passStr)}`
@@ -37,4 +56,4 @@ export function getDatabaseUrlFromEnv(env) {
 }
 
 export const DATABASE_URL_MISSING_HINT =
-  "Set DATABASE_URL, POSTGRES_URL, NEON_DATABASE_URL, SUPABASE_DATABASE_URL, POSTGRES_PRISMA_URL, PRISMA_DATABASE_URL, POSTGRES_URL_NON_POOLING, DATABASE_URL_UNPOOLED, or PGHOST+PGUSER+PGDATABASE (+PGPASSWORD, PGPORT). See .env.example.";
+  "Set DATABASE_URL (or POSTGRES_URL / NEON_DATABASE_URL / …), or split vars: PGHOST+PGUSER+PGDATABASE (aliases: POSTGRES_HOST+POSTGRES_USER+POSTGRES_DB, DB_HOST+DB_USER+DB_NAME) + password keys PGPASSWORD / POSTGRES_PASSWORD / DB_PASSWORD + PGPORT / POSTGRES_PORT. Schema: PGSCHEMA or DATABASE_SCHEMA. Names are case-sensitive on Vercel. See .env.example.";

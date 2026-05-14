@@ -49,7 +49,14 @@ function loadEnvFromFiles() {
 const env = loadEnvFromFiles();
 const databaseUrl = getDatabaseUrlFromEnv(env).trim();
 const pgSsl = ["true", "1", "yes"].includes(String(env.PG_SSL || "").toLowerCase());
-const schema = String(env.PGSCHEMA || env.DATABASE_SCHEMA || "").trim();
+const schema = String(
+  env.PGSCHEMA ||
+    env.DATABASE_SCHEMA ||
+    env.POSTGRES_SCHEMA ||
+    env.DB_SCHEMA ||
+    env.SCHEMA ||
+    "",
+).trim();
 const validSchema = /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(schema) ? schema : DEFAULT_PG_SCHEMA;
 if (!schema || !/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(schema)) {
   console.warn(`PGSCHEMA ไม่ได้ตั้ง — ใช้ ${DEFAULT_PG_SCHEMA} สำหรับ seed`);
