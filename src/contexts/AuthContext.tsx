@@ -87,7 +87,8 @@ function mockUserForConfiguredDemo(email: string): User | null {
 function humanizeLoginFailure(status: number, message: string | undefined, error: string | undefined): string {
   const combined = `${message ?? ''} ${error ?? ''}`.toLowerCase();
   if (combined.includes('invalid email or password')) return 'อีเมลหรือรหัสผ่านไม่ถูกต้อง';
-  if (combined.includes('auth_jwt_secret')) return 'เซิร์ฟเวอร์ยังไม่ได้ตั้ง AUTH_JWT_SECRET — ดูใน .env.example';
+  if (combined.includes('auth_jwt_secret'))
+    return 'เซิร์ฟเวอร์ยังไม่ได้ตั้ง AUTH_JWT_SECRET — บน Vercel: Settings → Environment Variables แล้ว Redeploy (รายละเอียดใน .env.example)';
   if (combined.includes('service unavailable')) return 'ระบบล็อกอินไม่พร้อม (ตรวจ AUTH_JWT_SECRET และการเชื่อมต่อฐานข้อมูล)';
   if (combined.includes('account is disabled') || combined.includes('inactive')) return 'บัญชีถูกปิดการใช้งาน';
   if (message && message.trim()) return message.trim();
@@ -97,7 +98,8 @@ function humanizeLoginFailure(status: number, message: string | undefined, error
   if (status === 403) return 'บัญชีถูกปิดหรือไม่มีสิทธิ์เข้าใช้';
   if (status === 404)
     return 'ไม่พบบริการล็อกอิน — เปิด API (npm run dev หรือ api:local) ให้พอร์ตตรงกับ VITE_API_PROXY_TARGET';
-  if (status === 503) return 'ระบบไม่พร้อม — ตรวจ AUTH_JWT_SECRET และ DATABASE_URL ใน .env.local';
+  if (status === 503)
+    return 'ระบบไม่พร้อม — ตรวจ AUTH_JWT_SECRET และ DATABASE_URL (ท้องถิ่น: .env.local / บนเว็บ: Vercel Environment Variables)';
   if (status >= 500) return 'เซิร์ฟเวอร์ผิดพลาดชั่วคราว ลองใหม่ภายหลัง';
 
   if (status === 0 || Number.isNaN(status))
