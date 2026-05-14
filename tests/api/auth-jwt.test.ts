@@ -6,12 +6,22 @@ describe('auth JWT', () => {
   beforeEach(() => {
     delete process.env.JWT_SECRET;
     delete process.env.AUTH_JWT_NO_DERIVED_SECRET;
+    delete process.env.AUTH_JWT_DISABLE_VERCEL_PROJECT_FALLBACK;
     delete process.env.DATABASE_URL;
     delete process.env.POSTGRES_URL;
     delete process.env.POSTGRES_PRISMA_URL;
     delete process.env.PRISMA_DATABASE_URL;
     delete process.env.POSTGRES_URL_NON_POOLING;
     delete process.env.DATABASE_URL_UNPOOLED;
+    delete process.env.NEON_DATABASE_URL;
+    delete process.env.SUPABASE_DATABASE_URL;
+    delete process.env.PGHOST;
+    delete process.env.PGUSER;
+    delete process.env.PGPASSWORD;
+    delete process.env.PGDATABASE;
+    delete process.env.PGPORT;
+    delete process.env.VERCEL;
+    delete process.env.VERCEL_PROJECT_ID;
     process.env.AUTH_JWT_SECRET = 'test-secret-key-at-least-32-characters-long';
   });
 
@@ -57,5 +67,17 @@ describe('auth JWT', () => {
       role: 'staff',
     });
     expect(verifyAuthToken(token).email).toBe('p@example.com');
+  });
+
+  it('derives from VERCEL_PROJECT_ID on Vercel when no DB URL', () => {
+    delete process.env.AUTH_JWT_SECRET;
+    process.env.VERCEL = '1';
+    process.env.VERCEL_PROJECT_ID = 'prj_test_vercel_fallback_xx';
+    const token = signAuthToken({
+      sub: '550e8400-e29b-41d4-a716-446655440000',
+      email: 'v@example.com',
+      role: 'staff',
+    });
+    expect(verifyAuthToken(token).email).toBe('v@example.com');
   });
 });

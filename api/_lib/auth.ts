@@ -12,10 +12,13 @@ export const AUTH_COOKIE_NAME = process.env.AUTH_COOKIE_NAME || 'jarvis_auth';
 export const AUTH_JWT_MISSING_API_CODE = 'AUTH_JWT_NOT_CONFIGURED' as const;
 
 export const AUTH_JWT_MISSING_API_MESSAGE =
-  'JWT signing unavailable: set AUTH_JWT_SECRET (or JWT_SECRET), or a Postgres URL (DATABASE_URL, POSTGRES_URL, …).';
+  'JWT signing unavailable: set AUTH_JWT_SECRET (or JWT_SECRET), a Postgres URL (DATABASE_URL, NEON_DATABASE_URL, …), PGHOST+PGUSER+PGDATABASE, or on Vercel enable System Environment Variables so VERCEL_PROJECT_ID is available.';
 
 /** Stable salt so derived secrets never collide with arbitrary env strings */
 const JWT_DERIVE_SALT = 'car-stamp:jwt-from-database-url:v1';
+
+/** Stable salt — อ่อนกว่า AUTH_JWT_SECRET โดยเฉพาะ ใช้เฉพาะเมื่อไม่มี DB URL บน Vercel */
+const JWT_VERCEL_PROJECT_SALT = 'car-stamp:jwt-from-vercel-project-id:v1';
 
 /** HS256 secret from DB URL when AUTH_JWT_SECRET is unset (e.g. Vercel only has DATABASE_URL). */
 function deriveJwtSecretFromDbUrl(dbUrl: string): string {
@@ -23,6 +26,14 @@ function deriveJwtSecretFromDbUrl(dbUrl: string): string {
     .update(JWT_DERIVE_SALT, 'utf8')
     .update('\0')
     .update(dbUrl, 'utf8')
+    .digest('base64url');
+}
+
+function deriveJwtSecretFromVercelProjectId(projectId: string): string {
+  return createHash('sha256')
+    .update(JWT_VERCEL_PROJECT_SALT, 'utf8')
+    .update('\0')
+    .update(projectId, 'utf8')
     .digest('base64url');
 }
 
@@ -36,10 +47,21 @@ export function getJwtSecret(): string | null {
   if ((process.env.AUTH_JWT_NO_DERIVED_SECRET || '').trim() === '1') return null;
 
   const dbUrl = getDatabaseUrl();
-  if (!dbUrl) return null;
+  if (dbUrl) {
+    const derived = deriveJwtSecretFromDbUrl(dbUrl);
+    return derived.length >= 32 ? derived : null;
+  }
 
-  const derived = deriveJwtSecretFromDbUrl(dbUrl);
-  return derived.length >= 32 ? derived : null;
+  /** บน Vercel ถ้าไม่มี connection string เลย แต่มี VERCEL_PROJECT_ID (ต้องเปิด System Environment Variables) */
+  if (
+    process.env.VERCEL === '1' &&
+    (process.env.AUTH_JWT_DISABLE_VERCEL_PROJECT_FALLBACK || '').trim() !== '1'
+  ) {
+    const pid = (process.env.VERCEL_PROJECT_ID || '').trim();
+    if (pid) return deriveJwtSecretFromVercelProjectId(pid);
+  }
+
+  return null;
 }
 
 export function isProductionLike(): boolean {

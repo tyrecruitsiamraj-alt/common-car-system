@@ -27,6 +27,13 @@ const DB_ENV_KEYS = [
   'PRISMA_DATABASE_URL',
   'POSTGRES_URL_NON_POOLING',
   'DATABASE_URL_UNPOOLED',
+  'NEON_DATABASE_URL',
+  'SUPABASE_DATABASE_URL',
+  'PGHOST',
+  'PGUSER',
+  'PGPASSWORD',
+  'PGDATABASE',
+  'PGPORT',
   'PGSCHEMA',
   'DATABASE_SCHEMA',
   'PG_SSL',
@@ -86,15 +93,29 @@ function applyLocalDbEnvFromFiles(): void {
 
 applyLocalDbEnvFromFiles();
 
-/** ลำดับเดียวกับที่ serverless / migrate ควรใช้ — รองรับชื่อตัวแปรจาก Vercel / Neon / Prisma */
+/** ลำดับเดียวกับที่ serverless / migrate ควรใช้ — รองรับชื่อตัวแปรจาก Vercel / Neon / Prisma / Supabase */
 const DATABASE_URL_ENV_KEYS = [
   'DATABASE_URL',
   'POSTGRES_URL',
+  'NEON_DATABASE_URL',
+  'SUPABASE_DATABASE_URL',
   'POSTGRES_PRISMA_URL',
   'PRISMA_DATABASE_URL',
   'POSTGRES_URL_NON_POOLING',
   'DATABASE_URL_UNPOOLED',
 ] as const;
+
+function buildDatabaseUrlFromPgEnv(): string | null {
+  const host = (process.env.PGHOST || '').trim();
+  const user = (process.env.PGUSER || '').trim();
+  const db = (process.env.PGDATABASE || '').trim();
+  if (!host || !user || !db) return null;
+  const port = (process.env.PGPORT || '5432').trim() || '5432';
+  const pass = process.env.PGPASSWORD;
+  const passStr = pass !== undefined ? String(pass) : '';
+  const auth = passStr !== '' ? `${encodeURIComponent(user)}:${encodeURIComponent(passStr)}` : encodeURIComponent(user);
+  return `postgresql://${auth}@${host}:${port}/${encodeURIComponent(db)}`;
+}
 
 export function getDatabaseUrl(): string | null {
   for (const key of DATABASE_URL_ENV_KEYS) {
@@ -102,7 +123,8 @@ export function getDatabaseUrl(): string | null {
     const t = (v || '').trim();
     if (t) return t;
   }
-  return null;
+  const composed = buildDatabaseUrlFromPgEnv();
+  return composed || null;
 }
 
 export function isPgSslEnabled(): boolean {
