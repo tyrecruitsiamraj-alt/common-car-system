@@ -8,7 +8,7 @@ import {
   clearRuntimeDemoFlag,
 } from '@/lib/demoMode';
 import { apiFetch } from '@/lib/apiFetch';
-import { AUTH_JWT_MISSING_HINT } from '@/lib/vercelAuthHint';
+import { AUTH_JWT_MISSING_HINT, responseIndicatesJwtSigningUnavailable } from '@/lib/vercelAuthHint';
 import { clearJobStaffApiCache, refreshJobStaffFromApi } from '@/lib/jobStaffRemote';
 import { refreshWorkCalendarFromApi } from '@/lib/workCalendarStore';
 
@@ -232,16 +232,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!r.ok) {
       const m = typeof data.message === 'string' ? data.message : undefined;
       const err = typeof data.error === 'string' ? data.error : undefined;
-      const blob = [m, err, ...Object.values(data).filter((v): v is string => typeof v === 'string')]
-        .join(' ')
-        .toLowerCase();
-      // บาง proxy / client ได้แค่ error: Service unavailable — ยังบอกทางชัดเมื่อเป็น 503
-      if (
-        r.status === 503 &&
-        (blob.includes('auth_jwt') ||
-          blob.includes('jwt_secret') ||
-          (blob.includes('not configured') && blob.includes('secret')))
-      ) {
+      if (responseIndicatesJwtSigningUnavailable(r.status, data)) {
         return AUTH_JWT_MISSING_HINT;
       }
       return humanizeLoginFailure(r.status, m, err);
@@ -288,16 +279,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             : typeof data.error === 'string'
               ? data.error
               : 'Register failed';
-        const err = typeof data.error === 'string' ? data.error : undefined;
-        const blob = [msg, err, ...Object.values(data).filter((v): v is string => typeof v === 'string')]
-          .join(' ')
-          .toLowerCase();
-        if (
-          r.status === 503 &&
-          (blob.includes('auth_jwt') ||
-            blob.includes('jwt_secret') ||
-            (blob.includes('not configured') && blob.includes('secret')))
-        ) {
+        if (responseIndicatesJwtSigningUnavailable(r.status, data)) {
           return AUTH_JWT_MISSING_HINT;
         }
         return msg;

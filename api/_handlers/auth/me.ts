@@ -1,5 +1,5 @@
 import { dbQuery } from '../../_lib/postgres.js';
-import { getJwtSecret } from '../../_lib/auth.js';
+import { getJwtSecret, AUTH_JWT_MISSING_API_CODE, AUTH_JWT_MISSING_API_MESSAGE } from '../../_lib/auth.js';
 import { withAuth, sendError, handleApiError, type AuthedReq, type ApiRes } from '../../_lib/http.js';
 import type { UserRole } from '../../_lib/auth.js';
 import { tableInAppSchema } from '../../_lib/schema.js';
@@ -33,7 +33,9 @@ function toUserResponse(row: UserRow) {
 
 async function meHandler(req: AuthedReq, res: ApiRes) {
   if (!getJwtSecret()) {
-    return sendError(res, 503, 'Service unavailable', 'AUTH_JWT_SECRET is not configured');
+    return sendError(res, 503, 'Service unavailable', AUTH_JWT_MISSING_API_MESSAGE, {
+      code: AUTH_JWT_MISSING_API_CODE,
+    });
   }
   try {
     const { rows } = await dbQuery<UserRow>(

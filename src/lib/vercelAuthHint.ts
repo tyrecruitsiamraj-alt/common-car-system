@@ -23,3 +23,24 @@ export const AUTH_JWT_MISSING_HINT = `ไม่สามารถล็อกอ
 รันบนเครื่อง (ไม่ใช่ Vercel): คัดลอก .env.example เป็น .env.local แล้วใส่ AUTH_JWT_SECRET + DATABASE_URL — ดูรายละเอียดใน .env.example
 
 ปิดการ derive จาก DB (บังคับให้มี AUTH_JWT_SECRET เท่านั้น): AUTH_JWT_NO_DERIVED_SECRET=1`;
+
+/** ต้องตรงกับ AUTH_JWT_MISSING_API_CODE ใน api/_lib/auth.ts */
+export const AUTH_JWT_NOT_CONFIGURED_RESPONSE_CODE = 'AUTH_JWT_NOT_CONFIGURED';
+
+/** true เมื่อ API บอกว่าไม่มีคีย์ JWT (ไม่ใช่ทุก HTTP 503) */
+export function responseIndicatesJwtSigningUnavailable(
+  status: number,
+  data: Record<string, unknown>,
+): boolean {
+  if (status !== 503) return false;
+  if (data.code === AUTH_JWT_NOT_CONFIGURED_RESPONSE_CODE) return true;
+  const parts: string[] = [];
+  for (const v of Object.values(data)) {
+    if (typeof v === 'string') parts.push(v);
+  }
+  const b = parts.join(' ').toLowerCase();
+  return (
+    b.includes('auth_jwt_secret is not configured') ||
+    (b.includes('auth_jwt_secret') && b.includes('not configured'))
+  );
+}

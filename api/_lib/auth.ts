@@ -1,18 +1,21 @@
 import { createHash } from 'node:crypto';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
+import { getDatabaseUrl } from './env.js';
 
 /** Matches frontend `UserRole` in src/types */
 export type UserRole = 'admin' | 'supervisor' | 'staff';
 
 export const AUTH_COOKIE_NAME = process.env.AUTH_COOKIE_NAME || 'jarvis_auth';
 
+/** ส่งใน JSON เมื่อ login ไม่ได้เพราะไม่มีคีย์ลายเซ็น — ฝั่ง client ใช้แทนการเดาจากข้อความ */
+export const AUTH_JWT_MISSING_API_CODE = 'AUTH_JWT_NOT_CONFIGURED' as const;
+
+export const AUTH_JWT_MISSING_API_MESSAGE =
+  'JWT signing unavailable: set AUTH_JWT_SECRET (or JWT_SECRET), or a Postgres URL (DATABASE_URL, POSTGRES_URL, …).';
+
 /** Stable salt so derived secrets never collide with arbitrary env strings */
 const JWT_DERIVE_SALT = 'car-stamp:jwt-from-database-url:v1';
-
-function databaseUrlForJwtDerive(): string {
-  return (process.env.DATABASE_URL || process.env.POSTGRES_URL || '').trim();
-}
 
 /** HS256 secret from DB URL when AUTH_JWT_SECRET is unset (e.g. Vercel only has DATABASE_URL). */
 function deriveJwtSecretFromDbUrl(dbUrl: string): string {
@@ -32,7 +35,7 @@ export function getJwtSecret(): string | null {
 
   if ((process.env.AUTH_JWT_NO_DERIVED_SECRET || '').trim() === '1') return null;
 
-  const dbUrl = databaseUrlForJwtDerive();
+  const dbUrl = getDatabaseUrl();
   if (!dbUrl) return null;
 
   const derived = deriveJwtSecretFromDbUrl(dbUrl);

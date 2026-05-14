@@ -1,5 +1,5 @@
 import { dbQuery } from '../../_lib/postgres.js';
-import { hashPassword, getJwtSecret } from '../../_lib/auth.js';
+import { hashPassword, getJwtSecret, AUTH_JWT_MISSING_API_CODE, AUTH_JWT_MISSING_API_MESSAGE } from '../../_lib/auth.js';
 import {
   type ApiReq,
   sendError,
@@ -18,7 +18,9 @@ async function registerHandler(req: ApiReq, res: ApiRes) {
     return sendError(res, 405, 'Method not allowed');
   }
   if (!getJwtSecret()) {
-    return sendError(res, 503, 'Service unavailable', 'AUTH_JWT_SECRET is not configured');
+    return sendError(res, 503, 'Service unavailable', AUTH_JWT_MISSING_API_MESSAGE, {
+      code: AUTH_JWT_MISSING_API_CODE,
+    });
   }
 
   try {

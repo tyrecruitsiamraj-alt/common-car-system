@@ -23,6 +23,10 @@ function getProjectRoot(): string {
 const DB_ENV_KEYS = [
   'DATABASE_URL',
   'POSTGRES_URL',
+  'POSTGRES_PRISMA_URL',
+  'PRISMA_DATABASE_URL',
+  'POSTGRES_URL_NON_POOLING',
+  'DATABASE_URL_UNPOOLED',
   'PGSCHEMA',
   'DATABASE_SCHEMA',
   'PG_SSL',
@@ -82,9 +86,23 @@ function applyLocalDbEnvFromFiles(): void {
 
 applyLocalDbEnvFromFiles();
 
+/** ลำดับเดียวกับที่ serverless / migrate ควรใช้ — รองรับชื่อตัวแปรจาก Vercel / Neon / Prisma */
+const DATABASE_URL_ENV_KEYS = [
+  'DATABASE_URL',
+  'POSTGRES_URL',
+  'POSTGRES_PRISMA_URL',
+  'PRISMA_DATABASE_URL',
+  'POSTGRES_URL_NON_POOLING',
+  'DATABASE_URL_UNPOOLED',
+] as const;
+
 export function getDatabaseUrl(): string | null {
-  const url = process.env.DATABASE_URL || process.env.POSTGRES_URL || '';
-  return url.trim() ? url.trim() : null;
+  for (const key of DATABASE_URL_ENV_KEYS) {
+    const v = process.env[key];
+    const t = (v || '').trim();
+    if (t) return t;
+  }
+  return null;
 }
 
 export function isPgSslEnabled(): boolean {

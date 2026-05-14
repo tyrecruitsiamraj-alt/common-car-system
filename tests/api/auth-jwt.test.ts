@@ -8,6 +8,10 @@ describe('auth JWT', () => {
     delete process.env.AUTH_JWT_NO_DERIVED_SECRET;
     delete process.env.DATABASE_URL;
     delete process.env.POSTGRES_URL;
+    delete process.env.POSTGRES_PRISMA_URL;
+    delete process.env.PRISMA_DATABASE_URL;
+    delete process.env.POSTGRES_URL_NON_POOLING;
+    delete process.env.DATABASE_URL_UNPOOLED;
     process.env.AUTH_JWT_SECRET = 'test-secret-key-at-least-32-characters-long';
   });
 
@@ -41,5 +45,17 @@ describe('auth JWT', () => {
     process.env.AUTH_JWT_NO_DERIVED_SECRET = '1';
     process.env.DATABASE_URL = 'postgresql://u:p@host:5432/car_stamp';
     expect(getJwtSecret()).toBeNull();
+  });
+
+  it('derives from POSTGRES_PRISMA_URL when primary DATABASE_URL unset', () => {
+    delete process.env.AUTH_JWT_SECRET;
+    delete process.env.DATABASE_URL;
+    process.env.POSTGRES_PRISMA_URL = 'postgresql://u:p@host:5432/from_prisma';
+    const token = signAuthToken({
+      sub: '550e8400-e29b-41d4-a716-446655440000',
+      email: 'p@example.com',
+      role: 'staff',
+    });
+    expect(verifyAuthToken(token).email).toBe('p@example.com');
   });
 });

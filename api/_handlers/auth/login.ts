@@ -4,6 +4,8 @@ import {
   buildSetCookieHeader,
   verifyPassword,
   getJwtSecret,
+  AUTH_JWT_MISSING_API_CODE,
+  AUTH_JWT_MISSING_API_MESSAGE,
 } from '../../_lib/auth.js';
 import { sendError, handleApiError, type ApiReq, type ApiRes } from '../../_lib/http.js';
 import { readJsonBody, getString } from '../../_lib/body.js';
@@ -49,7 +51,9 @@ export default async function handler(req: ApiReq, res: ApiRes) {
   }
 
   if (!getJwtSecret()) {
-    return sendError(res, 503, 'Service unavailable', 'AUTH_JWT_SECRET is not configured');
+    return sendError(res, 503, 'Service unavailable', AUTH_JWT_MISSING_API_MESSAGE, {
+      code: AUTH_JWT_MISSING_API_CODE,
+    });
   }
 
   try {
