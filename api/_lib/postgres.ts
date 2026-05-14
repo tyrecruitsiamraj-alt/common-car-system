@@ -1,5 +1,10 @@
 import { Pool } from 'pg';
-import { getDatabaseUrl, getPgSchema, isPgSslEnabled } from './env.js';
+import {
+  getDatabaseUrl,
+  getPgSchema,
+  isPgSslEnabled,
+  DATABASE_CONNECTION_ENV_HINT,
+} from './env.js';
 
 type PoolState = {
   pool: Pool | null;
@@ -10,7 +15,7 @@ const globalForPg = globalThis as unknown as { __jarvisPgPool?: PoolState };
 function getOrCreatePool(): Pool {
   const databaseUrl = getDatabaseUrl();
   if (!databaseUrl) {
-    throw new Error('Missing DATABASE_URL/POSTGRES_URL');
+    throw new Error(`Missing database connection. ${DATABASE_CONNECTION_ENV_HINT}`);
   }
 
   if (!globalForPg.__jarvisPgPool) {

@@ -127,6 +127,10 @@ export function getDatabaseUrl(): string | null {
   return composed || null;
 }
 
+/** ใช้ใน error message — sync กับ scripts/database-url-from-env.mjs */
+export const DATABASE_CONNECTION_ENV_HINT =
+  'Set DATABASE_URL, POSTGRES_URL, NEON_DATABASE_URL, SUPABASE_DATABASE_URL, POSTGRES_PRISMA_URL, PRISMA_DATABASE_URL, POSTGRES_URL_NON_POOLING, DATABASE_URL_UNPOOLED, or PGHOST+PGUSER+PGDATABASE (+PGPASSWORD, PGPORT). See .env.example.';
+
 export function isPgSslEnabled(): boolean {
   const v = (process.env.PG_SSL || '').toLowerCase();
   return v === 'true' || v === '1' || v === 'yes';

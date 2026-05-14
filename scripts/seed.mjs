@@ -13,6 +13,7 @@ import { fileURLToPath } from "url";
 import pg from "pg";
 import bcrypt from "bcryptjs";
 import { DEFAULT_PG_SCHEMA } from "./schema-constants.mjs";
+import { getDatabaseUrlFromEnv, DATABASE_URL_MISSING_HINT } from "./database-url-from-env.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(__dirname, "..");
@@ -46,7 +47,7 @@ function loadEnvFromFiles() {
 }
 
 const env = loadEnvFromFiles();
-const databaseUrl = (env.DATABASE_URL || env.POSTGRES_URL || "").trim();
+const databaseUrl = getDatabaseUrlFromEnv(env).trim();
 const pgSsl = ["true", "1", "yes"].includes(String(env.PG_SSL || "").toLowerCase());
 const schema = String(env.PGSCHEMA || env.DATABASE_SCHEMA || "").trim();
 const validSchema = /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(schema) ? schema : DEFAULT_PG_SCHEMA;
@@ -55,7 +56,7 @@ if (!schema || !/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(schema)) {
 }
 
 if (!databaseUrl) {
-  console.error("Missing DATABASE_URL or POSTGRES_URL");
+  console.error(`Missing database connection. ${DATABASE_URL_MISSING_HINT}`);
   process.exit(1);
 }
 
