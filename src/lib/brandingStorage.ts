@@ -15,14 +15,14 @@ export type BrandingConfig = {
   gradientToHsl: string;
 };
 
-/** เปลี่ยนคีย์เมื่อ rebrand เพื่อไม่ให้ชื่อเก่าค้างใน localStorage ของผู้ใช้ */
-const KEY = 'so_recruit_branding_v1';
-const LEGACY_BRANDING_KEY = 'jarvis_branding_v1';
-const DEFAULT_LOGO_PATH = '/so-work-logo.png';
+/** localStorage — เปลี่ยนคีย์เมื่อ rebrand เพื่อตัดชื่อ So Recruit ที่ค้างจากเวอร์ชันเก่า */
+const KEY = 'common_car_branding_v1';
+const LEGACY_KEYS = ['so_recruit_branding_v1', 'jarvis_branding_v1'] as const;
 
 export const DEFAULT_BRANDING: BrandingConfig = {
   appName: 'Common Car System',
-  logoDataUrl: DEFAULT_LOGO_PATH,
+  /** null = แสดงตัวอักษรจากชื่อแอป (ไม่ใช้โลโก้ So Work) */
+  logoDataUrl: null,
   primaryHsl: '0 72% 50%',
   backgroundHsl: '0 0% 98%',
   foregroundHsl: '0 0% 12%',
@@ -32,21 +32,57 @@ export const DEFAULT_BRANDING: BrandingConfig = {
   gradientToHsl: '0 0% 94%',
 };
 
+function isLegacyAppName(name: string): boolean {
+  const n = name
+    .normalize('NFKC')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, ' ');
+  if (!n) return true;
+  if (n === 'jarvis' || n === 'lovable app' || n === 'car stamp') return true;
+  if (/so\s*recruit/.test(n)) return true;
+  if (/sowork/.test(n.replace(/\s/g, ''))) return true;
+  return false;
+}
+
+/** ล้างชื่อ/โลโก้แบรนด์เก่า (So Recruit, SOWORK, Jarvis) — ใช้ทั้ง client และให้สอดคล้องกับ API */
+export function normalizeBrandingConfig(merged: BrandingConfig): BrandingConfig {
+  const out = { ...merged };
+  if (isLegacyAppName(out.appName || '')) {
+    out.appName = DEFAULT_BRANDING.appName;
+  }
+  if (typeof out.logoDataUrl === 'string' && out.logoDataUrl.includes('so-work-logo')) {
+    out.logoDataUrl = null;
+  }
+  if (!out.logoDataUrl || !String(out.logoDataUrl).trim()) {
+    out.logoDataUrl = null;
+  }
+  return out;
+}
+
 export function loadBranding(): BrandingConfig {
   if (typeof window === 'undefined') return DEFAULT_BRANDING;
   try {
     let raw = localStorage.getItem(KEY);
-    if (!raw) raw = localStorage.getItem(LEGACY_BRANDING_KEY);
+    if (!raw) {
+      for (const k of LEGACY_KEYS) {
+        raw = localStorage.getItem(k);
+        if (raw) break;
+      }
+    }
     if (!raw) return DEFAULT_BRANDING;
     const p = JSON.parse(raw) as Partial<BrandingConfig>;
     const merged = { ...DEFAULT_BRANDING, ...p };
-    if (merged.appName === 'JARVIS' || merged.appName === 'Lovable App' || merged.appName === 'Car Stamp') {
-      merged.appName = DEFAULT_BRANDING.appName;
+    const result = normalizeBrandingConfig(merged);
+    try {
+      localStorage.setItem(KEY, JSON.stringify(result));
+      for (const k of LEGACY_KEYS) {
+        localStorage.removeItem(k);
+      }
+    } catch {
+      /* quota */
     }
-    if (!merged.logoDataUrl || !String(merged.logoDataUrl).trim()) {
-      merged.logoDataUrl = DEFAULT_LOGO_PATH;
-    }
-    return merged;
+    return result;
   } catch {
     return DEFAULT_BRANDING;
   }
@@ -56,7 +92,9 @@ export function saveBranding(c: BrandingConfig): void {
   if (typeof window === 'undefined') return;
   try {
     localStorage.setItem(KEY, JSON.stringify(c));
-    localStorage.removeItem(LEGACY_BRANDING_KEY);
+    for (const k of LEGACY_KEYS) {
+      localStorage.removeItem(k);
+    }
   } catch {
     /* quota */
   }

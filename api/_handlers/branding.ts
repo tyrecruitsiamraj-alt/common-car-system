@@ -9,6 +9,7 @@ import {
 } from '../_lib/http.js';
 import { readJsonBody } from '../_lib/body.js';
 import { tableInAppSchema } from '../_lib/schema.js';
+import { normalizeBrandingPayload } from '../_lib/brandingNormalize.js';
 
 const table = tableInAppSchema('app_branding');
 
@@ -68,7 +69,8 @@ async function getBranding(_req: ApiReq, res: ApiRes): Promise<void> {
       res.status(200).json({ config: null });
       return;
     }
-    res.status(200).json({ config: typeof p === 'object' && p !== null ? p : null });
+    const rawConfig = typeof p === 'object' && p !== null && !Array.isArray(p) ? (p as Record<string, unknown>) : null;
+    res.status(200).json({ config: rawConfig ? normalizeBrandingPayload(rawConfig) : null });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     // Graceful fallback before migration 016 is applied
@@ -92,6 +94,8 @@ async function putBranding(req: AuthedReq, res: ApiRes): Promise<void> {
       return sendError(res, 400, 'Bad request', 'Invalid branding payload or logo too large');
     }
 
+    const normalized = normalizeBrandingPayload(sanitized as Record<string, unknown>);
+
     await dbQuery(
       `
       insert into ${table} (id, payload, updated_at)
@@ -100,10 +104,10 @@ async function putBranding(req: AuthedReq, res: ApiRes): Promise<void> {
         payload = excluded.payload,
         updated_at = now()
       `,
-      [JSON.stringify(sanitized)],
+      [JSON.stringify(normalized)],
     );
 
-    res.status(200).json({ ok: true, config: sanitized });
+    res.status(200).json({ ok: true, config: normalized });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     if (/app_branding/i.test(msg) && /(does not exist|relation)/i.test(msg)) {

@@ -5,6 +5,7 @@ import {
   applyBrandingToDocument,
   loadBranding,
   saveBranding,
+  normalizeBrandingConfig,
 } from '@/lib/brandingStorage';
 import { isDemoMode } from '@/lib/demoMode';
 import { apiFetch } from '@/lib/apiFetch';
@@ -24,12 +25,7 @@ type BrandingContextValue = {
 const BrandingContext = createContext<BrandingContextValue | null>(null);
 
 function mergeServerPayload(remote: Record<string, unknown>): BrandingConfig {
-  const merged = { ...DEFAULT_BRANDING, ...remote } as BrandingConfig;
-  if (merged.appName === 'Car Stamp') merged.appName = DEFAULT_BRANDING.appName;
-  if (!merged.logoDataUrl || !String(merged.logoDataUrl).trim()) {
-    merged.logoDataUrl = DEFAULT_BRANDING.logoDataUrl;
-  }
-  return merged;
+  return normalizeBrandingConfig({ ...DEFAULT_BRANDING, ...remote } as BrandingConfig);
 }
 
 export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {

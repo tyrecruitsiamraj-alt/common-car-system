@@ -23,7 +23,8 @@ import {
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
 import { MapPin, Search, Sparkles, Briefcase, Calendar, Banknote, ExternalLink } from 'lucide-react';
 
-const SOWORK_APPLY_URL =
+const PUBLIC_APPLY_URL =
+  (import.meta.env.VITE_PUBLIC_APPLY_URL as string | undefined)?.trim() ||
   (import.meta.env.VITE_SOWORK_APPLY_URL as string | undefined)?.trim() ||
   'https://s.siamrajathanee.dev/u/m82prvg2';
 
@@ -148,7 +149,7 @@ const PublicJobBoardPage: React.FC = () => {
   }, [visible, search, chip, provinceFilter, districtFilter]);
 
   const openApply = () => {
-    window.open(SOWORK_APPLY_URL, '_blank', 'noopener,noreferrer');
+    window.open(PUBLIC_APPLY_URL, '_blank', 'noopener,noreferrer');
   };
 
   const onProvinceFilterChange = useCallback((next: string) => {
@@ -168,8 +169,7 @@ const PublicJobBoardPage: React.FC = () => {
             ค้นหางานที่เหมาะกับคุณ
           </h1>
           <p className="mt-3 text-sm md:text-base text-muted-foreground leading-relaxed">
-            ดูตำแหน่งจากระบบ So Recruit แบบเรียลไทม์ จากนั้นสมัครผ่านแอป{' '}
-            <span className="text-foreground font-medium">SOWORK</span> ตามลิงก์ด้านล่าง
+            ดูตำแหน่งที่เปิดรับจากระบบนี้แบบเรียลไทม์ จากนั้นสมัครงานตามลิงก์ด้านล่าง
           </p>
         </div>
 
@@ -301,7 +301,7 @@ const PublicJobBoardPage: React.FC = () => {
                     onClick={openApply}
                     className="flex-1 inline-flex items-center justify-center gap-1 rounded-lg bg-primary py-2.5 text-xs font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90"
                   >
-                    สมัคร SOWORK
+                    สมัครงาน
                     <ExternalLink className="h-3.5 w-3.5 opacity-90" />
                   </button>
                 </div>
@@ -317,10 +317,10 @@ const PublicJobBoardPage: React.FC = () => {
             onClick={openApply}
             className="inline-flex w-full sm:w-auto items-center justify-center gap-2 rounded-xl bg-primary px-8 py-3.5 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/25 transition-transform hover:scale-[1.02] active:scale-[0.98]"
           >
-            ไปที่แอปสมัครงาน SOWORK
+            เปิดลิงก์สมัครงาน
             <ExternalLink className="h-4 w-4" />
           </button>
-          <p className="mt-3 text-[11px] text-muted-foreground break-all">{SOWORK_APPLY_URL}</p>
+          <p className="mt-3 text-[11px] text-muted-foreground break-all">{PUBLIC_APPLY_URL}</p>
         </div>
       </div>
 
@@ -398,7 +398,7 @@ const PublicJobBoardPage: React.FC = () => {
                 onClick={openApply}
                 className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3 text-sm font-semibold text-primary-foreground"
               >
-                สมัครผ่าน SOWORK
+                สมัครงาน (ลิงก์ภายนอก)
                 <ExternalLink className="h-4 w-4" />
               </button>
             </div>
