@@ -231,6 +231,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!r.ok) {
       const m = typeof data.message === 'string' ? data.message : undefined;
       const err = typeof data.error === 'string' ? data.error : undefined;
+      const blob = [m, err, ...Object.values(data).filter((v): v is string => typeof v === 'string')]
+        .join(' ')
+        .toLowerCase();
+      // บาง proxy / client ได้แค่ error: Service unavailable — ยังบอกทางชัดเมื่อเป็น 503
+      if (
+        r.status === 503 &&
+        (blob.includes('auth_jwt') ||
+          blob.includes('jwt_secret') ||
+          (blob.includes('not configured') && blob.includes('secret')))
+      ) {
+        return 'เซิร์ฟเวอร์ยังไม่พร้อม (มักเป็น AUTH_JWT_SECRET หรือ DB) — บน Vercel: Project → Settings → Environment Variables → ใส่ AUTH_JWT_SECRET (สุ่ม ≥32 ตัว) + DATABASE_URL แล้ว Redeploy — ดู `.env.example`';
+      }
       return humanizeLoginFailure(r.status, m, err);
     }
     if (typeof data.token === 'string' && data.token.trim()) {
