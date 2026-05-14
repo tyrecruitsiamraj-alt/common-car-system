@@ -1,40 +1,91 @@
-import { getDatabaseUrl } from '../_lib/env.js';
+import { getDatabaseUrl, DATABASE_CONNECTION_ENV_HINT } from '../_lib/env.js';
+import { getJwtSecret } from '../_lib/auth.js';
 import { dbPing } from '../_lib/postgres.js';
 import { logError } from '../_lib/logger.js';
+import type { ApiReq, ApiRes } from '../_lib/http.js';
 
-type Res = {
-  status: (code: number) => {
-    json: (body: unknown) => void;
+/**
+ * สุขภาพ API + สิ่งที่ต้องมีสำหรับ login จริง (ไม่ส่งความลับ / ไม่ส่ง connection string)
+ * GET /api/health — ใช้ตรวจบน Vercel ว่าขาดอะไรแทนการเดาทีละ error
+ */
+export default async function handler(req: ApiReq, res: ApiRes): Promise<void> {
+  const method = (req.method || 'GET').toUpperCase();
+  if (method !== 'GET') {
+    res.status(405).json({ error: 'Method not allowed' });
+    return;
+  }
+
+  const databaseConfigured = !!getDatabaseUrl();
+  const jwtSigningReady = !!getJwtSecret();
+
+  let databaseReachable: boolean | null = null;
+  let databaseError: string | undefined;
+
+  if (databaseConfigured) {
+    try {
+      databaseReachable = await dbPing();
+      if (!databaseReachable) {
+        databaseError = 'DB ping returned unexpected result';
+      }
+    } catch (e: unknown) {
+      databaseReachable = false;
+      databaseError = e instanceof Error ? e.message : String(e);
+      logError('health.db_unreachable', { message: databaseError });
+    }
+  }
+
+  const loginLikelyWorks =
+    jwtSigningReady && databaseConfigured && databaseReachable === true;
+
+  const hintsTh: string[] = [];
+  if (!jwtSigningReady) {
+    hintsTh.push(
+      'JWT: ตั้ง AUTH_JWT_SECRET (แนะนำ) หรือให้มี connection string ต่อ Postgres (ระบบ derive คีย์ได้) หรือบน Vercel เปิด System Environment Variables เพื่อให้มี VERCEL_PROJECT_ID',
+    );
+  }
+  if (!databaseConfigured) {
+    hintsTh.push(
+      `ฐานข้อมูล: ยังไม่มี connection string ใน environment — ${DATABASE_CONNECTION_ENV_HINT}`,
+    );
+  } else if (databaseReachable === false) {
+    hintsTh.push(
+      'ฐานข้อมูล: มีค่า connection แล้วแต่เชื่อมไม่ได้ — ตรวจ PG_SSL=true, รหัสผ่านใน URL (encode อักขระพิเศษ), และว่าโฮสต์ยอมรับ connection จาก Vercel',
+    );
+  }
+  if (process.env.VERCEL === '1') {
+    hintsTh.push(
+      'Vercel: Project → Settings → Environment Variables (เลือก Production) → ใส่ค่า → Deployments → Redeploy',
+    );
+  }
+  if (loginLikelyWorks) {
+    hintsTh.push(
+      'จากการตรวจเบื้องต้น: JWT + DB พร้อม — ถ้ายังล็อกอินไม่ได้ ให้ตรวจว่ามี user ใน DB (npm run db:seed) และอีเมล/รหัสถูกต้อง',
+    );
+  }
+
+  const body = {
+    ok: true,
+    message: 'API route is up',
+    vercel: {
+      isVercel: process.env.VERCEL === '1',
+      vercelEnv: process.env.VERCEL_ENV ?? null,
+    },
+    checks: {
+      databaseConfigured,
+      jwtSigningReady,
+      databaseReachable,
+      loginLikelyWorks,
+    },
+    hintsTh,
+    /** ข้อความเดียวกับตอน Postgres ไม่มี URL — อ้างอิงเดียวกับ api/_lib/env.ts */
+    connectionEnvHelp: databaseConfigured ? undefined : DATABASE_CONNECTION_ENV_HINT,
+    databaseError: databaseReachable === false ? databaseError : undefined,
   };
-};
 
-export default async function handler(_req: unknown, res: Res) {
-  const dbUrl = getDatabaseUrl();
-
-  if (!dbUrl) {
-    return res.status(200).json({
-      ok: true,
-      message: 'API is working',
-      db: { enabled: false, reachable: null },
-    });
+  if (databaseConfigured && databaseReachable === false) {
+    res.status(503).json({ ...body, ok: false, message: 'Database not reachable' });
+    return;
   }
 
-  try {
-    const reachable = await dbPing();
-    if (!reachable) throw new Error('DB ping failed');
-
-    return res.status(200).json({
-      ok: true,
-      message: 'API is working',
-      db: { enabled: true, reachable: true },
-    });
-  } catch (e: unknown) {
-    const message = e instanceof Error ? e.message : String(e);
-    logError('health.db_unreachable', { message });
-    return res.status(503).json({
-      ok: false,
-      message: 'API is working, but database is not reachable',
-      db: { enabled: true, reachable: false, error: message },
-    });
-  }
+  res.status(200).json(body);
 }

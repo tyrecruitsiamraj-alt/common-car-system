@@ -9,6 +9,7 @@ import {
 } from '@/lib/demoMode';
 import { apiFetch } from '@/lib/apiFetch';
 import { AUTH_JWT_MISSING_HINT, responseIndicatesJwtSigningUnavailable } from '@/lib/vercelAuthHint';
+import { LOGIN_DATABASE_MISSING_HINT_TH, loginErrorLooksLikeMissingDatabase } from '@/lib/loginSetupHint';
 import { clearJobStaffApiCache, refreshJobStaffFromApi } from '@/lib/jobStaffRemote';
 import { refreshWorkCalendarFromApi } from '@/lib/workCalendarStore';
 
@@ -88,6 +89,7 @@ function mockUserForConfiguredDemo(email: string): User | null {
 function humanizeLoginFailure(status: number, message: string | undefined, error: string | undefined): string {
   const combined = `${message ?? ''} ${error ?? ''}`.toLowerCase();
   if (combined.includes('invalid email or password')) return 'อีเมลหรือรหัสผ่านไม่ถูกต้อง';
+  if (loginErrorLooksLikeMissingDatabase(message, error)) return LOGIN_DATABASE_MISSING_HINT_TH;
   if (combined.includes('auth_jwt_secret'))
     return AUTH_JWT_MISSING_HINT;
   if (combined.includes('service unavailable')) return 'ระบบล็อกอินไม่พร้อม (ตรวจ AUTH_JWT_SECRET และการเชื่อมต่อฐานข้อมูล)';
