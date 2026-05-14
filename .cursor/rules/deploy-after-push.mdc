@@ -1,0 +1,18 @@
+---
+description: After commit and push, run Vercel production deploy for this repo
+alwaysApply: true
+---
+
+# Commit, push, then deploy
+
+When you **commit** and **push** changes to the remote (especially `main`), also trigger a **production deploy** unless the user explicitly asks you to skip deploy.
+
+1. After `git push` succeeds, run from the project root:
+
+   ```bash
+   npm run deploy:vercel
+   ```
+
+2. If the command fails (e.g. not logged in, missing token, not linked), report the error briefly and remind the user that **Vercel Git integration** may still deploy automatically on push—check the Vercel dashboard **Deployments**.
+
+3. **Non-interactive / CI:** set `VERCEL_TOKEN` (Vercel → Account Settings → Tokens) and ensure the project is linked (`vercel link` once, or `.vercel/` in the repo if the team commits it—usually `.vercel` is gitignored).
