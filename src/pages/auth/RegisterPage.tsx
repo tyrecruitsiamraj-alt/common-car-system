@@ -152,7 +152,10 @@ const RegisterPage: React.FC = () => {
         </form>
 
         {error ? (
-          <p className="text-xs text-destructive text-center" role="alert">
+          <p
+            className="text-xs text-destructive text-left whitespace-pre-wrap break-words"
+            role="alert"
+          >
             {error}
           </p>
         ) : null}

@@ -8,6 +8,7 @@ import {
   clearRuntimeDemoFlag,
 } from '@/lib/demoMode';
 import { apiFetch } from '@/lib/apiFetch';
+import { AUTH_JWT_MISSING_HINT } from '@/lib/vercelAuthHint';
 import { clearJobStaffApiCache, refreshJobStaffFromApi } from '@/lib/jobStaffRemote';
 import { refreshWorkCalendarFromApi } from '@/lib/workCalendarStore';
 
@@ -88,7 +89,7 @@ function humanizeLoginFailure(status: number, message: string | undefined, error
   const combined = `${message ?? ''} ${error ?? ''}`.toLowerCase();
   if (combined.includes('invalid email or password')) return 'อีเมลหรือรหัสผ่านไม่ถูกต้อง';
   if (combined.includes('auth_jwt_secret'))
-    return 'เซิร์ฟเวอร์ยังไม่ได้ตั้ง AUTH_JWT_SECRET — บน Vercel: Settings → Environment Variables แล้ว Redeploy (รายละเอียดใน .env.example)';
+    return AUTH_JWT_MISSING_HINT;
   if (combined.includes('service unavailable')) return 'ระบบล็อกอินไม่พร้อม (ตรวจ AUTH_JWT_SECRET และการเชื่อมต่อฐานข้อมูล)';
   if (combined.includes('account is disabled') || combined.includes('inactive')) return 'บัญชีถูกปิดการใช้งาน';
   if (message && message.trim()) return message.trim();
@@ -241,7 +242,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           blob.includes('jwt_secret') ||
           (blob.includes('not configured') && blob.includes('secret')))
       ) {
-        return 'เซิร์ฟเวอร์ยังไม่พร้อม (มักเป็น AUTH_JWT_SECRET หรือ DB) — บน Vercel: Project → Settings → Environment Variables → ใส่ AUTH_JWT_SECRET (สุ่ม ≥32 ตัว) + DATABASE_URL แล้ว Redeploy — ดู `.env.example`';
+        return AUTH_JWT_MISSING_HINT;
       }
       return humanizeLoginFailure(r.status, m, err);
     }
@@ -287,6 +288,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             : typeof data.error === 'string'
               ? data.error
               : 'Register failed';
+        const err = typeof data.error === 'string' ? data.error : undefined;
+        const blob = [msg, err, ...Object.values(data).filter((v): v is string => typeof v === 'string')]
+          .join(' ')
+          .toLowerCase();
+        if (
+          r.status === 503 &&
+          (blob.includes('auth_jwt') ||
+            blob.includes('jwt_secret') ||
+            (blob.includes('not configured') && blob.includes('secret')))
+        ) {
+          return AUTH_JWT_MISSING_HINT;
+        }
         return msg;
       }
       return null;
