@@ -200,3 +200,29 @@ export function getPgSchema(): string {
   if (s && /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(s)) return s;
   return DEFAULT_PG_SCHEMA;
 }
+
+/** ชื่อตัวแปร DB ที่โปรเจกต์รู้จักและมีค่าไม่ว่างใน process.env (ไม่ส่งค่า — ใช้ debug ที่ GET /api/health) */
+export function listNonEmptyDatabaseEnvKeyNames(): string[] {
+  const out: string[] = [];
+  for (const k of DB_ENV_KEYS) {
+    const v = process.env[k];
+    if (v !== undefined && String(v).trim() !== '') out.push(k);
+  }
+  return out;
+}
+
+/** true ถ้ามี host + user + database name ครบอย่างน้อยหนึ่งชื่อต่อกลุ่ม (ยังไม่รับรองว่าเชื่อมได้) */
+export function canComposeDatabaseUrlParts(): boolean {
+  return (
+    !!firstEnvTrimmed(['PGHOST', 'POSTGRES_HOST', 'PG_HOST', 'DB_HOST']) &&
+    !!firstEnvTrimmed(['PGUSER', 'POSTGRES_USER', 'PG_USER', 'DB_USER']) &&
+    !!firstEnvTrimmed([
+      'PGDATABASE',
+      'POSTGRES_DATABASE',
+      'POSTGRES_DB',
+      'PG_DATABASE',
+      'DB_NAME',
+      'DATABASE_NAME',
+    ])
+  );
+}

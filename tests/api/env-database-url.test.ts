@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { getDatabaseUrl } from '../../api/_lib/env';
+import { getDatabaseUrl, listNonEmptyDatabaseEnvKeyNames } from '../../api/_lib/env';
 
 const KEYS = [
   'DATABASE_URL',
@@ -80,5 +80,10 @@ describe('getDatabaseUrl', () => {
     expect(u).toContain('neon.example');
     expect(u).toContain('mydb');
     expect(u).toContain('u1');
+  });
+
+  it('lists which known DB env keys are set (names only)', () => {
+    process.env.POSTGRES_HOST = 'h';
+    expect(listNonEmptyDatabaseEnvKeyNames()).toContain('POSTGRES_HOST');
   });
 });

@@ -1,5 +1,7 @@
 /** เมื่อ API โยน Missing database connection — อธิบายครบในครั้งเดียว (ไม่มีความลับใน string นี้) */
-export const LOGIN_DATABASE_MISSING_HINT_TH = `เซิร์ฟเวอร์ยังเชื่อม PostgreSQL ไม่ได้ — ใน environment ของ API ยังไม่มี connection string (หรือชุด PGHOST+PGUSER+PGDATABASE)
+export const LOGIN_DATABASE_MISSING_HINT_TH = `เซิร์ฟเวอร์ยังเชื่อม PostgreSQL ไม่ได้ — ใน environment ของ API ยังไม่มี connection string (หรือชุด host+user+database ครบ)
+
+สำคัญ: แก้ไฟล์ .env.example ใน Git ไม่ทำให้เว็บบน Vercel ได้ค่า — ต้องใส่ตัวแปรใน Vercel Dashboard แล้ว Redeploy; บนเครื่องคุณให้ใช้ไฟล์ .env.local (คัดลอกจาก .env.example) หรือรัน npm run vercel:env:pull
 
 สิ่งที่ต้องทำให้ครบ (ล็อกอินจริงต้องมีทั้ง JWT + DB):
 1) Vercel → Project → Settings → Environment Variables → เลือก Production → ใส่ชื่อตัวแปรมาตรฐาน (ตัวพิมพ์ใหญ่ตามที่ระบุ) เช่น DATABASE_URL เป็นสตริงเต็ม หรือแยกเป็น PGHOST + PGUSER + PGDATABASE + PGPASSWORD + PGPORT — ถ้าโฮสต์ใช้ชื่อแบบ POSTGRES_HOST / POSTGRES_USER / POSTGRES_DB ก็รองรับแล้ว (อย่าตั้งชื่อสั้นๆ แบบ host / user อย่างเดียว ถ้าไม่ได้ตั้งเป็นชื่อตัวแปรใน Dashboard ตรงกับรายการที่ API อ่าน)
