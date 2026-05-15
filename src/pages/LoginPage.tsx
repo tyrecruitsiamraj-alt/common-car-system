@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { PasswordField } from '@/components/ui/password-field';
 import { Label } from '@/components/ui/label';
 import AuthPageShell from '@/components/auth/AuthPageShell';
+import { loginErrorSuggestHealthLink } from '@/lib/loginSetupHint';
 
 /** ตรงกับผลลัพธ์ default ของ npm run db:seed (ถ้าตั้ง SEED_USER_PASSWORD ให้ใช้รหัสนั้นแทน) */
 const TRIAL_EMAIL =
@@ -115,12 +116,23 @@ const LoginPage: React.FC = () => {
         </form>
 
         {error ? (
-          <p
-            className="text-xs text-destructive text-left whitespace-pre-wrap break-words"
-            role="alert"
-          >
-            {error}
-          </p>
+          <div className="space-y-2" role="alert">
+            <p className="text-xs text-destructive text-left whitespace-pre-wrap break-words">{error}</p>
+            {loginErrorSuggestHealthLink(error) ? (
+              <p className="text-xs text-muted-foreground text-left">
+                <a
+                  href="/api/health"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-medium text-primary underline underline-offset-2 hover:text-primary/90"
+                >
+                  เปิดหน้าตรวจสถานะ API (/api/health)
+                </a>
+                {' — '}
+                ใช้โดเมนเดียวกับหน้านี้ (ไม่ต้องพิมพ์โดเมนใหม่)
+              </p>
+            ) : null}
+          </div>
         ) : null}
       </div>
     </AuthPageShell>
