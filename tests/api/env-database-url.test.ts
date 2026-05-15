@@ -1,12 +1,14 @@
 // @vitest-environment node
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { getDatabaseUrl, listNonEmptyDatabaseEnvKeyNames } from '../../api/_lib/env';
+import { getDatabaseUrl, getDatabaseUrlSource, listNonEmptyDatabaseEnvKeyNames } from '../../api/_lib/env';
 
 const KEYS = [
   'DATABASE_URL',
   'POSTGRES_URL',
   'NEON_DATABASE_URL',
   'SUPABASE_DATABASE_URL',
+  'SUPABASE_DB_URL',
+  'DATABASE_PRIVATE_URL',
   'POSTGRES_PRISMA_URL',
   'PRISMA_DATABASE_URL',
   'POSTGRES_URL_NON_POOLING',
@@ -80,6 +82,11 @@ describe('getDatabaseUrl', () => {
     expect(u).toContain('neon.example');
     expect(u).toContain('mydb');
     expect(u).toContain('u1');
+  });
+
+  it('reports DATABASE_URL as source when set', () => {
+    process.env.DATABASE_URL = 'postgresql://a:b@c/d';
+    expect(getDatabaseUrlSource()).toBe('DATABASE_URL');
   });
 
   it('lists which known DB env keys are set (names only)', () => {

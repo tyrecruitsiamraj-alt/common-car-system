@@ -29,6 +29,8 @@ const DB_ENV_KEYS = [
   'DATABASE_URL_UNPOOLED',
   'NEON_DATABASE_URL',
   'SUPABASE_DATABASE_URL',
+  'SUPABASE_DB_URL',
+  'DATABASE_PRIVATE_URL',
   'PGHOST',
   'POSTGRES_HOST',
   'PG_HOST',
@@ -119,12 +121,28 @@ const DATABASE_URL_ENV_KEYS = [
   'POSTGRES_URL',
   'NEON_DATABASE_URL',
   'SUPABASE_DATABASE_URL',
+  'SUPABASE_DB_URL',
+  'DATABASE_PRIVATE_URL',
   'POSTGRES_PRISMA_URL',
   'PRISMA_DATABASE_URL',
   'POSTGRES_URL_NON_POOLING',
   'DATABASE_URL_UNPOOLED',
 ] as const;
 
+export type DatabaseUrlSource =
+  | 'none'
+  | (typeof DATABASE_URL_ENV_KEYS)[number]
+  | 'composed_from_pg_vars';
+
+/** บอกว่า getDatabaseUrl() จะใช้คีย์ไหน (ไม่ส่งค่า) — ใช้ debug ที่ GET /api/health */
+export function getDatabaseUrlSource(): DatabaseUrlSource {
+  for (const key of DATABASE_URL_ENV_KEYS) {
+    const t = (process.env[key] || '').trim();
+    if (t) return key;
+  }
+  if (buildDatabaseUrlFromPgEnv()) return 'composed_from_pg_vars';
+  return 'none';
+}
 /** อ่านค่าแรกที่ไม่ว่างจาก process.env (รองรับชื่อ alias จาก Vercel / Neon / template) */
 function firstEnvTrimmed(keys: readonly string[]): string {
   for (const k of keys) {

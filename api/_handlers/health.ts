@@ -3,6 +3,7 @@ import {
   DATABASE_CONNECTION_ENV_HINT,
   listNonEmptyDatabaseEnvKeyNames,
   canComposeDatabaseUrlParts,
+  getDatabaseUrlSource,
 } from '../_lib/env.js';
 import { getJwtSecret } from '../_lib/auth.js';
 import { dbPing } from '../_lib/postgres.js';
@@ -24,6 +25,7 @@ export default async function handler(req: ApiReq, res: ApiRes): Promise<void> {
   const jwtSigningReady = !!getJwtSecret();
   const databaseRelatedEnvKeysSet = listNonEmptyDatabaseEnvKeyNames();
   const splitHostUserDbLooksComplete = canComposeDatabaseUrlParts();
+  const databaseUrlSource = getDatabaseUrlSource();
 
   let databaseReachable: boolean | null = null;
   let databaseError: string | undefined;
@@ -69,6 +71,9 @@ export default async function handler(req: ApiReq, res: ApiRes): Promise<void> {
       hintsTh.push(
         'ตอนนี้ไม่มีตัวแปร DB ใดในรายการที่ API อ่าน — ตรวจว่าใส่ในโปรเจกต์ Vercel ที่ deploy จริง และชื่อ Key ตรงกับรายการ (ดู field databaseRelatedEnvKeysSet ใน JSON นี้)',
       );
+      hintsTh.push(
+        `databaseUrlSource ตอนนี้เป็น "${databaseUrlSource}" — ถ้าเป็น none แปลว่า runtime ไม่เห็น DATABASE_URL / POSTGRES_URL / ชุด PGHOST+PGUSER+PGDATABASE ครบ (ตรวจชื่อตัวแปรตัวพิมพ์ใหญ่-เล็ก, ติ๊ก Production, Redeploy หลังเพิ่ม env)`,
+      );
     }
   } else if (databaseReachable === false) {
     hintsTh.push(
@@ -100,6 +105,8 @@ export default async function handler(req: ApiReq, res: ApiRes): Promise<void> {
       loginLikelyWorks,
     },
     hintsTh,
+    /** ว่า getDatabaseUrl() จะใช้คีย์ไหนเป็นหลัก — none = API ไม่เห็น connection */
+    databaseUrlSource,
     /** ชื่อตัวแปรที่มีค่า (ไม่ส่งค่า) — ถ้าว่างแปลว่า Vercel/API ไม่เห็นคีย์ที่รองรับ */
     databaseRelatedEnvKeysSet,
     splitHostUserDbLooksComplete,

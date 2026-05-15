@@ -8,7 +8,7 @@ export const LOGIN_DATABASE_MISSING_HINT_TH = `เซิร์ฟเวอร์
 2) ตั้ง AUTH_JWT_SECRET (แนะนำ) หรือให้ระบบ derive จาก URL / จาก VERCEL_PROJECT_ID (ต้องเปิด System Environment Variables บน Vercel แล้ว Redeploy)
 3) จากเครื่องคุณ ชี้ DB เดียวกับ production: npm run db:migrate && npm run db:seed
 
-ตรวจสถานะแบบรวม (ไม่ส่งความลับ): เปิด GET /api/health ในแท็บเดียวกับเว็บ (หรือ curl) จะเห็น checks.databaseConfigured / jwtSigningReady / loginLikelyWorks
+ตรวจสถานะแบบรวม (ไม่ส่งความลับ): เปิด GET /api/health ในแท็บเดียวกับเว็บ — ดู databaseUrlSource (ถ้าเป็น none = API ยังไม่เห็น connection จริง) และ databaseRelatedEnvKeysSet (รายชื่อตัวแปรที่มีค่า) กับ checks.databaseConfigured / jwtSigningReady / loginLikelyWorks
 
 รายละเอียดชื่อตัวแปร: ดูไฟล์ .env.example`;
 
