@@ -5,6 +5,13 @@ import { useAuth } from '@/contexts/AuthContext';
 import type { Employee, Vehicle, VehicleBooking } from '@/types';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { TimeHm24Select } from '@/components/shared/TimeHm24Select';
 import { cn } from '@/lib/utils';
 import {
@@ -202,22 +209,18 @@ function formatLocalFreeHourRange(day: Date, startH: number, endH: number): stri
   return `${a}–${b}`;
 }
 
-function employeeMatchesPlannerFilter(e: Employee, qNorm: string): boolean {
-  if (!qNorm) return true;
-  const t = `${e.first_name} ${e.last_name} ${e.employee_code} ${e.nickname ?? ''}`.toLowerCase();
-  return t.includes(qNorm);
+const PLANNER_FILTER_ALL = '__all__';
+
+function employeeMatchesPlannerFilterId(e: Employee, empId: string): boolean {
+  return !empId || e.id === empId;
 }
 
-function vehicleMatchesPlannerFilter(v: Vehicle, qNorm: string): boolean {
-  if (!qNorm) return true;
-  const t = `${v.plate_no} ${v.label ?? ''}`.toLowerCase();
-  return t.includes(qNorm);
+function vehicleMatchesPlannerFilterId(v: Vehicle, vehId: string): boolean {
+  return !vehId || v.id === vehId;
 }
 
-function bookingVehicleMatchesFilter(b: VehicleBooking, vehMap: Map<string, Vehicle>, qNorm: string): boolean {
-  if (!qNorm) return true;
-  const v = vehMap.get(b.vehicle_id);
-  return v ? vehicleMatchesPlannerFilter(v, qNorm) : b.vehicle_id.toLowerCase().includes(qNorm);
+function bookingVehicleMatchesFilterId(b: VehicleBooking, vehId: string): boolean {
+  return !vehId || b.vehicle_id === vehId;
 }
 
 function abbrevJoined(items: string[], maxLen: number): string {
@@ -343,9 +346,9 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
   const [selVeh, setSelVeh] = useState('');
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
-  /** กรองชื่อ/รหัสพนักงาน และทะเบียน/ชื่อเรียกรถ — ใช้กับตารางรายวัน/รายชั่วโมงและสรุปด้านล่าง */
-  const [plannerFilterEmp, setPlannerFilterEmp] = useState('');
-  const [plannerFilterVeh, setPlannerFilterVeh] = useState('');
+  /** กรองพนักงาน/รถจาก dropdown — ใช้กับตารางรายวัน/รายชั่วโมงและสรุปด้านล่าง */
+  const [plannerFilterEmpId, setPlannerFilterEmpId] = useState('');
+  const [plannerFilterVehId, setPlannerFilterVehId] = useState('');
 
   const [empDayDialog, setEmpDayDialog] = useState<{
     employee: Employee;
@@ -597,17 +600,14 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
       .sort((a, b) => `${a.first_name} ${a.last_name}`.localeCompare(`${b.first_name} ${b.last_name}`, 'th'));
   }, [empMap]);
 
-  const plannerEmpFilterNorm = useMemo(() => plannerFilterEmp.trim().toLowerCase(), [plannerFilterEmp]);
-  const plannerVehFilterNorm = useMemo(() => plannerFilterVeh.trim().toLowerCase(), [plannerFilterVeh]);
-
   const filteredEmployeesForPlanner = useMemo(
-    () => employeesForPlanner.filter((e) => employeeMatchesPlannerFilter(e, plannerEmpFilterNorm)),
-    [employeesForPlanner, plannerEmpFilterNorm],
+    () => employeesForPlanner.filter((e) => employeeMatchesPlannerFilterId(e, plannerFilterEmpId)),
+    [employeesForPlanner, plannerFilterEmpId],
   );
 
   const filteredVehiclesForGrid = useMemo(
-    () => vehiclesForGrid.filter((v) => vehicleMatchesPlannerFilter(v, plannerVehFilterNorm)),
-    [vehiclesForGrid, plannerVehFilterNorm],
+    () => vehiclesForGrid.filter((v) => vehicleMatchesPlannerFilterId(v, plannerFilterVehId)),
+    [vehiclesForGrid, plannerFilterVehId],
   );
 
   const onEmployeeHourClick = (employeeId: string, hour: number) => {
@@ -686,17 +686,19 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
 
   const dayBusyRowsFiltered = useMemo(() => {
     return dayBusyRows
-      .filter(({ emp }) => employeeMatchesPlannerFilter(emp, plannerEmpFilterNorm))
+      .filter(({ emp }) => employeeMatchesPlannerFilterId(emp, plannerFilterEmpId))
       .map(({ emp, bookings: bs }) => ({
         emp,
-        bookings: plannerVehFilterNorm ? bs.filter((b) => bookingVehicleMatchesFilter(b, vehMap, plannerVehFilterNorm)) : bs,
+        bookings: plannerFilterVehId
+          ? bs.filter((b) => bookingVehicleMatchesFilterId(b, plannerFilterVehId))
+          : bs,
       }))
       .filter(({ bookings: bs }) => bs.length > 0);
-  }, [dayBusyRows, plannerEmpFilterNorm, plannerVehFilterNorm, vehMap]);
+  }, [dayBusyRows, plannerFilterEmpId, plannerFilterVehId]);
 
   const dayFreeEmployeesFiltered = useMemo(
-    () => dayFreeEmployees.filter((e) => employeeMatchesPlannerFilter(e, plannerEmpFilterNorm)),
-    [dayFreeEmployees, plannerEmpFilterNorm],
+    () => dayFreeEmployees.filter((e) => employeeMatchesPlannerFilterId(e, plannerFilterEmpId)),
+    [dayFreeEmployees, plannerFilterEmpId],
   );
 
   const dayFreeIds = useMemo(() => new Set(dayFreeEmployees.map((e) => e.id)), [dayFreeEmployees]);
@@ -704,7 +706,7 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
   const dayPartialFreeEmployees = useMemo(() => {
     const out: { emp: Employee; label: string }[] = [];
     for (const emp of employeesForPlanner) {
-      if (!employeeMatchesPlannerFilter(emp, plannerEmpFilterNorm)) continue;
+      if (!employeeMatchesPlannerFilterId(emp, plannerFilterEmpId)) continue;
       if (dayFreeIds.has(emp.id)) continue;
       const ranges = freeHourRangesOnLocalDay(bookings, dayAnchor, (b) => b.employee_id === emp.id);
       if (ranges.length === 0) continue;
@@ -715,12 +717,12 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
       `${a.emp.first_name} ${a.emp.last_name}`.localeCompare(`${b.emp.first_name} ${b.emp.last_name}`, 'th'),
     );
     return out;
-  }, [bookings, dayAnchor, employeesForPlanner, dayFreeIds, plannerEmpFilterNorm]);
+  }, [bookings, dayAnchor, employeesForPlanner, dayFreeIds, plannerFilterEmpId]);
 
   const freeEmployeeNamesByHour = useMemo(() => {
     const hours: string[][] = Array.from({ length: 24 }, () => []);
     for (const emp of employeesForPlanner) {
-      if (!employeeMatchesPlannerFilter(emp, plannerEmpFilterNorm)) continue;
+      if (!employeeMatchesPlannerFilterId(emp, plannerFilterEmpId)) continue;
       for (let h = 0; h < 24; h += 1) {
         const busy = bookings.some(
           (b) => b.employee_id === emp.id && bookingOverlapsLocalHour(b, dayAnchor, h),
@@ -729,12 +731,12 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
       }
     }
     return hours;
-  }, [bookings, dayAnchor, employeesForPlanner, plannerEmpFilterNorm]);
+  }, [bookings, dayAnchor, employeesForPlanner, plannerFilterEmpId]);
 
   const freeVehiclePlatesByHour = useMemo(() => {
     const hours: string[][] = Array.from({ length: 24 }, () => []);
     for (const v of vehiclesForGrid) {
-      if (!vehicleMatchesPlannerFilter(v, plannerVehFilterNorm)) continue;
+      if (!vehicleMatchesPlannerFilterId(v, plannerFilterVehId)) continue;
       for (let h = 0; h < 24; h += 1) {
         const busy = bookings.some(
           (b) => b.vehicle_id === v.id && bookingOverlapsLocalHour(b, dayAnchor, h),
@@ -743,7 +745,7 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
       }
     }
     return hours;
-  }, [bookings, dayAnchor, vehiclesForGrid, plannerVehFilterNorm]);
+  }, [bookings, dayAnchor, vehiclesForGrid, plannerFilterVehId]);
 
   const vehicleHourGridEl =
     showVehicleHourGrid && vehiclesForGrid.length > 0 ? (
@@ -1070,25 +1072,45 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
           ) : null}
           {(viewMode === 'day' || viewMode === 'hour') && (
             <div className="flex flex-wrap gap-2 sm:gap-3 items-end pt-1 border-t border-border/40 mt-1">
-              <div className="flex-1 min-w-[9rem] space-y-0.5">
+              <div className="flex-1 min-w-[10rem] max-w-[16rem] space-y-0.5">
                 <Label className="text-[10px] text-muted-foreground">กรองพนักงาน</Label>
-                <Input
-                  value={plannerFilterEmp}
-                  onChange={(e) => setPlannerFilterEmp(e.target.value)}
-                  placeholder="ชื่อ, รหัส, ชื่อเล่น…"
-                  className="h-8 text-xs"
-                  autoComplete="off"
-                />
+                <Select
+                  value={plannerFilterEmpId || PLANNER_FILTER_ALL}
+                  onValueChange={(v) => setPlannerFilterEmpId(v === PLANNER_FILTER_ALL ? '' : v)}
+                >
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue placeholder="ทุกคน" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={PLANNER_FILTER_ALL}>ทุกคน</SelectItem>
+                    {employeesForPlanner.map((e) => (
+                      <SelectItem key={e.id} value={e.id}>
+                        {e.first_name} {e.last_name}
+                        {e.employee_code ? ` (${e.employee_code})` : ''}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-              <div className="flex-1 min-w-[9rem] space-y-0.5">
+              <div className="flex-1 min-w-[10rem] max-w-[16rem] space-y-0.5">
                 <Label className="text-[10px] text-muted-foreground">กรองรถ</Label>
-                <Input
-                  value={plannerFilterVeh}
-                  onChange={(e) => setPlannerFilterVeh(e.target.value)}
-                  placeholder="ทะเบียน, ชื่อเรียก…"
-                  className="h-8 text-xs"
-                  autoComplete="off"
-                />
+                <Select
+                  value={plannerFilterVehId || PLANNER_FILTER_ALL}
+                  onValueChange={(v) => setPlannerFilterVehId(v === PLANNER_FILTER_ALL ? '' : v)}
+                >
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue placeholder="ทุกคัน" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={PLANNER_FILTER_ALL}>ทุกคัน</SelectItem>
+                    {vehiclesForGrid.map((v) => (
+                      <SelectItem key={v.id} value={v.id}>
+                        {v.plate_no}
+                        {v.label?.trim() ? ` — ${v.label.trim()}` : ''}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           )}
@@ -1327,7 +1349,7 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                 </p>
                 <p className="text-[10px] text-muted-foreground mt-0.5">
                   {dayBookingsList.length} การจอง · ผู้ขับที่มีจอง {dayBusyRows.length} คน · ว่างทั้งวัน {dayFreeEmployees.length} คน
-                  {(plannerEmpFilterNorm || plannerVehFilterNorm) && (
+                  {(plannerFilterEmpId || plannerFilterVehId) && (
                     <span className="block mt-0.5 text-[9px] opacity-90">
                       แสดงในรายการด้านล่าง: มีจอง {dayBusyRowsFiltered.length} คน · ว่างทั้งวัน {dayFreeEmployeesFiltered.length} คน
                     </span>

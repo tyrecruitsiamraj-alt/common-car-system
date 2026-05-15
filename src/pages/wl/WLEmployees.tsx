@@ -4,7 +4,7 @@ import PageHeader from '@/components/shared/PageHeader';
 import QuickAddDriverForm from '@/components/wl/QuickAddDriverForm';
 import { useAuth } from '@/contexts/AuthContext';
 import type { Candidate, Employee, EmployeeStatus } from '@/types';
-import { Plus, Search } from 'lucide-react';
+import { Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { mockEmployees } from '@/data/mockData';
@@ -53,7 +53,6 @@ function combineWlEmployeeList(
 
 const WLEmployees: React.FC = () => {
   const navigate = useNavigate();
-  const { isAuthenticated } = useAuth();
   const isMobile = useIsMobile();
   const [filter, setFilter] = useState<EmployeeStatus | 'all'>('all');
   const [search, setSearch] = useState('');
@@ -130,23 +129,12 @@ const WLEmployees: React.FC = () => {
     <div>
       <PageHeader
         title="ผู้ขับ / ผู้ใช้รถ"
-        subtitle={`${filtered.length} คน`}
+        subtitle={`${filtered.length} คน — เพิ่มชื่อได้จากฟอร์มด้านล่าง`}
         backPath="/fleet"
-        actions={
-          isAuthenticated ? (
-            <button
-              type="button"
-              onClick={() => navigate('/fleet/drivers/add')}
-              className="flex items-center gap-1 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium shrink-0"
-            >
-              <Plus className="w-4 h-4" /> เพิ่ม (เต็มหน้า)
-            </button>
-          ) : undefined
-        }
       />
 
       <div className="px-4 md:px-6 space-y-4">
-        {isAuthenticated ? <QuickAddDriverForm onCreated={() => void reloadEmployees()} /> : null}
+        <QuickAddDriverForm id="driver-quick-add" onCreated={() => void reloadEmployees()} />
 
         {loading && <div className="text-sm text-muted-foreground">กำลังโหลดพนักงาน...</div>}
         {error && <div className="text-sm text-destructive">เกิดข้อผิดพลาด: {error}</div>}

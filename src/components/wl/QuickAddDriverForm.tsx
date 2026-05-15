@@ -8,10 +8,11 @@ import type { Employee } from '@/types';
 import { toast } from 'sonner';
 
 type Props = {
+  id?: string;
   onCreated: (employee: Employee) => void;
 };
 
-export default function QuickAddDriverForm({ onCreated }: Props) {
+export default function QuickAddDriverForm({ id, onCreated }: Props) {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [phone, setPhone] = useState('');
@@ -41,12 +42,16 @@ export default function QuickAddDriverForm({ onCreated }: Props) {
 
   return (
     <form
+      id={id}
       onSubmit={(e) => void handleSubmit(e)}
-      className="glass-card rounded-xl border border-primary/25 bg-primary/5 p-4 space-y-3"
+      className="glass-card rounded-xl border-2 border-primary/40 bg-primary/10 p-4 md:p-5 space-y-3 shadow-sm"
     >
-      <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
-        <Plus className="w-4 h-4 text-primary shrink-0" />
-        เพิ่มชื่อผู้ขับ / ผู้ใช้รถ
+      <div className="flex items-center gap-2">
+        <Plus className="w-5 h-5 text-primary shrink-0" />
+        <div>
+          <p className="text-sm font-semibold text-foreground">เพิ่มชื่อผู้ขับ / ผู้ใช้รถ</p>
+          <p className="text-[11px] text-muted-foreground">กรอกชื่อ นามสกุล เบอร์โทร แล้วกดบันทึก — ไม่ต้องออกจากหน้านี้</p>
+        </div>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div className="space-y-1.5">
