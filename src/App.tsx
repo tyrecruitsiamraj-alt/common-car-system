@@ -20,6 +20,7 @@ import AddEmployeePage from "@/pages/wl/AddEmployeePage";
 import SupervisorDashboard from "@/pages/dashboard/SupervisorDashboard";
 import ChangePasswordPage from "@/pages/ChangePasswordPage";
 import AppearanceSettingsPage from "@/pages/settings/AppearanceSettingsPage";
+import AdminRoute from "@/components/auth/AdminRoute";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -63,7 +64,14 @@ function AppRoutes() {
         <Route path="/fleet/drivers/:id" element={<EmployeeProfile />} />
         <Route path="/dashboard" element={<SupervisorDashboard />} />
         <Route path="/account/change-password" element={<ChangePasswordPage />} />
-        <Route path="/settings" element={<AppearanceSettingsPage />} />
+        <Route
+          path="/settings"
+          element={
+            <AdminRoute>
+              <AppearanceSettingsPage />
+            </AdminRoute>
+          }
+        />
         <Route path="*" element={<NotFound />} />
       </Route>
     </Routes>

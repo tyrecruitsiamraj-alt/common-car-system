@@ -316,7 +316,7 @@ type FleetBookingsPageProps = {
 
 const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) => {
   const { hasPermission } = useAuth();
-  const canDelete = hasPermission('supervisor');
+  const canDelete = hasPermission('staff');
   const isMonitor = mode === 'monitor';
 
   const [viewMode, setViewMode] = useState<ViewMode>(() => (mode === 'monitor' ? 'month' : 'day'));

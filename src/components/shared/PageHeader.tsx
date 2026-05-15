@@ -13,7 +13,7 @@ const PageHeader: React.FC<PageHeaderProps> = ({ title, subtitle, backPath, acti
   const navigate = useNavigate();
 
   return (
-    <div className="flex items-center justify-between px-4 md:px-6 py-4">
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-4 md:px-6 py-4">
       <div className="flex items-center gap-3">
         {backPath && (
           <button onClick={() => navigate(backPath)} className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">

@@ -1,6 +1,7 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PageHeader from '@/components/shared/PageHeader';
+import QuickAddDriverForm from '@/components/wl/QuickAddDriverForm';
 import { useAuth } from '@/contexts/AuthContext';
 import type { Candidate, Employee, EmployeeStatus } from '@/types';
 import { Plus, Search } from 'lucide-react';
@@ -52,7 +53,7 @@ function combineWlEmployeeList(
 
 const WLEmployees: React.FC = () => {
   const navigate = useNavigate();
-  const { hasPermission } = useAuth();
+  const { isAuthenticated } = useAuth();
   const isMobile = useIsMobile();
   const [filter, setFilter] = useState<EmployeeStatus | 'all'>('all');
   const [search, setSearch] = useState('');
@@ -65,7 +66,7 @@ const WLEmployees: React.FC = () => {
   const apiEmpRef = useRef<Employee[]>([]);
   const apiCandRef = useRef<Candidate[]>([]);
 
-  useEffect(() => {
+  const reloadEmployees = useCallback(async () => {
     if (isDemoMode()) {
       const cand = mergeCandidateSources([], getCandidates());
       setEmployees(combineWlEmployeeList([], getEmployees(), cand));
@@ -74,39 +75,36 @@ const WLEmployees: React.FC = () => {
       return;
     }
 
-    let cancelled = false;
     setLoading(true);
     setError(null);
 
-    Promise.all([apiFetch('/api/employees?limit=500'), apiFetch('/api/candidates?limit=500')])
-      .then(async ([er, cr]) => {
-        const eData = er.ok ? await readJsonSafe<Employee[]>(er) : [];
-        const cData = cr.ok ? ((await cr.json()) as Candidate[]) : [];
-        if (cancelled) return;
-        apiEmpRef.current = Array.isArray(eData) ? eData : [];
-        apiCandRef.current = Array.isArray(cData) ? cData : [];
-        const cand = mergeCandidateSources(apiCandRef.current, getCandidates());
-        setEmployees(combineWlEmployeeList(apiEmpRef.current, getEmployees(), cand));
-        setError(null);
-      })
-      .catch(() => {
-        if (cancelled) return;
-        apiEmpRef.current = [];
-        apiCandRef.current = [];
-        setEmployees(
-          combineWlEmployeeList([], getEmployees(), mergeCandidateSources([], getCandidates())),
-        );
-        setError(null);
-      })
-      .finally(() => {
-        if (cancelled) return;
-        setLoading(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
+    try {
+      const [er, cr] = await Promise.all([
+        apiFetch('/api/employees?limit=500'),
+        apiFetch('/api/candidates?limit=500'),
+      ]);
+      const eData = er.ok ? await readJsonSafe<Employee[]>(er) : [];
+      const cData = cr.ok ? ((await cr.json()) as Candidate[]) : [];
+      apiEmpRef.current = Array.isArray(eData) ? eData : [];
+      apiCandRef.current = Array.isArray(cData) ? cData : [];
+      const cand = mergeCandidateSources(apiCandRef.current, getCandidates());
+      setEmployees(combineWlEmployeeList(apiEmpRef.current, getEmployees(), cand));
+      setError(null);
+    } catch {
+      apiEmpRef.current = [];
+      apiCandRef.current = [];
+      setEmployees(
+        combineWlEmployeeList([], getEmployees(), mergeCandidateSources([], getCandidates())),
+      );
+      setError(null);
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    void reloadEmployees();
+  }, [reloadEmployees]);
 
   useEffect(() => {
     if (!isDemoMode()) return;
@@ -122,7 +120,7 @@ const WLEmployees: React.FC = () => {
     return employees
       .filter((e) => filter === 'all' || e.status === filter)
       .filter((e) =>
-        `${e.first_name} ${e.last_name} ${e.employee_code} ${e.position}`
+        `${e.first_name} ${e.last_name} ${e.phone} ${e.employee_code} ${e.position}`
           .toLowerCase()
           .includes(search.toLowerCase()),
       );
@@ -135,18 +133,21 @@ const WLEmployees: React.FC = () => {
         subtitle={`${filtered.length} คน`}
         backPath="/fleet"
         actions={
-          hasPermission('supervisor') ? (
+          isAuthenticated ? (
             <button
+              type="button"
               onClick={() => navigate('/fleet/drivers/add')}
-              className="flex items-center gap-1 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-sm"
+              className="flex items-center gap-1 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium shrink-0"
             >
-              <Plus className="w-4 h-4" /> เพิ่ม
+              <Plus className="w-4 h-4" /> เพิ่ม (เต็มหน้า)
             </button>
           ) : undefined
         }
       />
 
       <div className="px-4 md:px-6 space-y-4">
+        {isAuthenticated ? <QuickAddDriverForm onCreated={() => void reloadEmployees()} /> : null}
+
         {loading && <div className="text-sm text-muted-foreground">กำลังโหลดพนักงาน...</div>}
         {error && <div className="text-sm text-destructive">เกิดข้อผิดพลาด: {error}</div>}
 
@@ -179,6 +180,12 @@ const WLEmployees: React.FC = () => {
             ))}
           </div>
         </div>
+
+        {!loading && filtered.length === 0 ? (
+          <p className="text-sm text-muted-foreground py-6 text-center">
+            ยังไม่มีรายชื่อ — กรอกฟอร์มด้านบนแล้วกดบันทึกรายชื่อ
+          </p>
+        ) : null}
 
         {isMobile ? (
           <div className="space-y-2">

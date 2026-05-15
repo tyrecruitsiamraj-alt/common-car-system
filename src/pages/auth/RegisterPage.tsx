@@ -78,7 +78,9 @@ const RegisterPage: React.FC = () => {
       <div className="glass-card rounded-2xl border border-border/80 p-5 sm:p-6 shadow-lg shadow-black/[0.04] space-y-4">
         <div>
           <h2 className="text-lg font-semibold text-foreground">สมัครสมาชิก</h2>
-          <p className="text-xs text-muted-foreground mt-1">สร้างบัญชีใหม่ (สิทธิ์เริ่มต้น: staff)</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            สร้างบัญชีใหม่ (สิทธิ์เริ่มต้น: staff) — เพิ่ม/ลบข้อมูลได้ แก้ไขรายการต้อง supervisor ขึ้นไป หน้าตั้งค่าระบบเฉพาะ admin
+          </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-3">

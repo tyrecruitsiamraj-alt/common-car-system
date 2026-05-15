@@ -96,6 +96,27 @@ function parseLimitOffset(query: Record<string, unknown> | undefined): { limit: 
   return { limit, offset };
 }
 
+function todayYmdUtc(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+async function nextEmployeeCode(): Promise<string> {
+  const { rows } = await dbQuery<{ n: number }>(
+    `
+      select coalesce(max(
+        case
+          when employee_code ~ '^EMP-[0-9]+$'
+          then cast(substring(employee_code from 5) as integer)
+          else 0
+        end
+      ), 0) + 1 as n
+      from ${tblEmp}
+    `,
+  );
+  const n = rows[0]?.n ?? 1;
+  return `EMP-${String(n).padStart(3, '0')}`;
+}
+
 async function employeesHandler(req: AuthedReq, res: ApiRes) {
   const method = (req.method || 'GET').toUpperCase();
 
@@ -141,27 +162,26 @@ async function employeesHandler(req: AuthedReq, res: ApiRes) {
       const raw = await readJsonBody(req);
       if (!isPlainObject(raw)) return sendError(res, 400, 'Bad request', 'Invalid JSON body');
 
-      const employee_code = getString(raw.employee_code);
       const first_name = getString(raw.first_name);
       const last_name = getString(raw.last_name);
       const phone = getString(raw.phone);
-      const position = getString(raw.position);
-      const join_date = raw.join_date;
-      const status = raw.status;
 
       const missing = [
-        !employee_code ? 'employee_code' : null,
         !first_name ? 'first_name' : null,
         !last_name ? 'last_name' : null,
         !phone ? 'phone' : null,
-        !isEmployeeStatus(status) ? 'status' : null,
-        !position ? 'position' : null,
-        !isDateYmd(join_date) ? 'join_date' : null,
       ].filter(Boolean);
 
       if (missing.length > 0) {
         return sendError(res, 400, 'Bad request', 'Missing or invalid required fields', { fields: missing });
       }
+
+      let employee_code = getString(raw.employee_code);
+      if (!employee_code) employee_code = await nextEmployeeCode();
+
+      const position = getString(raw.position) || 'ผู้ขับ';
+      const join_date = isDateYmd(raw.join_date) ? raw.join_date : todayYmdUtc();
+      const status = isEmployeeStatus(raw.status) ? raw.status : 'active';
 
       const nickname = getString(raw.nickname);
       const address = getString(raw.address);

@@ -12,7 +12,8 @@ import BottomDockNav from '@/components/layout/bottom-nav/BottomDockNav';
 import { DOCK_NAV_ITEMS, isDockPathActive } from '@/components/layout/bottom-nav/dockNavConfig';
 
 const AppLayout: React.FC = () => {
-  const { user, logout } = useAuth();
+  const { user, logout, hasPermission } = useAuth();
+  const showSettings = hasPermission('admin');
   const { config } = useBranding();
   const location = useLocation();
   const navigate = useNavigate();
@@ -94,15 +95,17 @@ const AppLayout: React.FC = () => {
             <UserCircle className="w-4 h-4 text-primary" />
             <span className="text-xs font-medium text-primary uppercase">{user?.role}</span>
           </div>
-          <button
-            type="button"
-            onClick={() => navigate('/settings')}
-            className="p-2.5 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors touch-manipulation min-h-[44px] min-w-[44px] flex items-center justify-center"
-            aria-label="ตั้งค่าหน้าตา"
-            title="ตั้งค่าหน้าตา"
-          >
-            <Palette className="w-4 h-4" />
-          </button>
+          {showSettings ? (
+            <button
+              type="button"
+              onClick={() => navigate('/settings')}
+              className="p-2.5 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors touch-manipulation min-h-[44px] min-w-[44px] flex items-center justify-center"
+              aria-label="ตั้งค่าระบบ"
+              title="ตั้งค่าระบบ (Admin)"
+            >
+              <Palette className="w-4 h-4" />
+            </button>
+          ) : null}
           <button
             type="button"
             onClick={() => navigate('/account/change-password')}
@@ -134,15 +137,17 @@ const AppLayout: React.FC = () => {
           <span className="text-[10px] sm:text-xs px-2 py-1 rounded-full bg-primary/20 text-primary font-medium uppercase">
             {user?.role}
           </span>
-          <button
-            type="button"
-            onClick={() => navigate('/settings')}
-            className="p-2.5 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 touch-manipulation min-h-[44px] min-w-[44px] flex items-center justify-center"
-            aria-label="ตั้งค่าหน้าตา"
-            title="ตั้งค่าหน้าตา"
-          >
-            <Palette className="w-4 h-4" />
-          </button>
+          {showSettings ? (
+            <button
+              type="button"
+              onClick={() => navigate('/settings')}
+              className="p-2.5 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 touch-manipulation min-h-[44px] min-w-[44px] flex items-center justify-center"
+              aria-label="ตั้งค่าระบบ"
+              title="ตั้งค่าระบบ (Admin)"
+            >
+              <Palette className="w-4 h-4" />
+            </button>
+          ) : null}
           <button
             type="button"
             onClick={() => navigate('/account/change-password')}

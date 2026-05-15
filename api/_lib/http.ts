@@ -103,14 +103,14 @@ export function withAuthDataRoute(
   };
 }
 
-/** GET/POST: staff+; PATCH/PUT/DELETE: supervisor+ (create ทุกระดับ, แก้ไขเฉพาะ supervisor ขึ้นไป). */
+/** GET/POST/DELETE: staff+; PATCH/PUT: supervisor+ (ผู้สมัครใหม่ = staff เพิ่ม/ลบได้ แก้ไขข้อมูลต้อง supervisor+). */
 export function withAuthStaffCreateSupervisorMutate(
   handler: (req: AuthedReq, res: ApiRes) => Promise<void>,
 ): (req: ApiReq, res: ApiRes) => Promise<void> {
   return async (req: ApiReq, res: ApiRes) => {
     const m = (req.method || 'GET').toUpperCase();
     const roles: UserRole[] =
-      m === 'PATCH' || m === 'PUT' || m === 'DELETE' ? ['supervisor', 'admin'] : ['staff', 'supervisor', 'admin'];
+      m === 'PATCH' || m === 'PUT' ? ['supervisor', 'admin'] : ['staff', 'supervisor', 'admin'];
     const inner = withAuth(handler, { roles });
     return inner(req, res);
   };
