@@ -22,14 +22,36 @@ type BookingRow = {
   starts_at: string | Date;
   ends_at: string | Date;
   notes: string | null;
+  status: string;
   created_at: string | Date;
   updated_at: string | Date;
 };
+
+function auditUserName(req: AuthedReq): string {
+  return req.user.email?.trim() || 'user';
+}
+
+function auditUserId(req: AuthedReq): string | null {
+  const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  return uuidRe.test(req.user.sub) ? req.user.sub : null;
+}
 
 function toIso(value: string | Date): string {
   if (value instanceof Date) return value.toISOString();
   const d = new Date(value);
   return Number.isNaN(d.getTime()) ? String(value) : d.toISOString();
+}
+
+function bookingSnapshot(row: BookingRow) {
+  return {
+    id: row.id,
+    employee_id: row.employee_id,
+    vehicle_id: row.vehicle_id,
+    starts_at: toIso(row.starts_at),
+    ends_at: toIso(row.ends_at),
+    notes: row.notes || undefined,
+    status: row.status || 'active',
+  };
 }
 
 function toBooking(row: BookingRow) {
