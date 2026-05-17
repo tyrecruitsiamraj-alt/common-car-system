@@ -66,6 +66,8 @@ export interface VehicleBooking {
   vehicle_id: string;
   starts_at: string;
   ends_at: string;
+  /** สถานที่ที่ไป / ปลายทาง */
+  destination?: string;
   notes?: string;
   status?: 'active' | 'cancelled';
   created_at: string;

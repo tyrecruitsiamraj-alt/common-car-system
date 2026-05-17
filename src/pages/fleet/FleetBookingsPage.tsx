@@ -260,6 +260,15 @@ function driverShort(id: string, empMap: Map<string, Employee>): string {
   return n || '?';
 }
 
+function bookingDetailSuffix(b: VehicleBooking): string {
+  const dest = (b.destination || '').trim();
+  const note = (b.notes || '').trim();
+  const parts: string[] = [];
+  if (dest) parts.push(dest);
+  if (note) parts.push(note);
+  return parts.length ? ` · ${parts.join(' · ')}` : '';
+}
+
 function plateShort(id: string, vehMap: Map<string, Vehicle>): string {
   const p = vehMap.get(id)?.plate_no?.trim();
   return p || '?';
@@ -351,6 +360,7 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
 
   const [selEmp, setSelEmp] = useState('');
   const [selVeh, setSelVeh] = useState('');
+  const [destination, setDestination] = useState('');
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
   /** กรองพนักงาน/รถจาก dropdown — ใช้กับตารางรายวัน/รายชั่วโมงและสรุปด้านล่าง */
@@ -368,6 +378,7 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
   const [editVeh, setEditVeh] = useState('');
   const [editStart, setEditStart] = useState('');
   const [editEnd, setEditEnd] = useState('');
+  const [editDestination, setEditDestination] = useState('');
   const [editNotes, setEditNotes] = useState('');
 
   useEffect(() => {
@@ -834,7 +845,7 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                       if (!seg) return null;
                       const left = (seg.startH / 24) * 100;
                       const width = ((seg.endH - seg.startH) / 24) * 100;
-                      const title = `${driverShort(b.employee_id, empMap)} · ${plateShort(b.vehicle_id, vehMap)} · ${format(parseISO(b.starts_at), 'HH:mm')}–${format(parseISO(b.ends_at), 'HH:mm')}`;
+                      const title = `${driverShort(b.employee_id, empMap)} · ${plateShort(b.vehicle_id, vehMap)} · ${format(parseISO(b.starts_at), 'HH:mm')}–${format(parseISO(b.ends_at), 'HH:mm')}${bookingDetailSuffix(b)}`;
                       const barClass =
                         'absolute top-0.5 bottom-0.5 rounded-sm bg-primary/90 text-primary-foreground text-[8px] sm:text-[9px] leading-none px-0.5 flex flex-col justify-center overflow-hidden border border-primary/30 z-[1]';
                       if (isMonitor) {
@@ -939,7 +950,7 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                     ? slotBs
                         .map(
                           (b) =>
-                            `${plateShort(b.vehicle_id, vehMap)} ${format(parseISO(b.starts_at), 'HH:mm')}–${format(parseISO(b.ends_at), 'HH:mm')}${b.notes?.trim() ? ` · ${b.notes}` : ''}`,
+                            `${plateShort(b.vehicle_id, vehMap)} ${format(parseISO(b.starts_at), 'HH:mm')}–${format(parseISO(b.ends_at), 'HH:mm')}${bookingDetailSuffix(b)}`,
                         )
                         .join(' | ')
                     : hourSlotLabel(h);
@@ -999,11 +1010,13 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
           vehicle_id: selVeh,
           starts_at: bookingWindow.from.toISOString(),
           ends_at: bookingWindow.to.toISOString(),
+          destination: destination.trim() || undefined,
           notes: notes.trim() || undefined,
         }),
       });
       if (!r.ok) throw new Error(await parseApiError(r));
       toast.success('บันทึกการจองแล้ว');
+      setDestination('');
       setNotes('');
       await refresh();
     } catch (err) {
@@ -1033,6 +1046,7 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
     setEditVeh(b.vehicle_id);
     setEditStart(toDatetimeLocalValue(parseISO(b.starts_at)));
     setEditEnd(toDatetimeLocalValue(parseISO(b.ends_at)));
+    setEditDestination(b.destination ?? '');
     setEditNotes(b.notes ?? '');
   };
 
@@ -1055,6 +1069,7 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
           vehicle_id: editVeh,
           starts_at: win.from.toISOString(),
           ends_at: win.to.toISOString(),
+          destination: editDestination.trim() || undefined,
           notes: editNotes.trim() || undefined,
         }),
       });
@@ -1245,7 +1260,7 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                           <div
                             key={b.id}
                             className="rounded-sm px-0.5 py-px bg-primary/20 border border-primary/25 text-[8px] sm:text-[9px] leading-tight text-foreground"
-                            title={`${driverShort(b.employee_id, empMap)} · ${plateShort(b.vehicle_id, vehMap)} · ${format(parseISO(b.starts_at), 'HH:mm')}–${format(parseISO(b.ends_at), 'HH:mm')}`}
+                            title={`${driverShort(b.employee_id, empMap)} · ${plateShort(b.vehicle_id, vehMap)} · ${format(parseISO(b.starts_at), 'HH:mm')}–${format(parseISO(b.ends_at), 'HH:mm')}${bookingDetailSuffix(b)}`}
                           >
                             <div className="truncate font-medium">
                               {driverShort(b.employee_id, empMap)} · {plateShort(b.vehicle_id, vehMap)}
@@ -1339,7 +1354,7 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                                   : dayList
                                       .map(
                                         (b) =>
-                                          `${plateShort(b.vehicle_id, vehMap)} ${format(parseISO(b.starts_at), 'dd/MM HH:mm')}–${format(parseISO(b.ends_at), 'HH:mm')}`,
+                                          `${plateShort(b.vehicle_id, vehMap)} ${format(parseISO(b.starts_at), 'dd/MM HH:mm')}–${format(parseISO(b.ends_at), 'HH:mm')}${bookingDetailSuffix(b)}`,
                                       )
                                       .join(' | ');
                               const chip = cn(
@@ -1415,7 +1430,7 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                         <div
                           key={b.id}
                           className="rounded-md px-1 py-1 bg-primary/15 border border-primary/25 text-[9px] leading-tight"
-                          title={`${driverShort(b.employee_id, empMap)} · ${plateShort(b.vehicle_id, vehMap)} · ${format(parseISO(b.starts_at), 'HH:mm')}–${format(parseISO(b.ends_at), 'HH:mm')}`}
+                          title={`${driverShort(b.employee_id, empMap)} · ${plateShort(b.vehicle_id, vehMap)} · ${format(parseISO(b.starts_at), 'HH:mm')}–${format(parseISO(b.ends_at), 'HH:mm')}${bookingDetailSuffix(b)}`}
                         >
                           <div className="font-medium text-foreground truncate">
                             {driverShort(b.employee_id, empMap)}
@@ -1474,6 +1489,11 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                                   {format(parseISO(b.starts_at), 'HH:mm')}–{format(parseISO(b.ends_at), 'HH:mm')}
                                 </span>
                                 <span className="text-foreground/90">· {plateShort(b.vehicle_id, vehMap)}</span>
+                                {b.destination?.trim() ? (
+                                  <span className="text-foreground/80 truncate max-w-full" title={b.destination.trim()}>
+                                    · {b.destination.trim()}
+                                  </span>
+                                ) : null}
                                 {isIncidentBooking(b) ? (
                                   <span className="text-[10px] text-amber-700 dark:text-amber-400 font-medium">อุบัติเหตุ</span>
                                 ) : null}
@@ -1764,6 +1784,15 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                 </div>
               </div>
             )}
+            <div className="space-y-0.5">
+              <Label className="text-[10px]">สถานที่ที่ไป</Label>
+              <Input
+                value={destination}
+                onChange={(e) => setDestination(e.target.value)}
+                className="h-8 text-xs"
+                placeholder="เช่น สำนักงานใหญ่, ลูกค้า ABC, โรงงานระยอง"
+              />
+            </div>
             <div className="flex flex-wrap items-end gap-2">
               <div className="flex-1 min-w-[8rem] space-y-0.5">
                 <Label className="text-[10px]">หมายเหตุ</Label>
@@ -1791,10 +1820,11 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
               <table className="w-full text-[10px] sm:text-xs table-fixed border-collapse">
                 <thead className="sticky top-0 bg-card z-[1] shadow-sm">
                   <tr className="border-b border-border text-muted-foreground text-left">
-                    <th className="p-1.5 font-medium w-[22%]">เริ่ม</th>
-                    <th className="p-1.5 font-medium w-[22%]">สิ้นสุด</th>
-                    <th className="p-1.5 font-medium w-[26%] truncate">ผู้ขับ</th>
-                    <th className="p-1.5 font-medium w-[22%] truncate">รถ</th>
+                    <th className="p-1.5 font-medium w-[18%]">เริ่ม</th>
+                    <th className="p-1.5 font-medium w-[18%]">สิ้นสุด</th>
+                    <th className="p-1.5 font-medium w-[20%] truncate">ผู้ขับ</th>
+                    <th className="p-1.5 font-medium w-[16%] truncate">รถ</th>
+                    <th className="p-1.5 font-medium w-[20%] truncate">สถานที่ที่ไป</th>
                     {(!isMonitor && (canDelete || canEdit)) ? <th className="p-1 w-16" /> : null}
                   </tr>
                 </thead>
@@ -1811,6 +1841,11 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                       <td className="p-1.5 align-top min-w-0">
                         <div className="line-clamp-2 break-words" title={vehLabel(b.vehicle_id)}>
                           {vehLabel(b.vehicle_id)}
+                        </div>
+                      </td>
+                      <td className="p-1.5 align-top min-w-0">
+                        <div className="line-clamp-2 break-words text-muted-foreground" title={b.destination?.trim() || undefined}>
+                          {b.destination?.trim() || '—'}
                         </div>
                       </td>
                       {!isMonitor && (canDelete || canEdit) ? (
@@ -1854,6 +1889,12 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                         <div className="text-xs tabular-nums text-muted-foreground">
                           {format(parseISO(b.starts_at), 'dd/MM/yyyy HH:mm')} — {format(parseISO(b.ends_at), 'HH:mm')}
                         </div>
+                        {b.destination?.trim() ? (
+                          <div className="text-xs text-foreground/90">
+                            <span className="text-muted-foreground">สถานที่ที่ไป: </span>
+                            {b.destination.trim()}
+                          </div>
+                        ) : null}
                         {b.notes?.trim() ? (
                           <div className="text-xs text-foreground/90 pt-1 border-t border-border/60">
                             <span className="text-muted-foreground">หมายเหตุ: </span>
@@ -1875,7 +1916,7 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>แก้ไขการจอง</DialogTitle>
-            <DialogDescription>ปรับผู้ขับ รถ ช่วงเวลา หรือหมายเหตุ — บันทึกลงประวัติการแก้ไข</DialogDescription>
+            <DialogDescription>ปรับผู้ขับ รถ ช่วงเวลา สถานที่ที่ไป หรือหมายเหตุ — บันทึกลงประวัติการแก้ไข</DialogDescription>
           </DialogHeader>
           {editBooking ? (
             <form onSubmit={(e) => void saveEditBooking(e)} className="space-y-3">
@@ -1918,6 +1959,10 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                   <Label className="text-xs">สิ้นสุด</Label>
                   <Input type="datetime-local" value={editEnd} onChange={(e) => setEditEnd(e.target.value)} className="h-9 text-xs" required />
                 </div>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">สถานที่ที่ไป</Label>
+                <Input value={editDestination} onChange={(e) => setEditDestination(e.target.value)} className="h-9 text-xs" />
               </div>
               <div className="space-y-1">
                 <Label className="text-xs">หมายเหตุ</Label>

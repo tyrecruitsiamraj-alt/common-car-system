@@ -22,6 +22,7 @@ type BookingRow = {
   starts_at: string | Date;
   ends_at: string | Date;
   notes: string | null;
+  destination: string | null;
   status: string;
   created_at: string | Date;
   updated_at: string | Date;
@@ -50,8 +51,13 @@ function bookingSnapshot(row: BookingRow) {
     starts_at: toIso(row.starts_at),
     ends_at: toIso(row.ends_at),
     notes: row.notes || undefined,
+    destination: row.destination || undefined,
     status: row.status || 'active',
   };
+}
+
+function optionalText(v: unknown): string | null {
+  return typeof v === 'string' && v.trim() ? v.trim() : null;
 }
 
 function toBooking(row: BookingRow) {
@@ -61,6 +67,7 @@ function toBooking(row: BookingRow) {
     vehicle_id: row.vehicle_id,
     starts_at: toIso(row.starts_at),
     ends_at: toIso(row.ends_at),
+    destination: row.destination || undefined,
     notes: row.notes || undefined,
     status: row.status === 'cancelled' ? 'cancelled' : 'active',
     created_at: toIso(row.created_at),
@@ -254,7 +261,8 @@ async function handler(req: AuthedReq, res: ApiRes): Promise<void> {
       const vehicle_id = getString(b.vehicle_id);
       const starts = parseIso(b.starts_at);
       const ends = parseIso(b.ends_at);
-      const notes = typeof b.notes === 'string' && b.notes.trim() ? b.notes.trim() : null;
+      const destination = optionalText(b.destination);
+      const notes = optionalText(b.notes);
       if (!employee_id || !vehicle_id || !starts || !ends) {
         return sendError(res, 400, 'Bad request', 'employee_id, vehicle_id, starts_at, ends_at (ISO) required');
       }
@@ -269,11 +277,11 @@ async function handler(req: AuthedReq, res: ApiRes): Promise<void> {
 
       const { rows } = await dbQuery<BookingRow>(
         `
-        insert into ${tbl} (employee_id, vehicle_id, starts_at, ends_at, notes, status, updated_at)
-        values ($1::uuid, $2::uuid, $3::timestamptz, $4::timestamptz, $5, 'active', now())
+        insert into ${tbl} (employee_id, vehicle_id, starts_at, ends_at, destination, notes, status, updated_at)
+        values ($1::uuid, $2::uuid, $3::timestamptz, $4::timestamptz, $5, $6, 'active', now())
         returning *
       `,
-        [employee_id, vehicle_id, starts.toISOString(), ends.toISOString(), notes],
+        [employee_id, vehicle_id, starts.toISOString(), ends.toISOString(), destination, notes],
       );
       const row = rows[0];
       if (!row) return sendError(res, 500, 'Failed to create booking');
@@ -315,12 +323,8 @@ async function handler(req: AuthedReq, res: ApiRes): Promise<void> {
       const vehicle_id = b.vehicle_id !== undefined ? getString(b.vehicle_id) : cur.vehicle_id;
       const starts = b.starts_at !== undefined ? parseIso(b.starts_at) : new Date(cur.starts_at);
       const ends = b.ends_at !== undefined ? parseIso(b.ends_at) : new Date(cur.ends_at);
-      const notes =
-        b.notes !== undefined
-          ? typeof b.notes === 'string' && b.notes.trim()
-            ? b.notes.trim()
-            : null
-          : cur.notes;
+      const notes = b.notes !== undefined ? optionalText(b.notes) : cur.notes;
+      const destination = b.destination !== undefined ? optionalText(b.destination) : cur.destination;
 
       if (!employee_id || !vehicle_id || !starts || !ends) {
         return sendError(res, 400, 'Bad request', 'Invalid field values');
@@ -341,12 +345,13 @@ async function handler(req: AuthedReq, res: ApiRes): Promise<void> {
           vehicle_id = $3::uuid,
           starts_at = $4::timestamptz,
           ends_at = $5::timestamptz,
-          notes = $6,
+          destination = $6,
+          notes = $7,
           updated_at = now()
         where id = $1::uuid and ${ACTIVE_ONLY}
         returning *
       `,
-        [id, employee_id, vehicle_id, starts.toISOString(), ends.toISOString(), notes],
+        [id, employee_id, vehicle_id, starts.toISOString(), ends.toISOString(), destination, notes],
       );
       const row = rows[0];
       if (!row) return sendError(res, 404, 'Not found');
