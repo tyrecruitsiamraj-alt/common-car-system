@@ -206,12 +206,7 @@ const WLEmployees: React.FC = () => {
                 </div>
 
                 <div className="text-xs text-muted-foreground">
-                  {emp.employee_code} • {emp.position}
-                </div>
-
-                <div className="flex gap-4 mt-2 text-xs">
-                  <span className="text-primary">Reliability: {emp.reliability_score}%</span>
-                  <span className="text-muted-foreground">Util: {emp.utilization_rate}%</span>
+                  {emp.employee_code} • {emp.phone}
                 </div>
               </button>
             ))}
@@ -223,9 +218,8 @@ const WLEmployees: React.FC = () => {
                 <tr className="border-b border-border bg-secondary/30">
                   <th className="px-4 py-3 text-left text-muted-foreground font-medium">รหัส</th>
                   <th className="px-4 py-3 text-left text-muted-foreground font-medium">ชื่อ-สกุล</th>
+                  <th className="px-4 py-3 text-left text-muted-foreground font-medium">เบอร์โทร</th>
                   <th className="px-4 py-3 text-left text-muted-foreground font-medium">ตำแหน่ง</th>
-                  <th className="px-4 py-3 text-center text-muted-foreground font-medium">Reliability</th>
-                  <th className="px-4 py-3 text-center text-muted-foreground font-medium">Utilization</th>
                   <th className="px-4 py-3 text-center text-muted-foreground font-medium">สถานะ</th>
                 </tr>
               </thead>
@@ -241,22 +235,8 @@ const WLEmployees: React.FC = () => {
                     <td className="px-4 py-3 font-medium text-foreground">
                       {emp.first_name} {emp.last_name}
                     </td>
+                    <td className="px-4 py-3 text-muted-foreground tabular-nums">{emp.phone}</td>
                     <td className="px-4 py-3 text-muted-foreground">{emp.position}</td>
-                    <td className="px-4 py-3 text-center">
-                      <span
-                        className={cn(
-                          'font-semibold',
-                          emp.reliability_score >= 80
-                            ? 'text-success'
-                            : emp.reliability_score >= 60
-                              ? 'text-warning'
-                              : 'text-destructive',
-                        )}
-                      >
-                        {emp.reliability_score}%
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-center text-foreground">{emp.utilization_rate}%</td>
                     <td className="px-4 py-3 text-center">
                       <span
                         className={cn(

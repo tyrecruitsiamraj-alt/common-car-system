@@ -8,8 +8,10 @@ import {
 } from '../_lib/http.js';
 import { readJsonBody, getString } from '../_lib/body.js';
 import { tableInAppSchema } from '../_lib/schema.js';
+import { insertBookingAudit, listBookingAuditInRange } from '../_lib/bookingAudit.js';
 
 const tbl = tableInAppSchema('vehicle_bookings');
+const ACTIVE_ONLY = `coalesce(status, 'active') = 'active'`;
 const tblV = tableInAppSchema('vehicles');
 const tblE = tableInAppSchema('employees');
 
@@ -38,6 +40,7 @@ function toBooking(row: BookingRow) {
     starts_at: toIso(row.starts_at),
     ends_at: toIso(row.ends_at),
     notes: row.notes || undefined,
+    status: row.status === 'cancelled' ? 'cancelled' : 'active',
     created_at: toIso(row.created_at),
     updated_at: toIso(row.updated_at),
   };
@@ -64,6 +67,7 @@ async function overlapVehicle(
     where vehicle_id = $1::uuid
       and starts_at < $3::timestamptz
       and ends_at > $2::timestamptz
+      and ${ACTIVE_ONLY}
   `;
   if (excludeId) {
     params.push(excludeId);
@@ -86,6 +90,7 @@ async function overlapEmployee(
     where employee_id = $1::uuid
       and starts_at < $3::timestamptz
       and ends_at > $2::timestamptz
+      and ${ACTIVE_ONLY}
   `;
   if (excludeId) {
     params.push(excludeId);
@@ -131,7 +136,18 @@ async function handler(req: AuthedReq, res: ApiRes): Promise<void> {
       return sendError(res, 400, 'Bad request', 'from and to (ISO 8601) required; from < to');
     }
 
+    const auditLog = ['1', 'true', 'yes'].includes(
+      String(req.query?.auditLog ?? '')
+        .toLowerCase()
+        .trim(),
+    );
+
     try {
+      if (auditLog) {
+        const audit = await listBookingAuditInRange(fromQ.toISOString(), toQ.toISOString());
+        return res.status(200).json({ from: fromQ.toISOString(), to: toQ.toISOString(), audit });
+      }
+
       if (avail) {
         const { rows: empRows } = await dbQuery<EmpRow>(
           `
@@ -159,6 +175,7 @@ async function handler(req: AuthedReq, res: ApiRes): Promise<void> {
               where vb.vehicle_id = v.id
                 and vb.starts_at < $2::timestamptz
                 and vb.ends_at > $1::timestamptz
+                and coalesce(vb.status, 'active') = 'active'
             )
           order by v.plate_no
         `,
@@ -193,6 +210,7 @@ async function handler(req: AuthedReq, res: ApiRes): Promise<void> {
         `
         select * from ${tbl}
         where starts_at < $2::timestamptz and ends_at > $1::timestamptz
+          and ${ACTIVE_ONLY}
         order by starts_at asc
       `,
         [fromQ.toISOString(), toQ.toISOString()],
@@ -229,17 +247,98 @@ async function handler(req: AuthedReq, res: ApiRes): Promise<void> {
 
       const { rows } = await dbQuery<BookingRow>(
         `
-        insert into ${tbl} (employee_id, vehicle_id, starts_at, ends_at, notes, updated_at)
-        values ($1::uuid, $2::uuid, $3::timestamptz, $4::timestamptz, $5, now())
+        insert into ${tbl} (employee_id, vehicle_id, starts_at, ends_at, notes, status, updated_at)
+        values ($1::uuid, $2::uuid, $3::timestamptz, $4::timestamptz, $5, 'active', now())
         returning *
       `,
         [employee_id, vehicle_id, starts.toISOString(), ends.toISOString(), notes],
       );
       const row = rows[0];
       if (!row) return sendError(res, 500, 'Failed to create booking');
+      await insertBookingAudit({
+        bookingId: row.id,
+        userId: auditUserId(req),
+        userName: auditUserName(req),
+        action: 'created',
+        oldValue: null,
+        newValue: bookingSnapshot(row),
+      });
       return res.status(201).json(toBooking(row));
     } catch (e) {
       return handleApiError(res, e, 'vehicle-bookings POST', { userId: req.user.sub });
+    }
+  }
+
+  if (method === 'PATCH') {
+    try {
+      const raw = await readJsonBody(req);
+      if (typeof raw !== 'object' || raw === null) {
+        return sendError(res, 400, 'Bad request', 'Invalid JSON body');
+      }
+      const b = raw as Record<string, unknown>;
+      const id = getString(b.id);
+      if (!id) return sendError(res, 400, 'Bad request', 'id required');
+
+      const { rows: curRows } = await dbQuery<BookingRow>(
+        `select * from ${tbl} where id = $1::uuid limit 1`,
+        [id],
+      );
+      const cur = curRows[0];
+      if (!cur) return sendError(res, 404, 'Not found');
+      if (cur.status === 'cancelled') {
+        return sendError(res, 409, 'Conflict', 'การจองนี้ถูกยกเลิกแล้ว — สร้างรายการจองใหม่แทน');
+      }
+
+      const employee_id = b.employee_id !== undefined ? getString(b.employee_id) : cur.employee_id;
+      const vehicle_id = b.vehicle_id !== undefined ? getString(b.vehicle_id) : cur.vehicle_id;
+      const starts = b.starts_at !== undefined ? parseIso(b.starts_at) : new Date(cur.starts_at);
+      const ends = b.ends_at !== undefined ? parseIso(b.ends_at) : new Date(cur.ends_at);
+      const notes =
+        b.notes !== undefined
+          ? typeof b.notes === 'string' && b.notes.trim()
+            ? b.notes.trim()
+            : null
+          : cur.notes;
+
+      if (!employee_id || !vehicle_id || !starts || !ends) {
+        return sendError(res, 400, 'Bad request', 'Invalid field values');
+      }
+      if (starts >= ends) return sendError(res, 400, 'Bad request', 'ends_at must be after starts_at');
+
+      if (await overlapVehicle(vehicle_id, starts, ends, id)) {
+        return sendError(res, 409, 'Conflict', 'รถคันนี้ถูกจองในช่วงเวลานี้แล้ว');
+      }
+      if (await overlapEmployee(employee_id, starts, ends, id)) {
+        return sendError(res, 409, 'Conflict', 'ผู้ขับคนนี้มีการจองทับช่วงเวลานี้แล้ว');
+      }
+
+      const { rows } = await dbQuery<BookingRow>(
+        `
+        update ${tbl} set
+          employee_id = $2::uuid,
+          vehicle_id = $3::uuid,
+          starts_at = $4::timestamptz,
+          ends_at = $5::timestamptz,
+          notes = $6,
+          updated_at = now()
+        where id = $1::uuid and ${ACTIVE_ONLY}
+        returning *
+      `,
+        [id, employee_id, vehicle_id, starts.toISOString(), ends.toISOString(), notes],
+      );
+      const row = rows[0];
+      if (!row) return sendError(res, 404, 'Not found');
+      await insertBookingAudit({
+        bookingId: row.id,
+        userId: auditUserId(req),
+        userName: auditUserName(req),
+        action: 'updated',
+        oldValue: bookingSnapshot(cur),
+        newValue: bookingSnapshot(row),
+      });
+      return res.status(200).json(toBooking(row));
+    } catch (e) {
+      return handleApiError(res, e, 'vehicle-bookings PATCH', { userId: req.user.sub });
     }
   }
 
@@ -247,12 +346,38 @@ async function handler(req: AuthedReq, res: ApiRes): Promise<void> {
     try {
       const id = getString(req.query?.id);
       if (!id) return sendError(res, 400, 'Bad request', 'query id required');
-      const { rows: del } = await dbQuery<{ id: string }>(
-        `delete from ${tbl} where id = $1::uuid returning id`,
+
+      const { rows: curRows } = await dbQuery<BookingRow>(
+        `select * from ${tbl} where id = $1::uuid limit 1`,
         [id],
       );
-      if (!del.length) return sendError(res, 404, 'Not found');
-      return res.status(200).json({ ok: true, id: del[0].id });
+      const cur = curRows[0];
+      if (!cur) return sendError(res, 404, 'Not found');
+      if (cur.status === 'cancelled') {
+        return res.status(200).json({ ok: true, id, already_cancelled: true });
+      }
+
+      const { rows } = await dbQuery<BookingRow>(
+        `
+        update ${tbl} set status = 'cancelled', updated_at = now()
+        where id = $1::uuid and ${ACTIVE_ONLY}
+        returning *
+      `,
+        [id],
+      );
+      const row = rows[0];
+      if (!row) return sendError(res, 404, 'Not found');
+
+      await insertBookingAudit({
+        bookingId: row.id,
+        userId: auditUserId(req),
+        userName: auditUserName(req),
+        action: 'cancelled',
+        oldValue: bookingSnapshot(cur),
+        newValue: bookingSnapshot(row),
+      });
+
+      return res.status(200).json({ ok: true, id: row.id, status: 'cancelled' });
     } catch (e) {
       return handleApiError(res, e, 'vehicle-bookings DELETE', { userId: req.user.sub });
     }

@@ -67,8 +67,22 @@ export interface VehicleBooking {
   starts_at: string;
   ends_at: string;
   notes?: string;
+  status?: 'active' | 'cancelled';
   created_at: string;
   updated_at: string;
+}
+
+export type VehicleBookingAuditAction = 'created' | 'updated' | 'cancelled';
+
+export interface VehicleBookingAudit {
+  id: string;
+  booking_id: string;
+  user_id?: string;
+  user_name: string;
+  action: VehicleBookingAuditAction;
+  old_value?: Record<string, unknown>;
+  new_value?: Record<string, unknown>;
+  created_at: string;
 }
 
 // ============ WORK CALENDAR ============

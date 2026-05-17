@@ -2,9 +2,10 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import PageHeader from '@/components/shared/PageHeader';
 import { apiFetch } from '@/lib/apiFetch';
 import { useAuth } from '@/contexts/AuthContext';
-import type { Employee, Vehicle, VehicleBooking } from '@/types';
+import type { Employee, Vehicle, VehicleBooking, VehicleBookingAudit } from '@/types';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import {
   Select,
   SelectContent,
@@ -246,6 +247,12 @@ function dayPlannerStatusForEmployee(bookings: VehicleBooking[], empId: string, 
 
 const WEEKDAY_LABELS = ['จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส', 'อา'] as const;
 
+const BOOKING_AUDIT_LABEL: Record<VehicleBookingAudit['action'], string> = {
+  created: 'สร้างจอง',
+  updated: 'แก้ไข',
+  cancelled: 'ยกเลิก',
+};
+
 function driverShort(id: string, empMap: Map<string, Employee>): string {
   const e = empMap.get(id);
   if (!e) return '?';
@@ -355,6 +362,13 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
     day: Date;
     rows: VehicleBooking[];
   } | null>(null);
+  const [dayAudit, setDayAudit] = useState<VehicleBookingAudit[]>([]);
+  const [editBooking, setEditBooking] = useState<VehicleBooking | null>(null);
+  const [editEmp, setEditEmp] = useState('');
+  const [editVeh, setEditVeh] = useState('');
+  const [editStart, setEditStart] = useState('');
+  const [editEnd, setEditEnd] = useState('');
+  const [editNotes, setEditNotes] = useState('');
 
   useEffect(() => {
     if (mode === 'book' && (viewMode === 'month' || viewMode === 'week')) {
@@ -518,6 +532,24 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
       setAvailabilityError('เครือข่ายหรือเซิร์ฟเวอร์ไม่ตอบ — ลองอีกครั้ง');
     } finally {
       setLoading(false);
+      if (listRange) {
+        try {
+          const qAudit = new URLSearchParams({
+            from: listRange.from.toISOString(),
+            to: listRange.to.toISOString(),
+            auditLog: '1',
+          });
+          const rAudit = await apiFetch(`/api/vehicle-bookings?${qAudit}`);
+          if (rAudit.ok) {
+            const auditData = (await rAudit.json()) as { audit?: VehicleBookingAudit[] };
+            setDayAudit(Array.isArray(auditData.audit) ? auditData.audit : []);
+          } else {
+            setDayAudit([]);
+          }
+        } catch {
+          setDayAudit([]);
+        }
+      }
     }
   }, [listRange, bookingWindow]);
 
@@ -981,17 +1013,79 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
     }
   };
 
-  const deleteBooking = async (id: string) => {
+  const cancelBooking = async (id: string) => {
     if (!canDelete) return;
-    if (!window.confirm('ยกเลิกการจองนี้?')) return;
+    if (!window.confirm('ยกเลิกการจองนี้? ช่วงเวลานี้จะว่าง — สามารถจองหรือแก้ไขตารางวันนี้ได้')) return;
     try {
       const r = await apiFetch(`/api/vehicle-bookings?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
       if (!r.ok) throw new Error(await parseApiError(r));
-      toast.success('ลบการจองแล้ว');
+      toast.success('ยกเลิกการจองแล้ว — จองช่วงนี้ใหม่ได้');
+      setEmpDayDialog(null);
       await refresh();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'ลบไม่สำเร็จ');
+      toast.error(err instanceof Error ? err.message : 'ยกเลิกไม่สำเร็จ');
     }
+  };
+
+  const openEditBooking = (b: VehicleBooking) => {
+    setEditBooking(b);
+    setEditEmp(b.employee_id);
+    setEditVeh(b.vehicle_id);
+    setEditStart(toDatetimeLocalValue(parseISO(b.starts_at)));
+    setEditEnd(toDatetimeLocalValue(parseISO(b.ends_at)));
+    setEditNotes(b.notes ?? '');
+  };
+
+  const saveEditBooking = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editBooking || !canEdit) return;
+    const win = resolveBookingWindow(editStart, editEnd);
+    if (!win) {
+      toast.error('ช่วงเวลาไม่ถูกต้อง');
+      return;
+    }
+    setSaving(true);
+    try {
+      const r = await apiFetch('/api/vehicle-bookings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: editBooking.id,
+          employee_id: editEmp,
+          vehicle_id: editVeh,
+          starts_at: win.from.toISOString(),
+          ends_at: win.to.toISOString(),
+          notes: editNotes.trim() || undefined,
+        }),
+      });
+      if (!r.ok) throw new Error(await parseApiError(r));
+      toast.success('บันทึกการแก้ไขแล้ว');
+      setEditBooking(null);
+      setEmpDayDialog(null);
+      await refresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'แก้ไขไม่สำเร็จ');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const renderBookingActions = (b: VehicleBooking) => {
+    if (isMonitor) return null;
+    return (
+      <span className="inline-flex flex-wrap gap-2 ml-1">
+        {canEdit ? (
+          <button type="button" className="text-[10px] text-primary hover:underline" onClick={() => openEditBooking(b)}>
+            แก้ไข
+          </button>
+        ) : null}
+        {canDelete ? (
+          <button type="button" className="text-[10px] text-destructive hover:underline" onClick={() => void cancelBooking(b.id)}>
+            ยกเลิก
+          </button>
+        ) : null}
+      </span>
+    );
   };
 
   const todayYmd = format(new Date(), 'yyyy-MM-dd');
@@ -1375,7 +1469,7 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                           </div>
                           <ul className="mt-1.5 space-y-1 pl-0 list-none">
                             {bs.map((b) => (
-                              <li key={b.id} className="text-[11px] text-muted-foreground flex flex-wrap items-baseline gap-x-1.5 gap-y-0">
+                              <li key={b.id} className="text-[11px] text-muted-foreground flex flex-wrap items-baseline gap-x-1.5 gap-y-1">
                                 <span className="tabular-nums shrink-0">
                                   {format(parseISO(b.starts_at), 'HH:mm')}–{format(parseISO(b.ends_at), 'HH:mm')}
                                 </span>
@@ -1383,6 +1477,7 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                                 {isIncidentBooking(b) ? (
                                   <span className="text-[10px] text-amber-700 dark:text-amber-400 font-medium">อุบัติเหตุ</span>
                                 ) : null}
+                                {renderBookingActions(b)}
                               </li>
                             ))}
                           </ul>
@@ -1428,6 +1523,24 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                           </span>
                           <span className="text-muted-foreground"> · ว่าง </span>
                           <span className="tabular-nums text-foreground/90">{label}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </section>
+                <section>
+                  <h3 className="text-[11px] font-semibold text-foreground mb-2">ประวัติการแก้ไข / ยกเลิก (วันนี้)</h3>
+                  {dayAudit.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">ยังไม่มีประวัติในช่วงวันนี้</p>
+                  ) : (
+                    <ul className="space-y-1.5 max-h-36 overflow-y-auto text-[11px]">
+                      {dayAudit.map((a) => (
+                        <li key={a.id} className="rounded-md border border-border/60 bg-muted/20 px-2 py-1.5">
+                          <span className="font-medium text-foreground">{BOOKING_AUDIT_LABEL[a.action]}</span>
+                          <span className="text-muted-foreground">
+                            {' '}
+                            · {format(parseISO(a.created_at), 'dd/MM HH:mm')} · {a.user_name}
+                          </span>
                         </li>
                       ))}
                     </ul>
@@ -1682,7 +1795,7 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                     <th className="p-1.5 font-medium w-[22%]">สิ้นสุด</th>
                     <th className="p-1.5 font-medium w-[26%] truncate">ผู้ขับ</th>
                     <th className="p-1.5 font-medium w-[22%] truncate">รถ</th>
-                    {canDelete && !isMonitor ? <th className="p-1 w-8" /> : null}
+                    {(!isMonitor && (canDelete || canEdit)) ? <th className="p-1 w-16" /> : null}
                   </tr>
                 </thead>
                 <tbody>
@@ -1700,16 +1813,8 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                           {vehLabel(b.vehicle_id)}
                         </div>
                       </td>
-                      {canDelete && !isMonitor ? (
-                        <td className="p-1 align-top">
-                          <button
-                            type="button"
-                            className="text-[10px] text-destructive hover:underline"
-                            onClick={() => void deleteBooking(b.id)}
-                          >
-                            ลบ
-                          </button>
-                        </td>
+                      {!isMonitor && (canDelete || canEdit) ? (
+                        <td className="p-1 align-top whitespace-nowrap">{renderBookingActions(b)}</td>
                       ) : null}
                     </tr>
                   ))}
@@ -1755,12 +1860,78 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                             {b.notes.trim()}
                           </div>
                         ) : null}
+                        <div className="pt-1">{renderBookingActions(b)}</div>
                       </li>
                     ))}
                   </ul>
                 )}
               </div>
             </>
+          ) : null}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={editBooking !== null} onOpenChange={(open) => !open && setEditBooking(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>แก้ไขการจอง</DialogTitle>
+            <DialogDescription>ปรับผู้ขับ รถ ช่วงเวลา หรือหมายเหตุ — บันทึกลงประวัติการแก้ไข</DialogDescription>
+          </DialogHeader>
+          {editBooking ? (
+            <form onSubmit={(e) => void saveEditBooking(e)} className="space-y-3">
+              <div className="space-y-1">
+                <Label className="text-xs">ผู้ขับ</Label>
+                <select
+                  value={editEmp}
+                  onChange={(e) => setEditEmp(e.target.value)}
+                  className="w-full h-9 rounded-md border border-border bg-background px-2 text-sm"
+                  required
+                >
+                  {Array.from(empMap.values()).map((e) => (
+                    <option key={e.id} value={e.id}>
+                      {e.first_name} {e.last_name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">รถ</Label>
+                <select
+                  value={editVeh}
+                  onChange={(e) => setEditVeh(e.target.value)}
+                  className="w-full h-9 rounded-md border border-border bg-background px-2 text-sm"
+                  required
+                >
+                  {Array.from(vehMap.values()).map((v) => (
+                    <option key={v.id} value={v.id}>
+                      {v.plate_no}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <Label className="text-xs">เริ่ม</Label>
+                  <Input type="datetime-local" value={editStart} onChange={(e) => setEditStart(e.target.value)} className="h-9 text-xs" required />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">สิ้นสุด</Label>
+                  <Input type="datetime-local" value={editEnd} onChange={(e) => setEditEnd(e.target.value)} className="h-9 text-xs" required />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">หมายเหตุ</Label>
+                <Input value={editNotes} onChange={(e) => setEditNotes(e.target.value)} className="h-9 text-xs" />
+              </div>
+              <div className="flex gap-2 justify-end pt-1">
+                <Button type="button" variant="outline" onClick={() => setEditBooking(null)}>
+                  ปิด
+                </Button>
+                <Button type="submit" disabled={saving}>
+                  {saving ? 'กำลังบันทึก…' : 'บันทึก'}
+                </Button>
+              </div>
+            </form>
           ) : null}
         </DialogContent>
       </Dialog>
