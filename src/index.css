@@ -5,51 +5,51 @@
 
 @layer base {
   :root {
-    --background: 0 0% 98%;
-    --foreground: 0 0% 12%;
+    /* Fleet / slate-blue design system */
+    --background: 210 40% 98%;
+    --foreground: 222 47% 11%;
 
     --card: 0 0% 100%;
-    --card-foreground: 0 0% 12%;
+    --card-foreground: 222 47% 11%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 12%;
+    --popover-foreground: 222 47% 11%;
 
-    --primary: 0 72% 50%;
+    --primary: 222 47% 11%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 0 0% 95%;
-    --secondary-foreground: 0 0% 25%;
+    --secondary: 214 32% 96%;
+    --secondary-foreground: 215 25% 27%;
 
-    --muted: 0 0% 93%;
-    --muted-foreground: 0 0% 45%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 47%;
 
-    --accent: 0 72% 50%;
-    --accent-foreground: 0 0% 100%;
+    --accent: 214 32% 96%;
+    --accent-foreground: 222 47% 11%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 0 0% 89%;
-    --input: 0 0% 89%;
-    --ring: 0 72% 50%;
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 217 91% 60%;
 
-    --radius: 0.75rem;
+    --radius: 0.875rem;
 
     --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 0 0% 25%;
-    --sidebar-primary: 0 72% 50%;
+    --sidebar-foreground: 215 25% 27%;
+    --sidebar-primary: 222 47% 11%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 0 0% 95%;
-    --sidebar-accent-foreground: 0 0% 12%;
-    --sidebar-border: 0 0% 91%;
-    --sidebar-ring: 0 72% 50%;
+    --sidebar-accent: 214 32% 96%;
+    --sidebar-accent-foreground: 222 47% 11%;
+    --sidebar-border: 214 32% 91%;
+    --sidebar-ring: 217 91% 60%;
 
-    /* Custom JARVIS tokens */
     --success: 152 60% 40%;
     --success-foreground: 0 0% 100%;
     --warning: 38 92% 50%;
     --warning-foreground: 0 0% 12%;
-    --info: 210 72% 50%;
+    --info: 217 91% 60%;
     --info-foreground: 0 0% 100%;
 
     --status-normal: 152 60% 40%;
@@ -58,12 +58,14 @@
     --status-cancel-client: 270 60% 50%;
     --status-no-show: 0 0% 30%;
 
-    --gradient-primary: linear-gradient(135deg, hsl(0 72% 50%), hsl(0 72% 40%));
-    --gradient-card: linear-gradient(145deg, hsl(0 0% 100%), hsl(0 0% 97%));
-    --gradient-hero: linear-gradient(135deg, hsl(0 0% 98%), hsl(0 0% 94%));
+    --gradient-primary: linear-gradient(135deg, hsl(222 47% 11%), hsl(222 47% 18%));
+    --gradient-card: linear-gradient(145deg, hsl(0 0% 100% / 0.92), hsl(210 40% 98% / 0.88));
+    --gradient-hero: linear-gradient(135deg, #f8fafc, #eef2ff 45%, #f8fafc);
+    --app-shell-gradient: radial-gradient(circle at top left, #dbeafe, transparent 32%),
+      linear-gradient(135deg, #f8fafc, #eef2ff 45%, #f8fafc);
 
-    --shadow-glow: 0 0 20px hsl(0 72% 50% / 0.1);
-    --shadow-card: 0 4px 24px hsl(0 0% 0% / 0.06);
+    --shadow-glow: 0 0 20px hsl(217 91% 60% / 0.12);
+    --shadow-card: 0 4px 24px hsl(222 47% 11% / 0.06);
 
     --font-display: 'Inter', system-ui, sans-serif;
     --font-mono: 'JetBrains Mono', monospace;
@@ -75,25 +77,31 @@
     @apply border-border;
   }
 
-  body {
-    @apply bg-background text-foreground font-sans antialiased;
-    font-family: var(--font-display);
+  html[data-page-bg='gradient'] body,
+  html[data-page-bg='gradient'] {
+    background: var(--app-shell-gradient);
+    background-attachment: fixed;
   }
 
-  /* Custom scrollbar */
+  body {
+    @apply text-foreground font-sans antialiased;
+    font-family: var(--font-display);
+    background-color: hsl(var(--background));
+  }
+
   ::-webkit-scrollbar {
     width: 6px;
     height: 6px;
   }
   ::-webkit-scrollbar-track {
-    background: hsl(var(--background));
+    background: transparent;
   }
   ::-webkit-scrollbar-thumb {
     background: hsl(var(--border));
     border-radius: 3px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: hsl(var(--muted-foreground));
+    background: hsl(var(--muted-foreground) / 0.5);
   }
 }
 
@@ -101,17 +109,42 @@
   .safe-area-pt {
     padding-top: max(0.75rem, env(safe-area-inset-top));
   }
+
+  .app-shell-gradient {
+    background: var(--app-shell-gradient);
+    background-attachment: fixed;
+  }
+
   .glass-card {
-    @apply bg-card border border-border shadow-sm;
+    @apply rounded-2xl border border-white/70 bg-white/80 text-card-foreground shadow-sm backdrop-blur-md;
   }
+
+  .page-panel {
+    @apply overflow-hidden rounded-[2rem] border border-white/80 bg-white/65 shadow-2xl shadow-slate-200/70 backdrop-blur-xl;
+  }
+
+  .page-panel-header {
+    @apply border-b border-slate-200/70 px-5 py-4 md:px-8;
+  }
+
+  .brand-kicker {
+    @apply flex items-center gap-2 text-sm font-semibold text-blue-700;
+  }
+
   .glow-border {
-    box-shadow: 0 0 0 1px hsl(var(--primary) / 0.3), var(--shadow-glow);
+    box-shadow: 0 0 0 1px hsl(var(--ring) / 0.25), var(--shadow-glow);
   }
+
   .text-gradient {
     @apply bg-clip-text text-transparent;
     background-image: var(--gradient-primary);
   }
+
   .status-dot {
-    @apply w-2.5 h-2.5 rounded-full inline-block;
+    @apply inline-block h-2.5 w-2.5 rounded-full;
+  }
+
+  .fleet-input {
+    @apply h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 text-sm outline-none transition placeholder:text-slate-400 focus:border-blue-300 focus:bg-white focus:ring-4 focus:ring-blue-100;
   }
 }

@@ -19,8 +19,9 @@ const AuthPageShell: React.FC<AuthPageShellProps> = ({ children, footer }) => {
   return (
     <div
       className={cn(
-        'min-h-[100dvh] min-h-screen flex items-center justify-center p-4 sm:p-6',
+        'min-h-[100dvh] min-h-screen flex items-center justify-center p-4 sm:p-6 text-slate-900',
         config.pageBackgroundMode === 'solid' && 'bg-background',
+        config.pageBackgroundMode === 'gradient' && 'app-shell-gradient',
       )}
       style={shellBg}
     >
@@ -29,7 +30,7 @@ const AuthPageShell: React.FC<AuthPageShellProps> = ({ children, footer }) => {
         animate={{ opacity: 1, y: 0 }}
         className="w-full max-w-md mx-auto"
       >
-        <div className="text-center mb-8">
+        <div className="glass-card mb-8 rounded-[2rem] p-6 text-center">
           <Link to="/login" className="inline-flex flex-col items-center gap-2 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-ring">
             <BrandMark size="lg" />
             <h1 className="text-2xl font-bold text-foreground">

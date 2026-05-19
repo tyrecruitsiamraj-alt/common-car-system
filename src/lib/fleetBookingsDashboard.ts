@@ -7,19 +7,28 @@ import type {
   DashboardVehicleUsage,
 } from '@/components/fleet/FleetBookingsDashboard';
 import type { Employee, Vehicle, VehicleBooking } from '@/types';
-import { CalendarDays, Clock3, ShieldCheck, Wrench } from 'lucide-react';
+import { CalendarDays, CheckCircle2, Clock3, Wrench } from 'lucide-react';
 
+export type DashboardMetricId = 'today' | 'inProgress' | 'completed' | 'maintenance';
+
+export type TodayBookingDetail = {
+  id: string;
+  driverName: string;
+  plate: string;
+  vehicleLabel: string;
+  time: string;
+  destination: string;
+  status: Exclude<BookingListStatus, 'all'>;
+};
+
+/** สถานะจองในรายการ: กำลังใช้งาน หรือ เสร็จสิ้น เท่านั้น */
 export function deriveBookingListStatus(
   b: VehicleBooking,
   now = new Date(),
 ): Exclude<BookingListStatus, 'all'> {
-  const start = parseISO(b.starts_at);
   const end = parseISO(b.ends_at);
   if (end <= now) return 'completed';
-  if (start <= now && end > now) return 'inProgress';
-  const hoursUntil = (start.getTime() - now.getTime()) / (1000 * 60 * 60);
-  if (hoursUntil > 0 && hoursUntil <= 4) return 'pending';
-  return 'approved';
+  return 'inProgress';
 }
 
 function formatBookingDateLabel(startsAt: string): string {
@@ -65,7 +74,7 @@ export function bookingToDashboardRow(
   };
 }
 
-function bookingsOnDay(bookings: VehicleBooking[], day: Date): VehicleBooking[] {
+export function bookingsOnDay(bookings: VehicleBooking[], day: Date): VehicleBooking[] {
   const d0 = startOfDay(day);
   const d1 = addDays(d0, 1);
   return bookings.filter((b) => {
@@ -75,26 +84,76 @@ function bookingsOnDay(bookings: VehicleBooking[], day: Date): VehicleBooking[] 
   });
 }
 
+export function buildTodayBookingDetails(
+  bookings: VehicleBooking[],
+  empLabel: (id: string) => string,
+  vehMap: Map<string, Vehicle>,
+): TodayBookingDetail[] {
+  const today = bookingsOnDay(bookings, new Date());
+  const now = new Date();
+  return today
+    .map((b) => {
+      const v = vehMap.get(b.vehicle_id);
+      const dest = (b.destination || '').trim();
+      const note = (b.notes || '').trim();
+      return {
+        id: b.id,
+        driverName: empLabel(b.employee_id),
+        plate: v?.plate_no ?? '—',
+        vehicleLabel: v?.label?.trim() || '—',
+        time: `${format(parseISO(b.starts_at), 'HH:mm')} - ${format(parseISO(b.ends_at), 'HH:mm')}`,
+        destination: dest || note || '—',
+        status: deriveBookingListStatus(b, now),
+      };
+    })
+    .sort((a, b) => a.time.localeCompare(b.time, 'th'));
+}
+
 export function computeDashboardMetrics(
   bookings: VehicleBooking[],
   vehicles: Vehicle[],
 ): DashboardMetric[] {
   const today = bookingsOnDay(bookings, new Date());
   const now = new Date();
-  let approved = 0;
-  let pending = 0;
+  let inProgress = 0;
+  let completed = 0;
   for (const b of today) {
     const st = deriveBookingListStatus(b, now);
-    if (st === 'approved') approved += 1;
-    if (st === 'pending') pending += 1;
+    if (st === 'completed') completed += 1;
+    else inProgress += 1;
   }
   const maintenance = vehicles.filter((v) => v.is_active === false).length;
 
   return [
-    { icon: CalendarDays, label: 'จองวันนี้', value: String(today.length), helper: 'รายการ' },
-    { icon: ShieldCheck, label: 'อนุมัติแล้ว', value: String(approved), helper: 'รายการ' },
-    { icon: Clock3, label: 'รอดำเนินการ', value: String(pending), helper: 'รายการ' },
-    { icon: Wrench, label: 'รถซ่อมบำรุง', value: String(maintenance), helper: 'คัน' },
+    {
+      id: 'today',
+      icon: CalendarDays,
+      label: 'จองวันนี้',
+      value: String(today.length),
+      helper: 'รายการ',
+      clickable: true,
+    },
+    {
+      id: 'inProgress',
+      icon: Clock3,
+      label: 'กำลังดำเนินการ',
+      value: String(inProgress),
+      helper: 'งาน',
+    },
+    {
+      id: 'completed',
+      icon: CheckCircle2,
+      label: 'เสร็จสิ้น',
+      value: String(completed),
+      helper: 'งาน',
+    },
+    {
+      id: 'maintenance',
+      icon: Wrench,
+      label: 'รถซ่อมบำรุง',
+      value: String(maintenance),
+      helper: 'คัน',
+    },
   ];
 }
 

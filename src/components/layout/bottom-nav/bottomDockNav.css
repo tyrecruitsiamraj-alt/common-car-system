@@ -28,13 +28,13 @@
   padding: 14px 4px 12px;
   min-height: 58px;
   border-radius: 28px 28px 22px 22px;
-  background: hsl(var(--card) / 0.94);
+  background: hsl(0 0% 100% / 0.92);
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
-  border: 1px solid hsl(var(--border) / 0.85);
+  border: 1px solid hsl(214 32% 91% / 0.9);
   box-shadow:
-    0 -6px 28px hsl(0 0% 0% / 0.07),
-    0 12px 40px hsl(0 0% 0% / 0.06);
+    0 -6px 28px hsl(222 47% 11% / 0.06),
+    0 12px 40px hsl(222 47% 11% / 0.05);
 }
 
 .bottom-dock__btn {
@@ -59,7 +59,7 @@
 }
 
 .bottom-dock__btn--active {
-  color: hsl(var(--primary));
+  color: hsl(222 47% 11%);
 }
 
 .bottom-dock__btn:focus-visible {

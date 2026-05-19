@@ -4,7 +4,6 @@ import {
   CalendarDays,
   Car,
   ChevronDown,
-  Clock3,
   Filter,
   Fuel,
   Gauge,
@@ -12,26 +11,33 @@ import {
   MoreHorizontal,
   Plus,
   Search,
-  ShieldCheck,
   Sparkles,
   Users,
-  Wrench,
   type LucideIcon,
 } from 'lucide-react';
+import type { DashboardMetricId } from '@/lib/fleetBookingsDashboard';
 import { cn } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
-export type BookingListStatus = 'all' | 'approved' | 'pending' | 'inProgress' | 'completed';
+export type BookingListStatus = 'all' | 'inProgress' | 'completed';
+
+export const BOOKING_LIST_STATUS_FILTERS: BookingListStatus[] = ['all', 'inProgress', 'completed'];
 
 export const BOOKING_STATUS_META: Record<
   BookingListStatus,
   { label: string; className: string }
 > = {
   all: { label: 'ทั้งหมด', className: 'bg-slate-900 text-white' },
-  approved: { label: 'อนุมัติแล้ว', className: 'bg-emerald-50 text-emerald-700 ring-emerald-200' },
-  pending: { label: 'รออนุมัติ', className: 'bg-amber-50 text-amber-700 ring-amber-200' },
+  inProgress: { label: 'กำลังใช้งาน', className: 'bg-blue-50 text-blue-700 ring-blue-200' },
+  completed: { label: 'เสร็จสิ้น', className: 'bg-slate-100 text-slate-600 ring-slate-200' },
+};
+
+export const BOOKING_ROW_STATUS_META: Record<
+  Exclude<BookingListStatus, 'all'>,
+  { label: string; className: string }
+> = {
   inProgress: { label: 'กำลังใช้งาน', className: 'bg-blue-50 text-blue-700 ring-blue-200' },
   completed: { label: 'เสร็จสิ้น', className: 'bg-slate-100 text-slate-600 ring-slate-200' },
 };
@@ -51,10 +57,12 @@ export type DashboardBookingRow = {
 };
 
 export type DashboardMetric = {
+  id?: DashboardMetricId;
   label: string;
   value: string;
   helper: string;
   icon: LucideIcon;
+  clickable?: boolean;
 };
 
 export type DashboardVehicleUsage = {
@@ -87,12 +95,13 @@ type Props = {
   sidebarStats: DashboardSidebarStats;
   topVehicles: DashboardVehicleUsage[];
   onCreateBooking?: () => void;
+  onMetricClick?: (id: DashboardMetricId) => void;
   renderBookingMenu?: (bookingId: string) => React.ReactNode;
   children?: React.ReactNode;
 };
 
 function StatusPill({ status }: { status: Exclude<BookingListStatus, 'all'> }) {
-  const meta = BOOKING_STATUS_META[status];
+  const meta = BOOKING_ROW_STATUS_META[status];
   return (
     <span
       className={cn(
@@ -105,23 +114,42 @@ function StatusPill({ status }: { status: Exclude<BookingListStatus, 'all'> }) {
   );
 }
 
-function MetricCard({ icon: Icon, label, value, helper }: DashboardMetric) {
-  return (
-    <div className="rounded-3xl border border-white/70 bg-white/80 p-5 shadow-sm backdrop-blur transition hover:-translate-y-0.5 hover:shadow-md">
+function MetricCard({
+  metric,
+  onClick,
+}: {
+  metric: DashboardMetric;
+  onClick?: (id: DashboardMetricId) => void;
+}) {
+  const { icon: Icon, label, value, helper, clickable, id } = metric;
+  const className =
+    'w-full rounded-3xl border border-white/70 bg-white/80 p-5 text-left shadow-sm backdrop-blur transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100';
+  const inner = (
+    <>
       <div className="flex items-center justify-between">
         <div className="grid h-11 w-11 place-items-center rounded-2xl bg-slate-950 text-white shadow-sm">
           <Icon className="h-5 w-5" />
         </div>
+        {clickable ? (
+          <span className="text-[10px] font-semibold uppercase tracking-wide text-blue-600">ดูรายละเอียด</span>
+        ) : null}
       </div>
       <p className="mt-5 text-sm font-medium text-slate-500">{label}</p>
       <div className="mt-1 flex items-end gap-2">
         <h3 className="text-3xl font-bold tracking-tight text-slate-950">{value}</h3>
         <p className="pb-1 text-xs text-slate-400">{helper}</p>
       </div>
-    </div>
+    </>
   );
+  if (clickable && onClick && id) {
+    return (
+      <button type="button" className={className} onClick={() => onClick(id)}>
+        {inner}
+      </button>
+    );
+  }
+  return <div className={className}>{inner}</div>;
 }
-
 export default function FleetBookingsDashboard({
   title = 'Fleet Bookings',
   isMonitor,
@@ -139,11 +167,12 @@ export default function FleetBookingsDashboard({
   sidebarStats,
   topVehicles,
   onCreateBooking,
+  onMetricClick,
   renderBookingMenu,
   children,
 }: Props) {
   return (
-    <main className="min-h-[calc(100dvh-4rem)] -mx-4 sm:-mx-5 md:-mx-6 lg:-mx-8 bg-[radial-gradient(circle_at_top_left,#dbeafe,transparent_32%),linear-gradient(135deg,#f8fafc,#eef2ff_45%,#f8fafc)] p-4 text-slate-900 md:p-8">
+    <main className="min-h-[calc(100dvh-4rem)] -mx-4 sm:-mx-5 md:-mx-6 lg:-mx-8 p-4 text-slate-900 md:p-8">
       <div className="mx-auto max-w-7xl">
         <section className="overflow-hidden rounded-[2rem] border border-white/80 bg-white/65 shadow-2xl shadow-slate-200/70 backdrop-blur-xl">
           <header className="border-b border-slate-200/70 px-5 py-4 md:px-8">
@@ -208,7 +237,7 @@ export default function FleetBookingsDashboard({
             <section className="space-y-6 min-w-0">
               <div className="grid gap-4 md:grid-cols-4">
                 {metrics.map((m) => (
-                  <MetricCard key={m.label} {...m} />
+                  <MetricCard key={m.id ?? m.label} metric={m} onClick={onMetricClick} />
                 ))}
               </div>
 
@@ -232,7 +261,7 @@ export default function FleetBookingsDashboard({
                 </div>
 
                 <div className="mt-4 flex gap-2 overflow-x-auto pb-1">
-                  {(Object.keys(BOOKING_STATUS_META) as BookingListStatus[]).map((key) => (
+                  {BOOKING_LIST_STATUS_FILTERS.map((key) => (
                     <button
                       key={key}
                       type="button"
@@ -376,14 +405,6 @@ export default function FleetBookingsDashboard({
                 </div>
               </div>
 
-              <div className="rounded-3xl border border-blue-100 bg-blue-50/80 p-5">
-                <h3 className="font-bold text-blue-950">ข้อเสนอด้าน UX</h3>
-                <ul className="mt-3 space-y-2 text-sm leading-6 text-blue-900">
-                  <li>• แสดงสถานะด้วยสีและข้อความสั้น เพื่อตัดสินใจเร็ว</li>
-                  <li>• รวม search + filter ไว้เหนือรายการจอง</li>
-                  <li>• เพิ่ม panel ขวาสำหรับ fleet insight โดยไม่รบกวน workflow หลัก</li>
-                </ul>
-              </div>
             </aside>
           </div>
         </section>

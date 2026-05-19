@@ -2,11 +2,14 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import FleetBookingsDashboard, { type BookingListStatus } from '@/components/fleet/FleetBookingsDashboard';
 import {
   bookingToDashboardRow,
+  buildTodayBookingDetails,
   computeDashboardMetrics,
   computeTopVehicles,
   computeUtilization,
   filterDashboardBookings,
+  type DashboardMetricId,
 } from '@/lib/fleetBookingsDashboard';
+import { BOOKING_ROW_STATUS_META } from '@/components/fleet/FleetBookingsDashboard';
 import { apiFetch } from '@/lib/apiFetch';
 import { useAuth } from '@/contexts/AuthContext';
 import type { Employee, Vehicle, VehicleBooking, VehicleBookingAudit } from '@/types';
@@ -388,6 +391,7 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
   const [listStatusFilter, setListStatusFilter] = useState<BookingListStatus>('all');
   const bookingFormRef = useRef<HTMLFormElement>(null);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [todayDetailOpen, setTodayDetailOpen] = useState(false);
 
   const [empDayDialog, setEmpDayDialog] = useState<{
     employee: Employee;
@@ -1160,14 +1164,28 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
     }
   }, [dayValue]);
 
+  const todayBookingDetails = useMemo(
+    () => buildTodayBookingDetails(bookings, empLabel, vehMap),
+    [bookings, empMap, vehLabel],
+  );
+
   const sidebarStats = useMemo(
     () => ({
       fuel: dashboardMetrics[0]?.value ?? '0',
       km: String(utilization.pct),
-      users: dashboardMetrics[2]?.value ?? '0',
+      users: dashboardMetrics[1]?.value ?? '0',
     }),
     [dashboardMetrics, utilization.pct],
   );
+
+  const handleMetricClick = (id: DashboardMetricId) => {
+    if (id === 'today') {
+      setTodayDetailOpen(true);
+      return;
+    }
+    if (id === 'inProgress') setListStatusFilter('inProgress');
+    if (id === 'completed') setListStatusFilter('completed');
+  };
 
   const handleDayChange = (ymd: string) => {
     setDayValue(ymd);
@@ -1193,6 +1211,7 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
         sidebarStats={sidebarStats}
         topVehicles={topVehiclesUsage}
         onCreateBooking={isMonitor ? undefined : () => setCreateDialogOpen(true)}
+        onMetricClick={handleMetricClick}
         renderBookingMenu={(id) => {
           const b = bookings.find((x) => x.id === id);
           if (!b || isMonitor) return null;
@@ -1745,6 +1764,57 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
         </details>
       </FleetBookingsDashboard>
 
+      <Dialog open={todayDetailOpen} onOpenChange={setTodayDetailOpen}>
+        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg rounded-[1.5rem]">
+          <DialogHeader>
+            <DialogTitle>จองวันนี้ — รายละเอียด</DialogTitle>
+            <DialogDescription>
+              ผู้ขับและทะเบียนรถที่ถูกใช้งานวันนี้ ({todayBookingDetails.length} รายการ)
+            </DialogDescription>
+          </DialogHeader>
+          {todayBookingDetails.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-4 text-center">วันนี้ยังไม่มีการจอง</p>
+          ) : (
+            <ul className="space-y-3">
+              {todayBookingDetails.map((row) => {
+                const st = BOOKING_ROW_STATUS_META[row.status];
+                return (
+                  <li
+                    key={row.id}
+                    className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4 space-y-2"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <p className="font-bold text-slate-950">{row.driverName}</p>
+                        <p className="text-sm text-slate-600 mt-0.5">
+                          รถ: <span className="font-semibold">{row.plate}</span>
+                          {row.vehicleLabel !== '—' ? (
+                            <span className="text-slate-500"> · {row.vehicleLabel}</span>
+                          ) : null}
+                        </p>
+                      </div>
+                      <span
+                        className={cn(
+                          'inline-flex shrink-0 items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1',
+                          st.className,
+                        )}
+                      >
+                        {st.label}
+                      </span>
+                    </div>
+                    <p className="text-xs tabular-nums text-slate-500">{row.time}</p>
+                    <p className="text-sm text-slate-700">
+                      <span className="text-slate-500">สถานที่: </span>
+                      {row.destination}
+                    </p>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg rounded-[1.5rem]">
           <DialogHeader>
@@ -2074,3 +2144,4 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
 };
 
 export default FleetBookingsPage;
+

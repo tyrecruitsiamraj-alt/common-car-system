@@ -15,21 +15,26 @@ export type BrandingConfig = {
   gradientToHsl: string;
 };
 
+/** พื้นหลังแบบ Fleet Bookings mockup */
+export const FLEET_APP_SHELL_GRADIENT =
+  'radial-gradient(circle at top left, #dbeafe, transparent 32%), linear-gradient(135deg, #f8fafc, #eef2ff 45%, #f8fafc)';
+
+const LEGACY_RED_PRIMARY = '0 72% 50%';
+
 /** localStorage — เปลี่ยนคีย์เมื่อ rebrand เพื่อตัดชื่อ So Recruit ที่ค้างจากเวอร์ชันเก่า */
 const KEY = 'common_car_branding_v1';
 const LEGACY_KEYS = ['so_recruit_branding_v1', 'jarvis_branding_v1'] as const;
 
 export const DEFAULT_BRANDING: BrandingConfig = {
   appName: 'Common Car System',
-  /** null = แสดงตัวอักษรจากชื่อแอป (ไม่ใช้โลโก้ So Work) */
   logoDataUrl: null,
-  primaryHsl: '0 72% 50%',
-  backgroundHsl: '0 0% 98%',
-  foregroundHsl: '0 0% 12%',
+  primaryHsl: '222 47% 11%',
+  backgroundHsl: '210 40% 98%',
+  foregroundHsl: '222 47% 11%',
   cardHsl: '0 0% 100%',
-  pageBackgroundMode: 'solid',
-  gradientFromHsl: '0 0% 98%',
-  gradientToHsl: '0 0% 94%',
+  pageBackgroundMode: 'gradient',
+  gradientFromHsl: '210 40% 98%',
+  gradientToHsl: '226 57% 96%',
 };
 
 function isLegacyAppName(name: string): boolean {
@@ -45,9 +50,23 @@ function isLegacyAppName(name: string): boolean {
   return false;
 }
 
+/** ย้ายจากธีมแดงเก่า → slate/blue ใหม่ */
+export function migrateBrandingTheme(c: BrandingConfig): BrandingConfig {
+  if (c.primaryHsl.trim() !== LEGACY_RED_PRIMARY) return c;
+  return {
+    ...c,
+    primaryHsl: DEFAULT_BRANDING.primaryHsl,
+    backgroundHsl: DEFAULT_BRANDING.backgroundHsl,
+    foregroundHsl: DEFAULT_BRANDING.foregroundHsl,
+    pageBackgroundMode: 'gradient',
+    gradientFromHsl: DEFAULT_BRANDING.gradientFromHsl,
+    gradientToHsl: DEFAULT_BRANDING.gradientToHsl,
+  };
+}
+
 /** ล้างชื่อ/โลโก้แบรนด์เก่า (So Recruit, SOWORK, Jarvis) — ใช้ทั้ง client และให้สอดคล้องกับ API */
 export function normalizeBrandingConfig(merged: BrandingConfig): BrandingConfig {
-  const out = { ...merged };
+  const out = migrateBrandingTheme({ ...merged });
   if (isLegacyAppName(out.appName || '')) {
     out.appName = DEFAULT_BRANDING.appName;
   }
@@ -136,11 +155,11 @@ export function hexToHslComponents(hex: string): string {
 
 export function hslComponentsToHex(hsl: string): string {
   const parts = hsl.trim().split(/\s+/);
-  if (parts.length < 3) return '#c41e3a';
+  if (parts.length < 3) return '#0f172a';
   const h = Number(parts[0]) / 360;
   const s = Number(parts[1].replace('%', '')) / 100;
   const l = Number(parts[2].replace('%', '')) / 100;
-  if (!Number.isFinite(h) || !Number.isFinite(s) || !Number.isFinite(l)) return '#c41e3a';
+  if (!Number.isFinite(h) || !Number.isFinite(s) || !Number.isFinite(l)) return '#0f172a';
 
   let r: number;
   let g: number;
@@ -179,19 +198,17 @@ export function applyBrandingToDocument(c: BrandingConfig): void {
 
   root.style.setProperty('--primary', c.primaryHsl);
   root.style.setProperty('--primary-foreground', '0 0% 100%');
-  root.style.setProperty('--accent', c.primaryHsl);
-  root.style.setProperty('--accent-foreground', '0 0% 100%');
-  root.style.setProperty('--ring', c.primaryHsl);
+  root.style.setProperty('--ring', '217 91% 60%');
   root.style.setProperty('--sidebar-primary', c.primaryHsl);
   root.style.setProperty('--sidebar-primary-foreground', '0 0% 100%');
-  root.style.setProperty('--sidebar-ring', c.primaryHsl);
+  root.style.setProperty('--sidebar-ring', '217 91% 60%');
 
   const pp = c.primaryHsl.trim().split(/\s+/);
-  const ph = pp[0] ?? '0';
-  const ps = pp[1] ?? '72%';
-  const plRaw = pp[2] ?? '50%';
+  const ph = pp[0] ?? '222';
+  const ps = pp[1] ?? '47%';
+  const plRaw = pp[2] ?? '11%';
   const lNum = parseInt(plRaw.replace('%', ''), 10);
-  const darkerL = Math.max(0, lNum - 10);
+  const darkerL = Math.max(0, lNum + 8);
   root.style.setProperty(
     '--gradient-primary',
     `linear-gradient(135deg, hsl(${c.primaryHsl}), hsl(${ph} ${ps} ${darkerL}%))`,
@@ -204,20 +221,17 @@ export function applyBrandingToDocument(c: BrandingConfig): void {
   root.style.setProperty('--popover', c.cardHsl);
   root.style.setProperty('--popover-foreground', c.foregroundHsl);
 
-  root.style.setProperty('--gradient-card', `linear-gradient(145deg, hsl(${c.cardHsl}), hsl(${c.backgroundHsl}))`);
+  root.style.setProperty('--gradient-card', `linear-gradient(145deg, hsl(${c.cardHsl} / 0.92), hsl(${c.backgroundHsl} / 0.88))`);
 
   if (c.pageBackgroundMode === 'gradient') {
     root.setAttribute('data-page-bg', 'gradient');
-    root.style.setProperty(
-      '--gradient-hero',
-      `linear-gradient(135deg, hsl(${c.gradientFromHsl}), hsl(${c.gradientToHsl}))`,
-    );
+    root.style.setProperty('--gradient-hero', FLEET_APP_SHELL_GRADIENT);
+    root.style.setProperty('--app-shell-gradient', FLEET_APP_SHELL_GRADIENT);
   } else {
     root.removeAttribute('data-page-bg');
-    root.style.setProperty(
-      '--gradient-hero',
-      `linear-gradient(135deg, hsl(${c.backgroundHsl}), hsl(${c.backgroundHsl}))`,
-    );
+    const solid = `linear-gradient(135deg, hsl(${c.backgroundHsl}), hsl(${c.backgroundHsl}))`;
+    root.style.setProperty('--gradient-hero', solid);
+    root.style.setProperty('--app-shell-gradient', solid);
   }
 }
 
@@ -225,7 +239,8 @@ export function applyBrandingToDocument(c: BrandingConfig): void {
 export function getAppShellBackgroundStyle(c: BrandingConfig): CSSProperties | undefined {
   if (c.pageBackgroundMode !== 'gradient') return undefined;
   return {
-    background: `linear-gradient(135deg, hsl(${c.gradientFromHsl}), hsl(${c.gradientToHsl}))`,
-    minHeight: '100vh',
+    background: FLEET_APP_SHELL_GRADIENT,
+    backgroundAttachment: 'fixed',
+    minHeight: '100dvh',
   };
 }

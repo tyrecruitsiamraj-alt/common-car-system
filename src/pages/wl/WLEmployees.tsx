@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PageHeader from '@/components/shared/PageHeader';
+import AppPage from '@/components/layout/AppPage';
 import QuickAddDriverForm from '@/components/wl/QuickAddDriverForm';
 import { useAuth } from '@/contexts/AuthContext';
 import type { Candidate, Employee, EmployeeStatus } from '@/types';
@@ -126,14 +127,16 @@ const WLEmployees: React.FC = () => {
   }, [employees, filter, search]);
 
   return (
-    <div>
+    <AppPage maxWidth="4xl" panel>
       <PageHeader
+        showBrandKicker
         title="ผู้ขับ / ผู้ใช้รถ"
         subtitle={`${filtered.length} คน — เพิ่มชื่อได้จากฟอร์มด้านล่าง`}
         backPath="/fleet"
+        className="mb-6"
       />
 
-      <div className="px-4 md:px-6 space-y-4">
+      <div className="space-y-4">
         <QuickAddDriverForm id="driver-quick-add" onCreated={() => void reloadEmployees()} />
 
         {loading && <div className="text-sm text-muted-foreground">กำลังโหลดพนักงาน...</div>}
@@ -262,7 +265,7 @@ const WLEmployees: React.FC = () => {
           </div>
         )}
       </div>
-    </div>
+    </AppPage>
   );
 };
 

@@ -1,6 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import PageHeader from '@/components/shared/PageHeader';
+import AppPage from '@/components/layout/AppPage';
 import { Car, CalendarRange, LayoutGrid, Users, BarChart3 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -41,9 +42,14 @@ const FleetHome: React.FC = () => {
   const navigate = useNavigate();
 
   return (
-    <div className="w-full max-w-3xl mx-auto px-4 md:px-6 py-4 md:py-6">
-      <PageHeader title="จองรถองค์กร" subtitle="มอบหมายว่าใครใช้รถคันไหน ช่วงเวลาใด — ดูรายเดือน รายสัปดาห์ รายวัน และรายชั่วโมงได้" />
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+    <AppPage maxWidth="3xl" panel>
+      <PageHeader
+        showBrandKicker
+        title="Fleet Home"
+        subtitle="มอบหมายว่าใครใช้รถคันไหน ช่วงเวลาใด — ดูรายเดือน รายสัปดาห์ รายวัน และรายชั่วโมงได้"
+        className="mb-6"
+      />
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
         {items.map((item, i) => (
           <motion.button
             key={item.path}
@@ -52,16 +58,19 @@ const FleetHome: React.FC = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.04, duration: 0.2 }}
             onClick={() => navigate(item.path)}
-            className="glass-card rounded-xl p-5 border border-border hover:border-primary/40 hover:shadow-sm transition-all text-left touch-manipulation group"
+            className="group rounded-3xl border border-white/70 bg-white/80 p-5 text-left shadow-sm backdrop-blur transition hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-md touch-manipulation"
           >
-            <item.icon className="w-8 h-8 text-primary mb-3 group-hover:scale-[1.02] transition-transform" />
-            <div className="font-semibold text-foreground">{item.label}</div>
-            <div className="text-sm text-muted-foreground mt-1 leading-relaxed">{item.desc}</div>
+            <div className="mb-3 grid h-11 w-11 place-items-center rounded-2xl bg-slate-950 text-white shadow-sm">
+              <item.icon className="h-5 w-5" />
+            </div>
+            <div className="font-semibold text-slate-950">{item.label}</div>
+            <p className="mt-1 text-sm leading-relaxed text-slate-500">{item.desc}</p>
           </motion.button>
         ))}
       </div>
-    </div>
+    </AppPage>
   );
 };
 
 export default FleetHome;
+

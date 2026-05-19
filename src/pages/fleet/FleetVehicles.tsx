@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import PageHeader from '@/components/shared/PageHeader';
+import AppPage from '@/components/layout/AppPage';
 import { apiFetch } from '@/lib/apiFetch';
 import type { Vehicle } from '@/types';
 import { Input } from '@/components/ui/input';
@@ -155,9 +156,15 @@ const FleetVehicles: React.FC = () => {
   };
 
   return (
-    <div>
-      <PageHeader title="รายการรถ" subtitle="ทะเบียนรถ — เลือกรุ่น Toyota จากรายการ · แก้ไขได้หลังบันทึก" backPath="/fleet" />
-      <div className="px-4 md:px-6 py-4 space-y-6 max-w-2xl">
+    <AppPage maxWidth="2xl" panel>
+      <PageHeader
+        showBrandKicker
+        title="รายการรถ"
+        subtitle="ทะเบียนรถ — เลือกรุ่น Toyota จากรายการ · แก้ไขได้หลังบันทึก"
+        backPath="/fleet"
+        className="mb-6"
+      />
+      <div className="space-y-6">
         <form onSubmit={submit} className="glass-card rounded-xl p-4 border border-border space-y-3">
           <p className="text-sm font-medium text-foreground">เพิ่มรถ</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -266,7 +273,7 @@ const FleetVehicles: React.FC = () => {
           ) : null}
         </DialogContent>
       </Dialog>
-    </div>
+    </AppPage>
   );
 };
 

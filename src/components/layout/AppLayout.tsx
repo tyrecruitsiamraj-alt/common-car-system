@@ -21,7 +21,11 @@ const AppLayout: React.FC = () => {
 
   return (
     <div
-      className={cn('min-h-[100dvh] min-h-screen flex flex-col', config.pageBackgroundMode === 'solid' && 'bg-background')}
+      className={cn(
+        'min-h-[100dvh] min-h-screen flex flex-col text-slate-900',
+        config.pageBackgroundMode === 'solid' && 'bg-background',
+        config.pageBackgroundMode === 'gradient' && 'app-shell-gradient',
+      )}
       style={shellBg}
     >
       {(isDemoMode() || isRuntimeDemoFallback()) ? (
@@ -57,7 +61,7 @@ const AppLayout: React.FC = () => {
       ) : null}
 
       {/* Top header — จอใหญ่ (lg+) */}
-      <header className="hidden lg:flex items-center justify-between gap-4 px-4 xl:px-8 py-3 border-b border-border bg-card/50 backdrop-blur-xl sticky top-0 z-40">
+      <header className="hidden lg:flex items-center justify-between gap-4 px-4 xl:px-8 py-3 border-b border-white/80 bg-white/65 backdrop-blur-xl sticky top-0 z-40 shadow-sm shadow-slate-200/40">
         <div className="flex items-center gap-4 xl:gap-8 min-w-0 flex-1">
           <button type="button" onClick={() => navigate('/')} className="flex items-center gap-2 shrink-0">
             <BrandMark size="md" />
@@ -74,7 +78,9 @@ const AppLayout: React.FC = () => {
                   onClick={() => navigate(item.path)}
                   className={cn(
                     'flex items-center gap-1.5 xl:gap-2 px-2.5 xl:px-3 py-2 rounded-lg text-xs xl:text-sm font-medium transition-all touch-manipulation',
-                    active ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-secondary',
+                    active
+                      ? 'bg-slate-950 text-white shadow-md shadow-slate-300'
+                      : 'text-slate-600 hover:text-slate-950 hover:bg-slate-100',
                   )}
                 >
                   <Icon className="w-4 h-4 shrink-0" />
@@ -86,14 +92,14 @@ const AppLayout: React.FC = () => {
         </div>
         <div className="flex items-center gap-2 xl:gap-3 shrink-0">
           <NotificationPanel />
-          <div className="hidden xl:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-secondary max-w-[220px]">
-            <UserCircle className="w-4 h-4 text-primary shrink-0" />
-            <span className="text-sm font-medium text-foreground truncate">{user?.full_name}</span>
-            <span className="text-xs px-2 py-0.5 rounded-full bg-primary/20 text-primary shrink-0">{user?.role}</span>
+          <div className="hidden xl:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-100 max-w-[220px]">
+            <UserCircle className="w-4 h-4 text-slate-700 shrink-0" />
+            <span className="text-sm font-medium text-slate-900 truncate">{user?.full_name}</span>
+            <span className="text-xs px-2 py-0.5 rounded-full bg-slate-950 text-white shrink-0">{user?.role}</span>
           </div>
-          <div className="flex xl:hidden items-center gap-1.5 px-2 py-1 rounded-lg bg-secondary">
-            <UserCircle className="w-4 h-4 text-primary" />
-            <span className="text-xs font-medium text-primary uppercase">{user?.role}</span>
+          <div className="flex xl:hidden items-center gap-1.5 px-2 py-1 rounded-xl bg-slate-100">
+            <UserCircle className="w-4 h-4 text-slate-700" />
+            <span className="text-xs font-medium text-slate-700 uppercase">{user?.role}</span>
           </div>
           {showSettings ? (
             <button
@@ -127,14 +133,14 @@ const AppLayout: React.FC = () => {
       </header>
 
       {/* หัวแบบย่อ — แท็บเล็ต/มือถือ (ต่ำกว่า lg) */}
-      <header className="lg:hidden flex items-center justify-between gap-2 px-4 sm:px-5 py-3 border-b border-border bg-card/50 backdrop-blur-xl sticky top-0 z-40 safe-area-pt">
+      <header className="lg:hidden flex items-center justify-between gap-2 px-4 sm:px-5 py-3 border-b border-white/80 bg-white/65 backdrop-blur-xl sticky top-0 z-40 safe-area-pt shadow-sm shadow-slate-200/40">
         <button type="button" onClick={() => navigate('/')} className="flex items-center gap-2 text-left min-w-0 touch-manipulation py-1">
           <BrandMark size="sm" />
           <BrandTitle className="text-base font-bold text-foreground truncate" />
         </button>
         <div className="flex items-center gap-1 shrink-0">
           <NotificationPanel />
-          <span className="text-[10px] sm:text-xs px-2 py-1 rounded-full bg-primary/20 text-primary font-medium uppercase">
+          <span className="text-[10px] sm:text-xs px-2 py-1 rounded-full bg-slate-950 text-white font-medium uppercase">
             {user?.role}
           </span>
           {showSettings ? (

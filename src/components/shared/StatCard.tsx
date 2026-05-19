@@ -25,7 +25,7 @@ const variantStyles = {
 
 const iconVariantStyles = {
   default: 'text-muted-foreground bg-secondary',
-  primary: 'text-primary bg-primary/10',
+  primary: 'text-white bg-slate-950',
   success: 'text-success bg-success/10',
   warning: 'text-warning bg-warning/10',
   destructive: 'text-destructive bg-destructive/10',
@@ -37,7 +37,7 @@ const StatCard: React.FC<StatCardProps> = ({ title, value, subtitle, icon: Icon,
     <div
       onClick={onClick}
       className={cn(
-        'glass-card rounded-xl p-4 border transition-all',
+        'glass-card rounded-3xl p-5 border transition-all',
         variantStyles[variant],
         onClick && 'cursor-pointer hover:scale-[1.02] active:scale-[0.98]',
         className
