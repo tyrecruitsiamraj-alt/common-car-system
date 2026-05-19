@@ -1,5 +1,12 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import PageHeader from '@/components/shared/PageHeader';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import FleetBookingsDashboard, { type BookingListStatus } from '@/components/fleet/FleetBookingsDashboard';
+import {
+  bookingToDashboardRow,
+  computeDashboardMetrics,
+  computeTopVehicles,
+  computeUtilization,
+  filterDashboardBookings,
+} from '@/lib/fleetBookingsDashboard';
 import { apiFetch } from '@/lib/apiFetch';
 import { useAuth } from '@/contexts/AuthContext';
 import type { Employee, Vehicle, VehicleBooking, VehicleBookingAudit } from '@/types';
@@ -32,6 +39,7 @@ import {
   setMinutes,
   eachDayOfInterval,
   isSameMonth,
+  isSameDay,
   isBefore,
   startOfHour,
 } from 'date-fns';
@@ -369,6 +377,9 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
   /** กรองพนักงาน/รถจาก dropdown — ใช้กับตารางรายวัน/รายชั่วโมงและสรุปด้านล่าง */
   const [plannerFilterEmpId, setPlannerFilterEmpId] = useState('');
   const [plannerFilterVehId, setPlannerFilterVehId] = useState('');
+  const [listQuery, setListQuery] = useState('');
+  const [listStatusFilter, setListStatusFilter] = useState<BookingListStatus>('all');
+  const bookingFormRef = useRef<HTMLFormElement>(null);
 
   const [empDayDialog, setEmpDayDialog] = useState<{
     employee: Employee;
@@ -1109,19 +1120,107 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
   const todayYmd = format(new Date(), 'yyyy-MM-dd');
   const displayAvailability = bookingWindow ? (slotDerivedAvailability ?? availability) : null;
 
+  const vehiclesList = useMemo(() => Array.from(vehMap.values()), [vehMap]);
+  const dashboardRows = useMemo(
+    () => bookings.map((b) => bookingToDashboardRow(b, empLabel, vehLabel, empMap)),
+    [bookings, empMap, vehMap],
+  );
+  const filteredDashboardRows = useMemo(
+    () => filterDashboardBookings(dashboardRows, listQuery, listStatusFilter),
+    [dashboardRows, listQuery, listStatusFilter],
+  );
+  const dashboardMetrics = useMemo(
+    () => computeDashboardMetrics(bookings, vehiclesList),
+    [bookings, vehiclesList],
+  );
+  const topVehiclesUsage = useMemo(
+    () => computeTopVehicles(bookings, vehMap),
+    [bookings, vehMap],
+  );
+  const utilization = useMemo(
+    () => computeUtilization(bookings, vehiclesList),
+    [bookings, vehiclesList],
+  );
+  const dayLabel = useMemo(() => {
+    try {
+      const d = parse(dayValue, 'yyyy-MM-dd', new Date());
+      if (isSameDay(d, new Date())) return 'วันนี้';
+      return format(d, 'd MMM yyyy', { locale: th });
+    } catch {
+      return dayValue;
+    }
+  }, [dayValue]);
+
+  const scrollToBookingForm = () => {
+    bookingFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
   return (
-    <div className="flex flex-col min-h-0 w-full max-w-[1920px] mx-auto pb-2">
-      <PageHeader
-        title={isMonitor ? 'ดูภาพรวม' : 'จองรถ'}
+    <>
+      <FleetBookingsDashboard
+        title={isMonitor ? 'ดูภาพรวมการจอง' : 'Fleet Bookings'}
         subtitle={
           isMonitor
-            ? 'รายเดือน / สัปดาห์ / วัน / ชั่วโมง — ดูอย่างเดียว ไม่มีฟอร์มจอง · คลิกช่องสีแดง/ส้มในตารางพนักงาน×วันเพื่อดูรายละเอียด'
-            : 'เลือกวันที่ (รวมย้อนหลัง) กับช่วงเวลาจอง — ระบบจะไม่รีเซ็ตเวลาที่ตั้งแล้วถ้าวันเดียวกัน · ผู้ขับ/รถในรายการคำนวณจากช่วงเวลาที่เลือกเท่านั้น'
+            ? 'มุมมองตารางเวลาและรายการจอง — ดูอย่างเดียว'
+            : 'จองรถ แก้ไข และดูประวัติ — เลือกช่วงเวลาด้านล่าง'
         }
-        backPath="/fleet"
-      />
+        isMonitor={isMonitor}
+        dayLabel={dayLabel}
+        metrics={dashboardMetrics}
+        bookings={filteredDashboardRows}
+        query={listQuery}
+        onQueryChange={setListQuery}
+        statusFilter={listStatusFilter}
+        onStatusFilterChange={setListStatusFilter}
+        utilizationPct={utilization.pct}
+        utilizationSummary={utilization.summary}
+        topVehicles={topVehiclesUsage}
+        onCreateBooking={scrollToBookingForm}
+        onDayPickerClick={() => setViewMode('day')}
+        onBookingAction={(id) => {
+          const b = bookings.find((x) => x.id === id);
+          if (b) openEditBooking(b);
+        }}
+        renderBookingMenu={(id) => {
+          const b = bookings.find((x) => x.id === id);
+          if (!b || isMonitor) return null;
+          return (
+            <div className="flex flex-wrap gap-1 justify-end">
+              {canEdit ? (
+                <button
+                  type="button"
+                  className="text-[10px] font-semibold text-blue-600 hover:underline px-1"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openEditBooking(b);
+                  }}
+                >
+                  แก้ไข
+                </button>
+              ) : null}
+              {canDelete ? (
+                <button
+                  type="button"
+                  className="text-[10px] font-semibold text-red-600 hover:underline px-1"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    void cancelBooking(b.id);
+                  }}
+                >
+                  ยกเลิก
+                </button>
+              ) : null}
+            </div>
+          );
+        }}
+      >
+        {loading ? <p className="text-sm text-slate-500">กำลังโหลดข้อมูล…</p> : null}
 
-      <div className="flex flex-col flex-1 min-h-0 gap-2 px-2 sm:px-3 md:px-4 h-[calc(100dvh-10.5rem)] lg:h-[calc(100dvh-7.5rem)]">
+        <details className="rounded-3xl border border-slate-200/80 bg-white/90 overflow-hidden" open>
+          <summary className="cursor-pointer select-none px-4 py-3 text-sm font-semibold text-slate-800 bg-slate-50/80 hover:bg-slate-100/80 list-none marker:content-none [&::-webkit-details-marker]:hidden">
+            ตารางเวลา · มุมมองรายวัน / รายชั่วโมง
+          </summary>
+          <div className="flex flex-col min-h-0 gap-2 p-2 sm:p-3 max-h-[min(70vh,52rem)] overflow-hidden border-t border-slate-100">
         <div className="flex flex-wrap items-center gap-2 shrink-0">
           {(isMonitor ? (['month', 'week', 'day', 'hour'] as const) : (['day', 'hour'] as const)).map((m) => (
             <button
@@ -1633,9 +1732,10 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
 
         {!isMonitor && listRange ? (
           <form
+            ref={bookingFormRef}
             lang="th-TH"
             onSubmit={submitBooking}
-            className="glass-card rounded-lg border border-border p-2 sm:p-3 shrink-0 max-h-[32vh] overflow-y-auto space-y-2"
+            className="rounded-2xl border border-slate-200 bg-white p-3 sm:p-4 shrink-0 max-h-[36vh] overflow-y-auto space-y-2 mt-2"
           >
             <div className="space-y-1">
               <p className="text-xs font-medium text-foreground">เวลาจอง</p>
@@ -1821,57 +1921,9 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
             </div>
           </form>
         ) : null}
-
-        <div className="glass-card rounded-lg border border-border overflow-hidden shrink-0 min-h-0 flex flex-col max-h-[22vh]">
-          <div className="px-2 py-1 border-b border-border text-[10px] sm:text-xs font-medium shrink-0">
-            {isMonitor ? 'รายการจองในช่วงโหลด (ดูอย่างเดียว)' : 'รายการจองในช่วงโหลด'}
           </div>
-          {bookings.length === 0 ? (
-            <div className="p-2 text-xs text-muted-foreground">ไม่มีการจอง</div>
-          ) : (
-            <div className="overflow-auto flex-1 min-h-0">
-              <table className="w-full text-[10px] sm:text-xs table-fixed border-collapse">
-                <thead className="sticky top-0 bg-card z-[1] shadow-sm">
-                  <tr className="border-b border-border text-muted-foreground text-left">
-                    <th className="p-1.5 font-medium w-[18%]">เริ่ม</th>
-                    <th className="p-1.5 font-medium w-[18%]">สิ้นสุด</th>
-                    <th className="p-1.5 font-medium w-[20%] truncate">ผู้ขับ</th>
-                    <th className="p-1.5 font-medium w-[16%] truncate">รถ</th>
-                    <th className="p-1.5 font-medium w-[20%] truncate">สถานที่ที่ไป</th>
-                    {(!isMonitor && (canDelete || canEdit)) ? <th className="p-1 w-16" /> : null}
-                  </tr>
-                </thead>
-                <tbody>
-                  {bookings.map((b) => (
-                    <tr key={b.id} className="border-b border-border/60">
-                      <td className="p-1.5 align-top tabular-nums whitespace-nowrap">{format(parseISO(b.starts_at), 'dd/MM HH:mm')}</td>
-                      <td className="p-1.5 align-top tabular-nums whitespace-nowrap">{format(parseISO(b.ends_at), 'dd/MM HH:mm')}</td>
-                      <td className="p-1.5 align-top min-w-0">
-                        <div className="line-clamp-2 break-words" title={empLabel(b.employee_id)}>
-                          {empLabel(b.employee_id)}
-                        </div>
-                      </td>
-                      <td className="p-1.5 align-top min-w-0">
-                        <div className="line-clamp-2 break-words" title={vehLabel(b.vehicle_id)}>
-                          {vehLabel(b.vehicle_id)}
-                        </div>
-                      </td>
-                      <td className="p-1.5 align-top min-w-0">
-                        <div className="line-clamp-2 break-words text-muted-foreground" title={b.destination?.trim() || undefined}>
-                          {b.destination?.trim() || '—'}
-                        </div>
-                      </td>
-                      {!isMonitor && (canDelete || canEdit) ? (
-                        <td className="p-1 align-top whitespace-nowrap">{renderBookingActions(b)}</td>
-                      ) : null}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      </div>
+        </details>
+      </FleetBookingsDashboard>
 
       <Dialog open={empDayDialog !== null} onOpenChange={(open) => !open && setEmpDayDialog(null)}>
         <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-md">
@@ -1997,7 +2049,7 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
           ) : null}
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 };
 
