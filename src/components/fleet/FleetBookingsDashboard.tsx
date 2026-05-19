@@ -1,5 +1,5 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import {
   CalendarDays,
   Car,
@@ -19,6 +19,9 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 export type BookingListStatus = 'all' | 'approved' | 'pending' | 'inProgress' | 'completed';
 
@@ -28,7 +31,7 @@ export const BOOKING_STATUS_META: Record<
 > = {
   all: { label: 'ทั้งหมด', className: 'bg-slate-900 text-white' },
   approved: { label: 'อนุมัติแล้ว', className: 'bg-emerald-50 text-emerald-700 ring-emerald-200' },
-  pending: { label: 'รอเดินทาง', className: 'bg-amber-50 text-amber-700 ring-amber-200' },
+  pending: { label: 'รออนุมัติ', className: 'bg-amber-50 text-amber-700 ring-amber-200' },
   inProgress: { label: 'กำลังใช้งาน', className: 'bg-blue-50 text-blue-700 ring-blue-200' },
   completed: { label: 'เสร็จสิ้น', className: 'bg-slate-100 text-slate-600 ring-slate-200' },
 };
@@ -61,11 +64,18 @@ export type DashboardVehicleUsage = {
   label: string;
 };
 
+export type DashboardSidebarStats = {
+  fuel: string;
+  km: string;
+  users: string;
+};
+
 type Props = {
-  title: string;
-  subtitle?: string;
+  title?: string;
   isMonitor?: boolean;
   dayLabel: string;
+  dayValue?: string;
+  onDayChange?: (ymd: string) => void;
   metrics: DashboardMetric[];
   bookings: DashboardBookingRow[];
   query: string;
@@ -74,10 +84,9 @@ type Props = {
   onStatusFilterChange: (s: BookingListStatus) => void;
   utilizationPct: number;
   utilizationSummary: string;
+  sidebarStats: DashboardSidebarStats;
   topVehicles: DashboardVehicleUsage[];
   onCreateBooking?: () => void;
-  onDayPickerClick?: () => void;
-  onBookingAction?: (bookingId: string, action: 'edit' | 'menu') => void;
   renderBookingMenu?: (bookingId: string) => React.ReactNode;
   children?: React.ReactNode;
 };
@@ -114,10 +123,11 @@ function MetricCard({ icon: Icon, label, value, helper }: DashboardMetric) {
 }
 
 export default function FleetBookingsDashboard({
-  title,
-  subtitle,
+  title = 'Fleet Bookings',
   isMonitor,
   dayLabel,
+  dayValue,
+  onDayChange,
   metrics,
   bookings,
   query,
@@ -126,48 +136,61 @@ export default function FleetBookingsDashboard({
   onStatusFilterChange,
   utilizationPct,
   utilizationSummary,
+  sidebarStats,
   topVehicles,
   onCreateBooking,
-  onDayPickerClick,
-  onBookingAction,
   renderBookingMenu,
   children,
 }: Props) {
-  const navigate = useNavigate();
-
   return (
-    <main className="min-h-[calc(100dvh-5rem)] -mx-4 sm:-mx-5 md:-mx-6 lg:-mx-8 bg-[radial-gradient(circle_at_top_left,#dbeafe,transparent_32%),linear-gradient(135deg,#f8fafc,#eef2ff_45%,#f8fafc)] px-3 py-3 text-slate-900 sm:px-4 md:px-6 md:py-6">
+    <main className="min-h-[calc(100dvh-4rem)] -mx-4 sm:-mx-5 md:-mx-6 lg:-mx-8 bg-[radial-gradient(circle_at_top_left,#dbeafe,transparent_32%),linear-gradient(135deg,#f8fafc,#eef2ff_45%,#f8fafc)] p-4 text-slate-900 md:p-8">
       <div className="mx-auto max-w-7xl">
         <section className="overflow-hidden rounded-[2rem] border border-white/80 bg-white/65 shadow-2xl shadow-slate-200/70 backdrop-blur-xl">
           <header className="border-b border-slate-200/70 px-5 py-4 md:px-8">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  onClick={() => navigate('/fleet')}
-                  className="grid h-12 w-12 place-items-center rounded-2xl bg-slate-950 text-white shadow-lg shadow-slate-300 transition hover:bg-slate-800"
-                  aria-label="กลับหน้า Fleet"
-                >
+                <div className="grid h-12 w-12 place-items-center rounded-2xl bg-slate-950 text-white shadow-lg shadow-slate-300">
                   <Car className="h-6 w-6" />
-                </button>
+                </div>
                 <div>
                   <p className="flex items-center gap-2 text-sm font-semibold text-blue-700">
                     <Sparkles className="h-4 w-4" /> Common Car System
                   </p>
                   <h1 className="text-2xl font-bold tracking-tight text-slate-950 md:text-3xl">{title}</h1>
-                  {subtitle ? <p className="mt-0.5 text-sm text-slate-500">{subtitle}</p> : null}
                 </div>
               </div>
 
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                <button
-                  type="button"
-                  onClick={onDayPickerClick}
-                  className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
-                >
-                  <CalendarDays className="h-4 w-4" /> {dayLabel}
-                  <ChevronDown className="h-4 w-4 text-slate-400" />
-                </button>
+                {onDayChange && dayValue ? (
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <button
+                        type="button"
+                        className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
+                      >
+                        <CalendarDays className="h-4 w-4" /> {dayLabel}
+                        <ChevronDown className="h-4 w-4 text-slate-400" />
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto rounded-2xl border-slate-200 p-3" align="end">
+                      <Label className="text-xs text-slate-600">เลือกวันที่</Label>
+                      <Input
+                        type="date"
+                        className="mt-1.5 h-10 rounded-xl"
+                        value={dayValue}
+                        onChange={(e) => onDayChange(e.target.value)}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                ) : (
+                  <button
+                    type="button"
+                    className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm"
+                  >
+                    <CalendarDays className="h-4 w-4" /> {dayLabel}
+                    <ChevronDown className="h-4 w-4 text-slate-400" />
+                  </button>
+                )}
                 {!isMonitor && onCreateBooking ? (
                   <button
                     type="button"
@@ -183,7 +206,7 @@ export default function FleetBookingsDashboard({
 
           <div className="grid gap-6 p-5 md:p-8 xl:grid-cols-[1fr_360px]">
             <section className="space-y-6 min-w-0">
-              <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-4">
+              <div className="grid gap-4 md:grid-cols-4">
                 {metrics.map((m) => (
                   <MetricCard key={m.label} {...m} />
                 ))}
@@ -196,7 +219,7 @@ export default function FleetBookingsDashboard({
                     <input
                       value={query}
                       onChange={(e) => onQueryChange(e.target.value)}
-                      placeholder="ค้นหาผู้ขับ ทะเบียนรถ สถานที่ หรือหมายเหตุ"
+                      placeholder="ค้นหาเลขจอง ผู้ขอใช้รถ แผนก หรือทะเบียนรถ"
                       className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 pl-11 pr-4 text-sm outline-none transition placeholder:text-slate-400 focus:border-blue-300 focus:bg-white focus:ring-4 focus:ring-blue-100"
                     />
                   </div>
@@ -204,7 +227,7 @@ export default function FleetBookingsDashboard({
                     type="button"
                     className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm"
                   >
-                    <Filter className="h-4 w-4" /> ตัวกรอง
+                    <Filter className="h-4 w-4" /> ตัวกรองขั้นสูง
                   </button>
                 </div>
 
@@ -229,11 +252,11 @@ export default function FleetBookingsDashboard({
 
               <div className="overflow-hidden rounded-3xl border border-white/70 bg-white/90 shadow-sm backdrop-blur">
                 <div className="grid grid-cols-12 border-b border-slate-100 bg-slate-50/80 px-5 py-3 text-xs font-bold uppercase tracking-wide text-slate-400">
-                  <div className="col-span-4 md:col-span-3">การจอง</div>
-                  <div className="col-span-4 hidden lg:block">เส้นทาง / สถานที่</div>
-                  <div className="col-span-2 hidden md:block">รถ</div>
-                  <div className="col-span-2 hidden md:block">เวลา</div>
-                  <div className="col-span-4 text-right md:col-span-1">สถานะ</div>
+                  <div className="col-span-3">Booking</div>
+                  <div className="col-span-3 hidden lg:block">Route</div>
+                  <div className="col-span-2 hidden md:block">Vehicle</div>
+                  <div className="col-span-2 hidden md:block">Schedule</div>
+                  <div className="col-span-2 text-right">Status</div>
                 </div>
 
                 <div className="divide-y divide-slate-100">
@@ -243,23 +266,7 @@ export default function FleetBookingsDashboard({
                     bookings.map((booking) => (
                       <article
                         key={booking.rawId}
-                        role={onBookingAction ? 'button' : undefined}
-                        tabIndex={onBookingAction ? 0 : undefined}
-                        onClick={onBookingAction ? () => onBookingAction(booking.rawId, 'edit') : undefined}
-                        onKeyDown={
-                          onBookingAction
-                            ? (e) => {
-                                if (e.key === 'Enter' || e.key === ' ') {
-                                  e.preventDefault();
-                                  onBookingAction(booking.rawId, 'edit');
-                                }
-                              }
-                            : undefined
-                        }
-                        className={cn(
-                          'grid grid-cols-12 items-center gap-3 px-5 py-4 transition hover:bg-blue-50/40',
-                          onBookingAction && 'cursor-pointer',
-                        )}
+                        className="grid grid-cols-12 items-center gap-3 px-5 py-4 transition hover:bg-blue-50/40"
                       >
                         <div className="col-span-8 md:col-span-3">
                           <p className="font-bold text-slate-950">{booking.requester}</p>
@@ -268,12 +275,12 @@ export default function FleetBookingsDashboard({
                           </p>
                         </div>
 
-                        <div className="col-span-4 hidden lg:block">
+                        <div className="col-span-3 hidden lg:block">
                           <p className="flex items-center gap-2 text-sm font-medium text-slate-700">
                             <MapPin className="h-4 w-4 shrink-0 text-blue-500" />
                             <span className="line-clamp-2">{booking.route}</span>
                           </p>
-                          <p className="mt-1 text-xs text-slate-400">{booking.priority}</p>
+                          <p className="mt-1 text-xs text-slate-400">Priority: {booking.priority}</p>
                         </div>
 
                         <div className="col-span-2 hidden md:block">
@@ -286,20 +293,19 @@ export default function FleetBookingsDashboard({
                           <p className="mt-1 text-xs text-slate-400">{booking.time}</p>
                         </div>
 
-                        <div className="col-span-4 flex items-center justify-end gap-2 md:col-span-3">
+                        <div className="col-span-4 flex items-center justify-end gap-3 md:col-span-2">
                           <StatusPill status={booking.status} />
                           {renderBookingMenu ? (
                             renderBookingMenu(booking.rawId)
-                          ) : onBookingAction ? (
+                          ) : (
                             <button
                               type="button"
-                              onClick={() => onBookingAction(booking.rawId, 'edit')}
                               className="grid h-9 w-9 place-items-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
-                              aria-label="จัดการ"
+                              aria-label="เมนู"
                             >
                               <MoreHorizontal className="h-5 w-5" />
                             </button>
-                          ) : null}
+                          )}
                         </div>
                       </article>
                     ))
@@ -319,18 +325,18 @@ export default function FleetBookingsDashboard({
                 <div className="mt-6 grid grid-cols-3 gap-3 text-center">
                   <div className="rounded-2xl bg-white/10 p-3">
                     <Fuel className="mx-auto h-5 w-5 text-blue-200" />
-                    <p className="mt-2 text-lg font-bold">{metrics[0]?.value ?? '0'}</p>
-                    <p className="text-[11px] text-slate-400">จอง</p>
+                    <p className="mt-2 text-lg font-bold">{sidebarStats.fuel}</p>
+                    <p className="text-[11px] text-slate-400">Fuel</p>
                   </div>
                   <div className="rounded-2xl bg-white/10 p-3">
                     <Gauge className="mx-auto h-5 w-5 text-blue-200" />
-                    <p className="mt-2 text-lg font-bold">{topVehicles.length}</p>
-                    <p className="text-[11px] text-slate-400">รถใช้งาน</p>
+                    <p className="mt-2 text-lg font-bold">{sidebarStats.km}</p>
+                    <p className="text-[11px] text-slate-400">Km</p>
                   </div>
                   <div className="rounded-2xl bg-white/10 p-3">
                     <Users className="mx-auto h-5 w-5 text-blue-200" />
-                    <p className="mt-2 text-lg font-bold">{metrics[2]?.value ?? '0'}</p>
-                    <p className="text-[11px] text-slate-400">รอเดินทาง</p>
+                    <p className="mt-2 text-lg font-bold">{sidebarStats.users}</p>
+                    <p className="text-[11px] text-slate-400">Users</p>
                   </div>
                 </div>
               </div>
@@ -338,13 +344,9 @@ export default function FleetBookingsDashboard({
               <div className="rounded-3xl border border-white/70 bg-white/85 p-5 shadow-sm backdrop-blur">
                 <div className="flex items-center justify-between">
                   <h3 className="font-bold text-slate-950">รถที่ถูกใช้งานบ่อย</h3>
-                  <button
-                    type="button"
-                    onClick={() => navigate('/fleet/vehicles')}
-                    className="text-sm font-semibold text-blue-600 hover:underline"
-                  >
+                  <Link to="/fleet/vehicles" className="text-sm font-semibold text-blue-600 hover:underline">
                     ดูทั้งหมด
-                  </button>
+                  </Link>
                 </div>
 
                 <div className="mt-5 space-y-4">
@@ -375,11 +377,11 @@ export default function FleetBookingsDashboard({
               </div>
 
               <div className="rounded-3xl border border-blue-100 bg-blue-50/80 p-5">
-                <h3 className="font-bold text-blue-950">เคล็ดลับการใช้งาน</h3>
+                <h3 className="font-bold text-blue-950">ข้อเสนอด้าน UX</h3>
                 <ul className="mt-3 space-y-2 text-sm leading-6 text-blue-900">
-                  <li>• คลิกแถวจองเพื่อแก้ไขหรือยกเลิก</li>
-                  <li>• ใช้มุมมองตารางเวลาด้านล่างเพื่อจองช่องว่าง</li>
-                  <li>• กรองสถานะเพื่อดูรายการที่กำลังเดินทางหรือเสร็จแล้ว</li>
+                  <li>• แสดงสถานะด้วยสีและข้อความสั้น เพื่อตัดสินใจเร็ว</li>
+                  <li>• รวม search + filter ไว้เหนือรายการจอง</li>
+                  <li>• เพิ่ม panel ขวาสำหรับ fleet insight โดยไม่รบกวน workflow หลัก</li>
                 </ul>
               </div>
             </aside>

@@ -52,6 +52,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { MoreHorizontal } from 'lucide-react';
 
 type ViewMode = 'month' | 'week' | 'day' | 'hour';
 
@@ -380,6 +387,7 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
   const [listQuery, setListQuery] = useState('');
   const [listStatusFilter, setListStatusFilter] = useState<BookingListStatus>('all');
   const bookingFormRef = useRef<HTMLFormElement>(null);
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
 
   const [empDayDialog, setEmpDayDialog] = useState<{
     employee: Employee;
@@ -1032,6 +1040,7 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
       toast.success('บันทึกการจองแล้ว');
       setDestination('');
       setNotes('');
+      setCreateDialogOpen(false);
       await refresh();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'จองไม่สำเร็จ');
@@ -1122,7 +1131,7 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
 
   const vehiclesList = useMemo(() => Array.from(vehMap.values()), [vehMap]);
   const dashboardRows = useMemo(
-    () => bookings.map((b) => bookingToDashboardRow(b, empLabel, vehLabel, empMap)),
+    () => bookings.map((b) => bookingToDashboardRow(b, empLabel, vehLabel, empMap, vehMap)),
     [bookings, empMap, vehMap],
   );
   const filteredDashboardRows = useMemo(
@@ -1151,21 +1160,28 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
     }
   }, [dayValue]);
 
-  const scrollToBookingForm = () => {
-    bookingFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  const sidebarStats = useMemo(
+    () => ({
+      fuel: dashboardMetrics[0]?.value ?? '0',
+      km: String(utilization.pct),
+      users: dashboardMetrics[2]?.value ?? '0',
+    }),
+    [dashboardMetrics, utilization.pct],
+  );
+
+  const handleDayChange = (ymd: string) => {
+    setDayValue(ymd);
+    setViewMode('day');
   };
 
   return (
     <>
       <FleetBookingsDashboard
-        title={isMonitor ? 'ดูภาพรวมการจอง' : 'Fleet Bookings'}
-        subtitle={
-          isMonitor
-            ? 'มุมมองตารางเวลาและรายการจอง — ดูอย่างเดียว'
-            : 'จองรถ แก้ไข และดูประวัติ — เลือกช่วงเวลาด้านล่าง'
-        }
+        title={isMonitor ? 'Fleet Monitor' : 'Fleet Bookings'}
         isMonitor={isMonitor}
         dayLabel={dayLabel}
+        dayValue={dayValue}
+        onDayChange={handleDayChange}
         metrics={dashboardMetrics}
         bookings={filteredDashboardRows}
         query={listQuery}
@@ -1174,50 +1190,46 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
         onStatusFilterChange={setListStatusFilter}
         utilizationPct={utilization.pct}
         utilizationSummary={utilization.summary}
+        sidebarStats={sidebarStats}
         topVehicles={topVehiclesUsage}
-        onCreateBooking={scrollToBookingForm}
-        onDayPickerClick={() => setViewMode('day')}
-        onBookingAction={(id) => {
-          const b = bookings.find((x) => x.id === id);
-          if (b) openEditBooking(b);
-        }}
+        onCreateBooking={isMonitor ? undefined : () => setCreateDialogOpen(true)}
         renderBookingMenu={(id) => {
           const b = bookings.find((x) => x.id === id);
           if (!b || isMonitor) return null;
+          if (!canEdit && !canDelete) return null;
           return (
-            <div className="flex flex-wrap gap-1 justify-end">
-              {canEdit ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
                 <button
                   type="button"
-                  className="text-[10px] font-semibold text-blue-600 hover:underline px-1"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    openEditBooking(b);
-                  }}
+                  className="grid h-9 w-9 place-items-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+                  aria-label="เมนูการจอง"
+                  onClick={(e) => e.stopPropagation()}
                 >
-                  แก้ไข
+                  <MoreHorizontal className="h-5 w-5" />
                 </button>
-              ) : null}
-              {canDelete ? (
-                <button
-                  type="button"
-                  className="text-[10px] font-semibold text-red-600 hover:underline px-1"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    void cancelBooking(b.id);
-                  }}
-                >
-                  ยกเลิก
-                </button>
-              ) : null}
-            </div>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="rounded-xl">
+                {canEdit ? (
+                  <DropdownMenuItem onClick={() => openEditBooking(b)}>แก้ไขการจอง</DropdownMenuItem>
+                ) : null}
+                {canDelete ? (
+                  <DropdownMenuItem
+                    className="text-destructive focus:text-destructive"
+                    onClick={() => void cancelBooking(b.id)}
+                  >
+                    ยกเลิกการจอง
+                  </DropdownMenuItem>
+                ) : null}
+              </DropdownMenuContent>
+            </DropdownMenu>
           );
         }}
       >
         {loading ? <p className="text-sm text-slate-500">กำลังโหลดข้อมูล…</p> : null}
 
-        <details className="rounded-3xl border border-slate-200/80 bg-white/90 overflow-hidden" open>
-          <summary className="cursor-pointer select-none px-4 py-3 text-sm font-semibold text-slate-800 bg-slate-50/80 hover:bg-slate-100/80 list-none marker:content-none [&::-webkit-details-marker]:hidden">
+        <details className="rounded-3xl border border-white/70 bg-white/85 overflow-hidden shadow-sm backdrop-blur">
+          <summary className="cursor-pointer select-none px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50/80 list-none marker:content-none [&::-webkit-details-marker]:hidden">
             ตารางเวลา · มุมมองรายวัน / รายชั่วโมง
           </summary>
           <div className="flex flex-col min-h-0 gap-2 p-2 sm:p-3 max-h-[min(70vh,52rem)] overflow-hidden border-t border-slate-100">
@@ -1729,13 +1741,22 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
             <div className="flex-1 min-h-0 flex flex-col min-w-0 overflow-hidden">{employeeHourPlannerEl}</div>
           ) : null}
         </div>
+        </div>
+        </details>
+      </FleetBookingsDashboard>
 
+      <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg rounded-[1.5rem]">
+          <DialogHeader>
+            <DialogTitle>สร้างการจองใหม่</DialogTitle>
+            <DialogDescription>เลือกช่วงเวลา ผู้ขับ รถ และสถานที่ที่ไป</DialogDescription>
+          </DialogHeader>
         {!isMonitor && listRange ? (
           <form
             ref={bookingFormRef}
             lang="th-TH"
             onSubmit={submitBooking}
-            className="rounded-2xl border border-slate-200 bg-white p-3 sm:p-4 shrink-0 max-h-[36vh] overflow-y-auto space-y-2 mt-2"
+            className="space-y-3"
           >
             <div className="space-y-1">
               <p className="text-xs font-medium text-foreground">เวลาจอง</p>
@@ -1911,19 +1932,18 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                 <Label className="text-[10px]">หมายเหตุ</Label>
                 <Input value={notes} onChange={(e) => setNotes(e.target.value)} className="h-8 text-xs" placeholder="ทางเลือก" />
               </div>
-              <button
+              <Button
                 type="submit"
                 disabled={saving || loading || !selEmp || !selVeh || !displayAvailability}
-                className="h-8 px-3 rounded-md bg-primary text-primary-foreground text-xs font-medium disabled:opacity-50 shrink-0"
+                className="h-10 rounded-2xl px-5 shrink-0"
               >
-                {saving ? '…' : 'บันทึก'}
-              </button>
+                {saving ? 'กำลังบันทึก…' : 'บันทึกการจอง'}
+              </Button>
             </div>
           </form>
         ) : null}
-          </div>
-        </details>
-      </FleetBookingsDashboard>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={empDayDialog !== null} onOpenChange={(open) => !open && setEmpDayDialog(null)}>
         <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-md">

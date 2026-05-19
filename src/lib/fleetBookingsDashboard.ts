@@ -35,6 +35,7 @@ export function bookingToDashboardRow(
   empLabel: (id: string) => string,
   vehLabel: (id: string) => string,
   empMap: Map<string, Employee>,
+  vehMap: Map<string, Vehicle>,
 ): DashboardBookingRow {
   const emp = empMap.get(b.employee_id);
   const shortId = b.id.slice(0, 8).toUpperCase();
@@ -92,7 +93,7 @@ export function computeDashboardMetrics(
   return [
     { icon: CalendarDays, label: 'จองวันนี้', value: String(today.length), helper: 'รายการ' },
     { icon: ShieldCheck, label: 'อนุมัติแล้ว', value: String(approved), helper: 'รายการ' },
-    { icon: Clock3, label: 'รอเดินทาง', value: String(pending), helper: 'รายการ' },
+    { icon: Clock3, label: 'รอดำเนินการ', value: String(pending), helper: 'รายการ' },
     { icon: Wrench, label: 'รถซ่อมบำรุง', value: String(maintenance), helper: 'คัน' },
   ];
 }
@@ -132,7 +133,7 @@ export function computeUtilization(
   const pct = Math.round((usedCount / total) * 100);
   const summary =
     total > 0
-      ? `มีรถถูกใช้งาน ${usedCount} คัน จากทั้งหมด ${activeVehicles.length} คันที่พร้อมให้บริการ`
+      ? `วันนี้มีรถพร้อมใช้งาน ${activeVehicles.length - usedCount} คัน จากทั้งหมด ${activeVehicles.length} คัน — จัดสรรรถให้เส้นทางในเมืองเพื่อใช้งานคุ้มค่า`
       : 'ยังไม่มีรถในระบบ';
   return { pct, summary };
 }
