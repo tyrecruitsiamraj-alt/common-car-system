@@ -14,6 +14,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { TimeHm24Select } from '@/components/shared/TimeHm24Select';
+import BookingAuditHistory from '@/components/fleet/BookingAuditHistory';
+import { diffBookingAuditEntry } from '@/lib/bookingAuditDisplay';
 import { cn } from '@/lib/utils';
 import {
   parse,
@@ -335,6 +337,7 @@ type FleetBookingsPageProps = {
 
 const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) => {
   const { hasPermission } = useAuth();
+  const canEdit = hasPermission('staff');
   const canDelete = hasPermission('staff');
   const isMonitor = mode === 'monitor';
 
@@ -1554,15 +1557,25 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                     <p className="text-xs text-muted-foreground">ยังไม่มีประวัติในช่วงวันนี้</p>
                   ) : (
                     <ul className="space-y-1.5 max-h-36 overflow-y-auto text-[11px]">
-                      {dayAudit.map((a) => (
-                        <li key={a.id} className="rounded-md border border-border/60 bg-muted/20 px-2 py-1.5">
-                          <span className="font-medium text-foreground">{BOOKING_AUDIT_LABEL[a.action]}</span>
-                          <span className="text-muted-foreground">
-                            {' '}
-                            · {format(parseISO(a.created_at), 'dd/MM HH:mm')} · {a.user_name}
-                          </span>
-                        </li>
-                      ))}
+                      {dayAudit.map((a) => {
+                        const diffs = diffBookingAuditEntry(a, empMap, vehMap);
+                        return (
+                          <li key={a.id} className="rounded-md border border-border/60 bg-muted/20 px-2 py-1.5 space-y-0.5">
+                            <span className="font-medium text-foreground">{BOOKING_AUDIT_LABEL[a.action]}</span>
+                            <span className="text-muted-foreground">
+                              {' '}
+                              · {format(parseISO(a.created_at), 'dd/MM HH:mm')} · {a.user_name}
+                            </span>
+                            {diffs.length > 0 ? (
+                              <ul className="text-muted-foreground list-disc pl-4 mt-0.5">
+                                {diffs.map((line, i) => (
+                                  <li key={i}>{line}</li>
+                                ))}
+                              </ul>
+                            ) : null}
+                          </li>
+                        );
+                      })}
                     </ul>
                   )}
                 </section>
@@ -1967,6 +1980,10 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
               <div className="space-y-1">
                 <Label className="text-xs">หมายเหตุ</Label>
                 <Input value={editNotes} onChange={(e) => setEditNotes(e.target.value)} className="h-9 text-xs" />
+              </div>
+              <div className="space-y-1 pt-1 border-t border-border">
+                <Label className="text-xs font-medium">ประวัติการแก้ไข</Label>
+                <BookingAuditHistory bookingId={editBooking.id} empMap={empMap} vehMap={vehMap} />
               </div>
               <div className="flex gap-2 justify-end pt-1">
                 <Button type="button" variant="outline" onClick={() => setEditBooking(null)}>

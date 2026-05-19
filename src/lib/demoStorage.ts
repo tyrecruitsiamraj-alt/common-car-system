@@ -582,3 +582,25 @@ export function createEmployee(input: EmployeeInput): Employee {
   writeJsonArray(EMPLOYEES_KEY, sortNewestFirst([employee, ...items]));
   return employee;
 }
+
+export function updateEmployeeInDemo(
+  id: string,
+  patch: Pick<Employee, 'employee_code' | 'first_name' | 'last_name' | 'phone'> & { nickname?: string },
+): Employee {
+  const items = getEmployees();
+  const idx = items.findIndex((e) => e.id === id);
+  if (idx < 0) throw new Error('ไม่พบผู้ขับ');
+  const cur = items[idx];
+  const updated: Employee = {
+    ...cur,
+    employee_code: patch.employee_code,
+    first_name: patch.first_name,
+    last_name: patch.last_name,
+    nickname: patch.nickname,
+    phone: patch.phone,
+  };
+  const next = [...items];
+  next[idx] = updated;
+  writeJsonArray(EMPLOYEES_KEY, sortNewestFirst(next));
+  return updated;
+}

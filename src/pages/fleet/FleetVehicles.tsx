@@ -4,6 +4,15 @@ import { apiFetch } from '@/lib/apiFetch';
 import type { Vehicle } from '@/types';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 
 async function apiFailureMessage(r: Response): Promise<string> {
@@ -38,11 +47,16 @@ const TOYOTA_MODEL_OPTIONS = [
 ] as const;
 
 const FleetVehicles: React.FC = () => {
+  const { hasPermission } = useAuth();
+  const canEdit = hasPermission('staff');
   const [list, setList] = useState<Vehicle[]>([]);
   const [loading, setLoading] = useState(true);
   const [plate, setPlate] = useState('');
   const [model, setModel] = useState('');
   const [saving, setSaving] = useState(false);
+  const [editVehicle, setEditVehicle] = useState<Vehicle | null>(null);
+  const [editPlate, setEditPlate] = useState('');
+  const [editModel, setEditModel] = useState('');
 
   const load = () => {
     setLoading(true);
@@ -89,18 +103,8 @@ const FleetVehicles: React.FC = () => {
             'ยังไม่ได้เข้าสู่ระบบหรือ session หมดอายุ — กลับไปหน้า Login แล้วล็อกอินใหม่ (หลัง db:seed ใช้ admin@example.com และรหัสจาก SEED_USER_PASSWORD หรือ ChangeMe123!)';
           if (apiText && !/Unauthorized|Missing auth/i.test(apiText)) msg = apiText;
         }
-        if (r.status === 403) {
-          msg =
-            apiText && !apiText.includes('Forbidden')
-              ? apiText
-              : 'ไม่มีสิทธิ์บันทึก — ลองเข้าด้วยบัญชี supervisor หรือ admin';
-        }
         if (r.status === 409) {
           msg = apiText.includes('ทะเบียน') ? apiText : apiText || 'ทะเบียนรถซ้ำในระบบ';
-        }
-        if (r.status >= 500 && /relation|does not exist|ไม่มีตาราง/i.test(apiText)) {
-          msg =
-            'ฐานข้อมูลยังไม่มีตารางรถใน schema car_stamp — รัน npm run db:inspect แล้ว npm run db:migrate (ถ้า inspect บอกว่า car_stamp ว่างแต่มีประวัติ migration ให้รัน npm run db:migrate:replay แล้ว npm run db:seed)';
         }
         throw new Error(msg);
       }
@@ -115,9 +119,44 @@ const FleetVehicles: React.FC = () => {
     }
   };
 
+  const openEdit = (v: Vehicle) => {
+    setEditVehicle(v);
+    setEditPlate(v.plate_no);
+    setEditModel(v.label?.trim() || '');
+  };
+
+  const saveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editVehicle || !canEdit) return;
+    if (!editPlate.trim() || !editModel.trim()) {
+      toast.error('กรอกทะเบียนและเลือกรุ่นรถ');
+      return;
+    }
+    setSaving(true);
+    try {
+      const r = await apiFetch('/api/vehicles', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: editVehicle.id,
+          plate_no: editPlate.trim(),
+          label: editModel.trim(),
+        }),
+      });
+      if (!r.ok) throw new Error(await apiFailureMessage(r));
+      toast.success('บันทึกการแก้ไขรถแล้ว');
+      setEditVehicle(null);
+      load();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'แก้ไขไม่สำเร็จ');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <div>
-      <PageHeader title="รายการรถ" subtitle="ทะเบียนรถ — เลือกรุ่น Toyota จากรายการ" backPath="/fleet" />
+      <PageHeader title="รายการรถ" subtitle="ทะเบียนรถ — เลือกรุ่น Toyota จากรายการ · แก้ไขได้หลังบันทึก" backPath="/fleet" />
       <div className="px-4 md:px-6 py-4 space-y-6 max-w-2xl">
         <form onSubmit={submit} className="glass-card rounded-xl p-4 border border-border space-y-3">
           <p className="text-sm font-medium text-foreground">เพิ่มรถ</p>
@@ -154,9 +193,10 @@ const FleetVehicles: React.FC = () => {
         </form>
 
         <div className="glass-card rounded-xl border border-border overflow-hidden">
-          <div className="grid grid-cols-2 gap-0 border-b border-border text-xs font-medium text-muted-foreground uppercase tracking-wide">
+          <div className="grid grid-cols-[1fr_1fr_auto] gap-0 border-b border-border text-xs font-medium text-muted-foreground uppercase tracking-wide">
             <div className="px-4 py-2">ทะเบียนรถ</div>
             <div className="px-4 py-2">รุ่นรถ</div>
+            {canEdit ? <div className="px-4 py-2 w-20" /> : null}
           </div>
           {loading ? (
             <div className="p-4 text-sm text-muted-foreground">กำลังโหลด…</div>
@@ -165,15 +205,67 @@ const FleetVehicles: React.FC = () => {
           ) : (
             <ul className="divide-y divide-border">
               {list.map((v) => (
-                <li key={v.id} className="grid grid-cols-2 gap-0 text-sm">
+                <li key={v.id} className="grid grid-cols-[1fr_1fr_auto] gap-0 text-sm items-center">
                   <div className="px-4 py-3 font-mono font-medium text-foreground">{v.plate_no}</div>
                   <div className="px-4 py-3 text-foreground">{v.label?.trim() ? v.label : '—'}</div>
+                  {canEdit ? (
+                    <div className="px-4 py-3">
+                      <Button type="button" size="sm" variant="outline" className="h-7 text-xs" onClick={() => openEdit(v)}>
+                        แก้ไข
+                      </Button>
+                    </div>
+                  ) : null}
                 </li>
               ))}
             </ul>
           )}
         </div>
       </div>
+
+      <Dialog open={editVehicle !== null} onOpenChange={(open) => !open && setEditVehicle(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>แก้ไขรถ</DialogTitle>
+            <DialogDescription>แก้ทะเบียนหรือรุ่นรถที่คีย์ผิด</DialogDescription>
+          </DialogHeader>
+          {editVehicle ? (
+            <form onSubmit={(e) => void saveEdit(e)} className="space-y-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-plate">ทะเบียนรถ</Label>
+                <Input id="edit-plate" value={editPlate} onChange={(e) => setEditPlate(e.target.value)} required />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-model">รุ่นรถ (Toyota)</Label>
+                <select
+                  id="edit-model"
+                  value={editModel}
+                  onChange={(e) => setEditModel(e.target.value)}
+                  className="w-full h-10 rounded-md border border-border bg-background px-3 text-sm"
+                  required
+                >
+                  <option value="">— เลือกรุ่น —</option>
+                  {TOYOTA_MODEL_OPTIONS.map((name) => (
+                    <option key={name} value={name}>
+                      {name}
+                    </option>
+                  ))}
+                  {editModel && !TOYOTA_MODEL_OPTIONS.includes(editModel as (typeof TOYOTA_MODEL_OPTIONS)[number]) ? (
+                    <option value={editModel}>{editModel}</option>
+                  ) : null}
+                </select>
+              </div>
+              <div className="flex gap-2 justify-end">
+                <Button type="button" variant="outline" onClick={() => setEditVehicle(null)}>
+                  ยกเลิก
+                </Button>
+                <Button type="submit" disabled={saving}>
+                  {saving ? 'กำลังบันทึก…' : 'บันทึก'}
+                </Button>
+              </div>
+            </form>
+          ) : null}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

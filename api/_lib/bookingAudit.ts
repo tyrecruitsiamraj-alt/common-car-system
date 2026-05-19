@@ -59,6 +59,20 @@ export async function insertBookingAudit(params: {
   );
 }
 
+export async function listBookingAuditForBooking(bookingId: string, limit = 50) {
+  const { rows } = await dbQuery<BookingAuditRow>(
+    `
+      select *
+      from ${tbl}
+      where booking_id = $1::uuid
+      order by created_at desc
+      limit $2
+    `,
+    [bookingId, limit],
+  );
+  return rows.map(toBookingAuditResponse);
+}
+
 export async function listBookingAuditInRange(fromIso: string, toIso: string, limit = 200) {
   const { rows } = await dbQuery<BookingAuditRow>(
     `

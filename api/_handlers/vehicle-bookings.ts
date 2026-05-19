@@ -1,6 +1,6 @@
 import { dbQuery } from '../_lib/postgres.js';
 import {
-  withAuthStaffCreateSupervisorMutate,
+  withAuthStaffWrite,
   sendError,
   handleApiError,
   type ApiRes,
@@ -8,7 +8,11 @@ import {
 } from '../_lib/http.js';
 import { readJsonBody, getString } from '../_lib/body.js';
 import { tableInAppSchema } from '../_lib/schema.js';
-import { insertBookingAudit, listBookingAuditInRange } from '../_lib/bookingAudit.js';
+import {
+  insertBookingAudit,
+  listBookingAuditInRange,
+  listBookingAuditForBooking,
+} from '../_lib/bookingAudit.js';
 
 const tbl = tableInAppSchema('vehicle_bookings');
 const ACTIVE_ONLY = `coalesce(status, 'active') = 'active'`;
@@ -159,12 +163,6 @@ async function handler(req: AuthedReq, res: ApiRes): Promise<void> {
         .toLowerCase()
         .trim(),
     );
-    const fromQ = parseIso(req.query?.from);
-    const toQ = parseIso(req.query?.to);
-    if (!fromQ || !toQ || fromQ >= toQ) {
-      return sendError(res, 400, 'Bad request', 'from and to (ISO 8601) required; from < to');
-    }
-
     const auditLog = ['1', 'true', 'yes'].includes(
       String(req.query?.auditLog ?? '')
         .toLowerCase()
@@ -173,8 +171,24 @@ async function handler(req: AuthedReq, res: ApiRes): Promise<void> {
 
     try {
       if (auditLog) {
+        const bookingId = getString(req.query?.booking_id);
+        if (bookingId) {
+          const audit = await listBookingAuditForBooking(bookingId);
+          return res.status(200).json({ booking_id: bookingId, audit });
+        }
+        const fromQ = parseIso(req.query?.from);
+        const toQ = parseIso(req.query?.to);
+        if (!fromQ || !toQ || fromQ >= toQ) {
+          return sendError(res, 400, 'Bad request', 'from and to (ISO 8601) required; from < to');
+        }
         const audit = await listBookingAuditInRange(fromQ.toISOString(), toQ.toISOString());
         return res.status(200).json({ from: fromQ.toISOString(), to: toQ.toISOString(), audit });
+      }
+
+      const fromQ = parseIso(req.query?.from);
+      const toQ = parseIso(req.query?.to);
+      if (!fromQ || !toQ || fromQ >= toQ) {
+        return sendError(res, 400, 'Bad request', 'from and to (ISO 8601) required; from < to');
       }
 
       if (avail) {
@@ -413,4 +427,4 @@ async function handler(req: AuthedReq, res: ApiRes): Promise<void> {
   return sendError(res, 405, 'Method not allowed');
 }
 
-export default withAuthStaffCreateSupervisorMutate(handler);
+export default withAuthStaffWrite(handler);

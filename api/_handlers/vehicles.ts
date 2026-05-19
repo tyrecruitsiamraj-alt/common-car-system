@@ -1,6 +1,6 @@
 import { dbQuery } from '../_lib/postgres.js';
 import {
-  withAuthStaffCreateSupervisorMutate,
+  withAuthStaffWrite,
   sendError,
   handleApiError,
   type ApiRes,
@@ -150,4 +150,4 @@ async function handler(req: AuthedReq, res: ApiRes): Promise<void> {
   return sendError(res, 405, 'Method not allowed');
 }
 
-export default withAuthStaffCreateSupervisorMutate(handler);
+export default withAuthStaffWrite(handler);

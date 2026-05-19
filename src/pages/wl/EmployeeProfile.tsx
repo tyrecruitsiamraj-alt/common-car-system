@@ -15,9 +15,13 @@ import { getCandidates, hydrateCandidateStaffing } from '@/lib/demoStorage';
 import { mergeCandidateSources } from '@/lib/mergeCandidates';
 import { formatCandidateDisplayName } from '@/lib/formatCandidateName';
 import { isWlStaffingTrack, parseWlEmployeeCandidateId } from '@/lib/wlFromCandidate';
+import EditEmployeeCard from '@/components/wl/EditEmployeeCard';
+import { useAuth } from '@/contexts/AuthContext';
 
 const EmployeeProfile: React.FC = () => {
   const { id } = useParams<{ id: string }>();
+  const { hasPermission } = useAuth();
+  const canEdit = hasPermission('staff');
   const workCalendar = useWorkCalendarEntries();
   const [employee, setEmployee] = useState<Employee | null>(null);
   const [wlCandidate, setWlCandidate] = useState<Candidate | null>(null);
@@ -187,7 +191,6 @@ const EmployeeProfile: React.FC = () => {
   if (!employee) return <div className="p-6 text-muted-foreground">ไม่พบข้อมูลพนักงาน</div>;
 
   const profit = employee.total_income - employee.total_cost;
-  const displayNick = employee.nickname ? ` (${employee.nickname})` : '';
 
   return (
     <div>
@@ -197,32 +200,7 @@ const EmployeeProfile: React.FC = () => {
         backPath="/fleet/drivers"
       />
       <div className="px-4 md:px-6 space-y-6">
-        {/* Info card */}
-        <div className="glass-card rounded-xl p-4 border border-border space-y-3">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center">
-              <User className="w-6 h-6 text-primary" />
-            </div>
-            <div>
-              <div className="font-bold text-foreground">
-                {employee.first_name} {employee.last_name}
-                {displayNick}
-              </div>
-              <div className="text-sm text-muted-foreground">
-                {employee.position} • {employee.phone}
-              </div>
-            </div>
-            <span
-              className={cn(
-                'ml-auto text-xs px-2 py-0.5 rounded-full',
-                employee.status === 'active' ? 'bg-success/15 text-success' : 'bg-destructive/15 text-destructive',
-              )}
-            >
-              {employee.status}
-            </span>
-          </div>
-          <div className="text-xs text-muted-foreground">เริ่มงาน: {formatYmdDmyBe(employee.join_date)}</div>
-        </div>
+        <EditEmployeeCard employee={employee} canEdit={canEdit} onUpdated={setEmployee} />
 
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">

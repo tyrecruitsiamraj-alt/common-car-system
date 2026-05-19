@@ -103,6 +103,13 @@ export function withAuthDataRoute(
   };
 }
 
+/** GET/POST/PATCH/PUT/DELETE: staff+ — สำหรับข้อมูลปฏิบัติการ (ผู้ขับ รถ การจอง) ที่ staff ต้องแก้คีย์ผิดได้ */
+export function withAuthStaffWrite(
+  handler: (req: AuthedReq, res: ApiRes) => Promise<void>,
+): (req: ApiReq, res: ApiRes) => Promise<void> {
+  return withAuth(handler, { roles: ['staff', 'supervisor', 'admin'] });
+}
+
 /** GET/POST/DELETE: staff+; PATCH/PUT: supervisor+ (ผู้สมัครใหม่ = staff เพิ่ม/ลบได้ แก้ไขข้อมูลต้อง supervisor+). */
 export function withAuthStaffCreateSupervisorMutate(
   handler: (req: AuthedReq, res: ApiRes) => Promise<void>,
