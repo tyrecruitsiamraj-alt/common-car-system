@@ -13,6 +13,7 @@ import {
   type MaintenanceVehicleDetail,
   type TodayBookingDetail,
   bookingEffectiveEnd,
+  bookingsOnDay,
   deriveBookingListStatus,
   isBookingInProgress,
 } from '@/lib/fleetBookingsDashboard';
@@ -382,6 +383,8 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
   });
 
   const [bookings, setBookings] = useState<VehicleBooking[]>([]);
+  /** จองวันนี้ — ใช้คำนวณการ์ดภาพรวมให้ตรงเสมอ แม้เลือกดูเดือนอื่น */
+  const [todayBookings, setTodayBookings] = useState<VehicleBooking[]>([]);
   const [availability, setAvailability] = useState<AvailabilityPayload | null>(null);
   const [empMap, setEmpMap] = useState<Map<string, Employee>>(new Map());
   const [vehMap, setVehMap] = useState<Map<string, Vehicle>>(new Map());
@@ -483,27 +486,42 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
   }, [isMonitor, viewMode, dayValue, monthValue]);
 
   const refresh = useCallback(async () => {
-    if (!listRange || !bookingWindow) {
+    if (!listRange) {
       setBookings([]);
+      setTodayBookings([]);
       setAvailability(null);
       setAvailabilityError(null);
       setLoading(false);
       return;
     }
-    const fetchFrom = new Date(Math.min(listRange.from.getTime(), bookingWindow.from.getTime()));
-    const fetchTo = new Date(Math.max(listRange.to.getTime(), bookingWindow.to.getTime()));
-    const qList = new URLSearchParams({ from: fetchFrom.toISOString(), to: fetchTo.toISOString() });
-    const qAvail = new URLSearchParams({
-      from: bookingWindow.from.toISOString(),
-      to: bookingWindow.to.toISOString(),
-      availability: '1',
+    const todayFrom = startOfDay(new Date());
+    const todayTo = endOfDay(new Date());
+    const qToday = new URLSearchParams({
+      from: todayFrom.toISOString(),
+      to: todayTo.toISOString(),
     });
+    let fetchFrom = listRange.from;
+    let fetchTo = listRange.to;
+    if (!isMonitor && bookingWindow) {
+      fetchFrom = new Date(Math.min(listRange.from.getTime(), bookingWindow.from.getTime()));
+      fetchTo = new Date(Math.max(listRange.to.getTime(), bookingWindow.to.getTime()));
+    }
+    const qList = new URLSearchParams({ from: fetchFrom.toISOString(), to: fetchTo.toISOString() });
+    const qAvail =
+      !isMonitor && bookingWindow
+        ? new URLSearchParams({
+            from: bookingWindow.from.toISOString(),
+            to: bookingWindow.to.toISOString(),
+            availability: '1',
+          })
+        : null;
     setLoading(true);
     setAvailabilityError(null);
     try {
-      const [rBook, rAvail, rEmp, rVeh] = await Promise.all([
+      const [rBook, rToday, rAvail, rEmp, rVeh] = await Promise.all([
         apiFetch(`/api/vehicle-bookings?${qList}`),
-        apiFetch(`/api/vehicle-bookings?${qAvail}`),
+        apiFetch(`/api/vehicle-bookings?${qToday}`),
+        qAvail ? apiFetch(`/api/vehicle-bookings?${qAvail}`) : Promise.resolve(null),
         apiFetch('/api/employees?limit=500'),
         apiFetch('/api/vehicles'),
       ]);
@@ -512,8 +530,19 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
       if (rBook.ok) {
         const data = (await rBook.json()) as unknown;
         bookingRows = Array.isArray(data) ? data : [];
+      } else {
+        const err = await parseApiError(rBook);
+        toast.error(`โหลดรายการจองไม่สำเร็จ: ${err}`);
+        bookingRows = [];
       }
       setBookings(bookingRows);
+
+      if (rToday?.ok) {
+        const todayData = (await rToday.json()) as unknown;
+        setTodayBookings(Array.isArray(todayData) ? todayData : []);
+      } else {
+        setTodayBookings(bookingsOnDay(bookingRows, new Date()));
+      }
 
       let employees: Employee[] = [];
       if (rEmp.ok) {
@@ -542,7 +571,7 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
 
       let availErr: string | null = null;
       let serverAvail: AvailabilityPayload | null = null;
-      if (rAvail.ok) {
+      if (rAvail?.ok) {
         const raw = (await rAvail.json()) as unknown;
         if (
           raw &&
@@ -552,12 +581,12 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
         ) {
           serverAvail = raw as AvailabilityPayload;
         }
-      } else {
+      } else if (rAvail) {
         availErr = await parseApiError(rAvail);
       }
 
       const localAvail =
-        employees.length && vehicles.length
+        !isMonitor && bookingWindow && employees.length && vehicles.length
           ? computeLocalAvailability(bookingWindow.from, bookingWindow.to, bookingRows, employees, vehicles)
           : null;
 
@@ -599,7 +628,7 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
         }
       }
     }
-  }, [listRange, bookingWindow]);
+  }, [listRange, bookingWindow, isMonitor]);
 
   useEffect(() => {
     void refresh();
@@ -1186,14 +1215,14 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
     [dashboardRows, listQuery, listStatusFilter],
   );
   const dashboardMetrics = useMemo(
-    () => computeDashboardMetrics(bookings, vehiclesList),
-    [bookings, vehiclesList],
+    () => computeDashboardMetrics(todayBookings, vehiclesList),
+    [todayBookings, vehiclesList],
   );
   const utilization = useMemo(
     () => computeUtilization(bookings, vehiclesList),
     [bookings, vehiclesList],
   );
-  const todaySummary = useMemo(() => computeTodaySummaryCounts(bookings), [bookings]);
+  const todaySummary = useMemo(() => computeTodaySummaryCounts(todayBookings), [todayBookings]);
   const maintenanceCount = useMemo(
     () => vehiclesList.filter((v) => v.is_active === false).length,
     [vehiclesList],
@@ -1209,16 +1238,16 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
   }, [dayValue]);
 
   const todayBookingDetails = useMemo(
-    () => buildTodayBookingDetails(bookings, empLabel, vehMap),
-    [bookings, empMap, vehLabel],
+    () => buildTodayBookingDetails(todayBookings, empLabel, vehMap),
+    [todayBookings, empMap, vehLabel],
   );
   const inProgressDetails = useMemo(
-    () => buildTodayBookingsByStatus(bookings, 'inProgress', empLabel, vehMap),
-    [bookings, empMap, vehLabel],
+    () => buildTodayBookingsByStatus(todayBookings, 'inProgress', empLabel, vehMap),
+    [todayBookings, empMap, vehLabel],
   );
   const completedDetails = useMemo(
-    () => buildTodayBookingsByStatus(bookings, 'completed', empLabel, vehMap),
-    [bookings, empMap, vehLabel],
+    () => buildTodayBookingsByStatus(todayBookings, 'completed', empLabel, vehMap),
+    [todayBookings, empMap, vehLabel],
   );
   const maintenanceDetails = useMemo(
     () => buildMaintenanceVehicleDetails(vehiclesList),

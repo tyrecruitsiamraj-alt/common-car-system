@@ -13,11 +13,14 @@ import {
   listBookingAuditInRange,
   listBookingAuditForBooking,
 } from '../_lib/bookingAudit.js';
+import {
+  bookingEffectiveEndSql,
+  bookingEffectiveEndSqlQualified,
+  hasVehicleBookingCompletedAt,
+} from '../_lib/vehicleBookingsSchema.js';
 
 const tbl = tableInAppSchema('vehicle_bookings');
 const ACTIVE_ONLY = `coalesce(status, 'active') = 'active'`;
-/** ช่วงเวลาที่ยังถือว่ากำลังจอง (ยังไม่กดเสร็จสิ้น) */
-const EFFECTIVE_END = `coalesce(completed_at, ends_at)`;
 const tblV = tableInAppSchema('vehicles');
 const tblE = tableInAppSchema('employees');
 
@@ -98,13 +101,14 @@ async function overlapVehicle(
   start: Date,
   end: Date,
   excludeId: string | null,
+  effectiveEnd: string,
 ): Promise<boolean> {
   const params: unknown[] = [vehicleId, start.toISOString(), end.toISOString()];
   let sql = `
     select 1 from ${tbl}
     where vehicle_id = $1::uuid
       and starts_at < $3::timestamptz
-      and ${EFFECTIVE_END} > $2::timestamptz
+      and ${effectiveEnd} > $2::timestamptz
       and ${ACTIVE_ONLY}
   `;
   if (excludeId) {
@@ -121,13 +125,14 @@ async function overlapEmployee(
   start: Date,
   end: Date,
   excludeId: string | null,
+  effectiveEnd: string,
 ): Promise<boolean> {
   const params: unknown[] = [employeeId, start.toISOString(), end.toISOString()];
   let sql = `
     select 1 from ${tbl}
     where employee_id = $1::uuid
       and starts_at < $3::timestamptz
-      and ${EFFECTIVE_END} > $2::timestamptz
+      and ${effectiveEnd} > $2::timestamptz
       and ${ACTIVE_ONLY}
   `;
   if (excludeId) {
@@ -161,6 +166,9 @@ type VehRow = {
 
 async function handler(req: AuthedReq, res: ApiRes): Promise<void> {
   const method = (req.method || 'GET').toUpperCase();
+  const useCompletedAt = await hasVehicleBookingCompletedAt();
+  const effectiveEnd = bookingEffectiveEndSql(useCompletedAt);
+  const vbEffectiveEnd = bookingEffectiveEndSqlQualified('vb', useCompletedAt);
 
   if (method === 'GET') {
     const avail = ['1', 'true', 'yes'].includes(
@@ -206,7 +214,7 @@ async function handler(req: AuthedReq, res: ApiRes): Promise<void> {
               select 1 from ${tbl} vb
               where vb.employee_id = e.id
                 and vb.starts_at < $2::timestamptz
-                and coalesce(vb.completed_at, vb.ends_at) > $1::timestamptz
+                and ${vbEffectiveEnd} > $1::timestamptz
                 and coalesce(vb.status, 'active') = 'active'
             )
           order by e.first_name, e.last_name
@@ -258,7 +266,7 @@ async function handler(req: AuthedReq, res: ApiRes): Promise<void> {
       const { rows } = await dbQuery<BookingRow>(
         `
         select * from ${tbl}
-        where starts_at < $2::timestamptz and ${EFFECTIVE_END} > $1::timestamptz
+        where starts_at < $2::timestamptz and ${effectiveEnd} > $1::timestamptz
           and ${ACTIVE_ONLY}
         order by starts_at asc
       `,
@@ -288,10 +296,10 @@ async function handler(req: AuthedReq, res: ApiRes): Promise<void> {
       }
       if (starts >= ends) return sendError(res, 400, 'Bad request', 'ends_at must be after starts_at');
 
-      if (await overlapVehicle(vehicle_id, starts, ends, null)) {
+      if (await overlapVehicle(vehicle_id, starts, ends, null, effectiveEnd)) {
         return sendError(res, 409, 'Conflict', 'รถคันนี้ถูกจองในช่วงเวลานี้แล้ว');
       }
-      if (await overlapEmployee(employee_id, starts, ends, null)) {
+      if (await overlapEmployee(employee_id, starts, ends, null, effectiveEnd)) {
         return sendError(res, 409, 'Conflict', 'ผู้ขับคนนี้มีการจองทับช่วงเวลานี้แล้ว');
       }
 
@@ -340,8 +348,14 @@ async function handler(req: AuthedReq, res: ApiRes): Promise<void> {
       }
 
       const markCompleted = b.mark_completed === true;
-      if (markCompleted && cur.completed_at) {
+      if (markCompleted && useCompletedAt && cur.completed_at) {
         return sendError(res, 409, 'Conflict', 'การจองนี้เสร็จสิ้นแล้ว');
+      }
+      if (markCompleted && !useCompletedAt) {
+        const curEnd = new Date(cur.ends_at);
+        if (curEnd <= new Date()) {
+          return sendError(res, 409, 'Conflict', 'การจองนี้เสร็จสิ้นแล้ว');
+        }
       }
 
       const employee_id = b.employee_id !== undefined ? getString(b.employee_id) : cur.employee_id;
@@ -369,15 +383,16 @@ async function handler(req: AuthedReq, res: ApiRes): Promise<void> {
       }
       if (starts >= ends) return sendError(res, 400, 'Bad request', 'ends_at must be after starts_at');
 
-      if (await overlapVehicle(vehicle_id, starts, ends, id)) {
+      if (await overlapVehicle(vehicle_id, starts, ends, id, effectiveEnd)) {
         return sendError(res, 409, 'Conflict', 'รถคันนี้ถูกจองในช่วงเวลานี้แล้ว');
       }
-      if (await overlapEmployee(employee_id, starts, ends, id)) {
+      if (await overlapEmployee(employee_id, starts, ends, id, effectiveEnd)) {
         return sendError(res, 409, 'Conflict', 'ผู้ขับคนนี้มีการจองทับช่วงเวลานี้แล้ว');
       }
 
-      const { rows } = await dbQuery<BookingRow>(
-        `
+      const { rows } = useCompletedAt
+        ? await dbQuery<BookingRow>(
+            `
         update ${tbl} set
           employee_id = $2::uuid,
           vehicle_id = $3::uuid,
@@ -390,17 +405,40 @@ async function handler(req: AuthedReq, res: ApiRes): Promise<void> {
         where id = $1::uuid and ${ACTIVE_ONLY}
         returning *
       `,
-        [
-          id,
-          employee_id,
-          vehicle_id,
-          starts.toISOString(),
-          ends.toISOString(),
-          destination,
-          notes,
-          completedAt ? completedAt.toISOString() : null,
-        ],
-      );
+            [
+              id,
+              employee_id,
+              vehicle_id,
+              starts.toISOString(),
+              ends.toISOString(),
+              destination,
+              notes,
+              completedAt ? completedAt.toISOString() : null,
+            ],
+          )
+        : await dbQuery<BookingRow>(
+            `
+        update ${tbl} set
+          employee_id = $2::uuid,
+          vehicle_id = $3::uuid,
+          starts_at = $4::timestamptz,
+          ends_at = $5::timestamptz,
+          destination = $6,
+          notes = $7,
+          updated_at = now()
+        where id = $1::uuid and ${ACTIVE_ONLY}
+        returning *
+      `,
+            [
+              id,
+              employee_id,
+              vehicle_id,
+              starts.toISOString(),
+              ends.toISOString(),
+              destination,
+              notes,
+            ],
+          );
       const row = rows[0];
       if (!row) return sendError(res, 404, 'Not found');
       await insertBookingAudit({

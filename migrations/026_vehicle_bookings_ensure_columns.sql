@@ -14,6 +14,13 @@ create index if not exists vehicle_bookings_status_time_idx
 alter table vehicle_bookings
   add column if not exists destination text null;
 
+alter table vehicle_bookings
+  add column if not exists completed_at timestamptz null;
+
+create index if not exists vehicle_bookings_completed_at_idx
+  on vehicle_bookings (completed_at)
+  where completed_at is not null;
+
 create table if not exists vehicle_booking_audit (
   id uuid primary key default gen_random_uuid(),
   booking_id uuid not null references vehicle_bookings(id) on delete cascade,
