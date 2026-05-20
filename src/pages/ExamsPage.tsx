@@ -42,7 +42,7 @@ const ExamsPage: React.FC = () => {
             <h1 className="text-xl font-bold">ข้อสอบ</h1>
           </div>
           <p className="text-sm text-muted-foreground">
-            รวมลิงก์จาก QR — อ่านหัวข้อการอบรมแล้วกดเข้าทำข้อสอบ
+            อ่านหัวข้อการอบรมแล้วกดเข้าทำข้อสอบ
           </p>
         </div>
 
