@@ -426,7 +426,7 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
   const [editTimeBaseline, setEditTimeBaseline] = useState<{ starts: string; ends: string } | null>(null);
 
   useEffect(() => {
-    if (mode === 'book' && (viewMode === 'month' || viewMode === 'week')) {
+    if (mode === 'book' && viewMode !== 'day') {
       setViewMode('day');
     }
   }, [mode, viewMode]);
@@ -756,6 +756,22 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
   }, [dayValue]);
 
   const dayBookingsList = useMemo(() => bookingsOverlappingDay(bookings, dayAnchor), [bookings, dayAnchor]);
+
+  const dayBookingsSorted = useMemo(
+    () =>
+      [...dayBookingsList].sort(
+        (a, b) => parseISO(a.starts_at).getTime() - parseISO(b.starts_at).getTime(),
+      ),
+    [dayBookingsList],
+  );
+
+  const dayBookingsFiltered = useMemo(() => {
+    return dayBookingsSorted.filter((b) => {
+      if (plannerFilterEmpId && b.employee_id !== plannerFilterEmpId) return false;
+      if (plannerFilterVehId && !bookingVehicleMatchesFilterId(b, plannerFilterVehId)) return false;
+      return true;
+    });
+  }, [dayBookingsSorted, plannerFilterEmpId, plannerFilterVehId]);
 
   /** รายวัน: โฟกัสวันที่เลือก (รวมวันย้อนหลัง — ใช้บันทึกย้อนหลังได้) */
   const selectDayForView = (d: Date) => {
@@ -1093,6 +1109,8 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
       setDestination('');
       setNotes('');
       setCreateDialogOpen(false);
+      setDayValue(format(startOfDay(bookingWindow.from), 'yyyy-MM-dd'));
+      setViewMode('day');
       await refresh();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'จองไม่สำเร็จ');
@@ -1356,7 +1374,7 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
         description={
           isMonitor
             ? `ภาพรวมการใช้รถ — การ์ดและตารางตามวันที่เลือก (${dayLabel})`
-            : 'ดูว่าใครและรถคันไหนว่าง แล้วสร้างการจอง — รายละเอียดการจองทั้งหมดดูที่หน้าภาพรวม'
+            : `เลือกวันที่แล้วดูรายการจองทั้งวัน — ใครไปที่ไหน กี่โมงถึงกี่โมง (${dayLabel})`
         }
         isMonitor={isMonitor}
         showBookingTable={isMonitor}
@@ -1428,11 +1446,12 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
           defaultOpen
         >
           <summary className="cursor-pointer select-none px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50/80 list-none marker:content-none [&::-webkit-details-marker]:hidden">
-            {isMonitor ? 'ตารางเวลา · มุมมองรายวัน / รายชั่วโมง' : 'ความว่างและจองรถ'}
+            {isMonitor ? 'ตารางเวลา · มุมมองรายวัน / รายชั่วโมง' : `การจองรายวัน · ${dayLabel}`}
           </summary>
           <div className="flex flex-col min-h-0 gap-2 p-2 sm:p-3 max-h-[min(70vh,52rem)] overflow-hidden border-t border-slate-100">
+        {isMonitor ? (
         <div className="flex flex-wrap items-center gap-2 shrink-0">
-          {(isMonitor ? (['month', 'week', 'day', 'hour'] as const) : (['day', 'hour'] as const)).map((m) => (
+          {(['month', 'week', 'day', 'hour'] as const).map((m) => (
             <button
               key={m}
               type="button"
@@ -1458,6 +1477,7 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
             </button>
           ))}
         </div>
+        ) : null}
 
         <div className="glass-card rounded-lg border border-border p-2 sm:p-3 shrink-0 space-y-2">
           <div className="flex flex-wrap gap-3 items-end">
@@ -1474,11 +1494,16 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
             ) : null}
             {(viewMode === 'week' || viewMode === 'day' || viewMode === 'hour') && (
               <div className="space-y-1 min-w-[10rem]">
-                <Label className="text-xs">{viewMode === 'week' ? 'สัปดาห์ (เลือกวันที่ในสัปดาห์)' : 'วันที่'}</Label>
+                <Label className="text-xs">
+                  {viewMode === 'week' ? 'สัปดาห์ (เลือกวันที่ในสัปดาห์)' : 'วันที่'}
+                </Label>
                 <Input
                   type="date"
                   value={dayValue}
-                  onChange={(e) => setDayValue(e.target.value)}
+                  onChange={(e) => {
+                    setDayValue(e.target.value);
+                    if (!isMonitor) setViewMode('day');
+                  }}
                   className="h-9 text-sm"
                 />
               </div>
@@ -1499,7 +1524,7 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
             <p className="text-[10px] text-muted-foreground leading-snug">
               {isMonitor
                 ? 'รายวัน: เลือกวันที่แล้วดูว่าใครมีจอง / ใครว่างทั้งวัน — ด้านล่างมีตารางรถ×ชั่วโมง'
-                : 'เลือกวันที่ → ดูรายชื่อผู้ขับและรถที่ว่างทั้งวัน / ว่างบางช่วง → คลิกช่องว่างในตารางเพื่อเริ่มจอง'}
+                : 'เลือกวันที่ → ดูรายการจองทั้งวัน (ผู้ขับ · ปลายทาง · เวลา) · จองเพิ่มจากปุ่มด้านบนหรือตารางว่างด้านล่าง'}
             </p>
           ) : null}
           {(viewMode === 'day' || viewMode === 'hour') && (
@@ -1787,13 +1812,72 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                     </>
                   ) : (
                     <>
-                      ผู้ขับว่างทั้งวัน {dayFreeEmployeesFiltered.length} คน · ว่างบางช่วง{' '}
-                      {dayPartialFreeEmployees.length} คน · รถว่างทั้งวัน {dayFreeVehiclesFiltered.length} คัน
+                      <span className="font-medium text-foreground">{dayBookingsFiltered.length} การจอง</span>
+                      {' · '}
+                      ผู้ขับว่าง {dayFreeEmployeesFiltered.length} คน · รถว่าง {dayFreeVehiclesFiltered.length} คัน
                     </>
                   )}
                 </p>
               </div>
               <div className="flex-1 min-h-0 overflow-y-auto p-2 flex flex-col gap-4">
+                {!isMonitor ? (
+                  <section className="min-h-0">
+                    <h3 className="text-xs font-semibold text-foreground mb-2">
+                      รายการจองในวันนี้ ({dayBookingsFiltered.length})
+                    </h3>
+                    {dayBookingsFiltered.length === 0 ? (
+                      <p className="text-xs text-muted-foreground rounded-lg border border-dashed border-border/80 bg-muted/15 px-3 py-4 text-center">
+                        ยังไม่มีการจองในวันนี้ — กด &quot;สร้างการจอง&quot; หรือเลือกช่องว่างในตารางด้านล่าง
+                      </p>
+                    ) : (
+                      <ul className="space-y-2">
+                        {dayBookingsFiltered.map((b) => {
+                          const dest = (b.destination || '').trim();
+                          const note = (b.notes || '').trim();
+                          const inProgress = isBookingInProgress(b);
+                          return (
+                            <li
+                              key={b.id}
+                              className="rounded-xl border border-primary/20 bg-primary/5 p-3 shadow-sm"
+                            >
+                              <div className="flex flex-wrap items-start justify-between gap-2">
+                                <p className="text-base font-bold tabular-nums text-foreground tracking-tight">
+                                  {format(parseISO(b.starts_at), 'HH:mm')}
+                                  <span className="text-muted-foreground font-semibold"> – </span>
+                                  {format(bookingEffectiveEnd(b), 'HH:mm')}
+                                </p>
+                                <span
+                                  className={cn(
+                                    'text-[10px] font-semibold rounded-full px-2 py-0.5 ring-1',
+                                    inProgress
+                                      ? 'bg-blue-50 text-blue-700 ring-blue-200'
+                                      : 'bg-slate-100 text-slate-600 ring-slate-200',
+                                  )}
+                                >
+                                  {inProgress ? 'กำลังดำเนินการ' : 'เสร็จสิ้น'}
+                                </span>
+                              </div>
+                              <p className="mt-1.5 text-sm font-semibold text-foreground">{empLabel(b.employee_id)}</p>
+                              <p className="text-sm text-foreground/90 mt-0.5">
+                                <span className="text-muted-foreground">ไป </span>
+                                {dest || note || '— ไม่ระบุปลายทาง —'}
+                              </p>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                รถ {vehLabel(b.vehicle_id)}
+                                {isIncidentBooking(b) ? (
+                                  <span className="ml-1.5 text-amber-700 dark:text-amber-400 font-medium">· อุบัติเหตุ</span>
+                                ) : null}
+                              </p>
+                              {canEdit ? (
+                                <div className="mt-2 pt-2 border-t border-border/50">{renderBookingActions(b)}</div>
+                              ) : null}
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    )}
+                  </section>
+                ) : null}
                 {isMonitor ? (
                 <section className="min-h-0">
                   <h3 className="text-[11px] font-semibold text-foreground mb-2">มีจอง / ถูกใช้งาน</h3>
@@ -1836,6 +1920,14 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                   )}
                 </section>
                 ) : null}
+                <details
+                  className="rounded-md border border-border/60 bg-card/30 overflow-hidden"
+                  open={isMonitor}
+                >
+                  <summary className="px-2 py-2 text-[11px] font-medium cursor-pointer select-none list-none marker:content-none [&::-webkit-details-marker]:hidden hover:bg-muted/30">
+                    {isMonitor ? 'ผู้ว่าง / สรุปรายชั่วโมง' : 'ว่างในวันนี้ · จองช่วงเวลา (ตาราง)'}
+                  </summary>
+                  <div className="border-t border-border/50 p-2 flex flex-col gap-4">
                 <section>
                   <h3 className="text-[11px] font-semibold text-foreground mb-2">ผู้ขับว่างทั้งวัน</h3>
                   {dayFreeEmployees.length === 0 ? (
@@ -1930,7 +2022,7 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                   )}
                 </section>
                 ) : null}
-                <details className="rounded-md border border-border/60 bg-card/30 overflow-hidden" open={!isMonitor}>
+                <details className="rounded-md border border-border/60 bg-card/20 overflow-hidden" open={isMonitor}>
                   <summary className="px-2 py-2 text-[11px] font-medium cursor-pointer select-none list-none marker:content-none [&::-webkit-details-marker]:hidden hover:bg-muted/30">
                     {isMonitor
                       ? 'สรุปรายชั่วโมง — ใครว่าง / รถไหนว่าง (ชม. 0–23)'
@@ -1967,15 +2059,17 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                     </table>
                   </div>
                 </details>
+                <details className="rounded-md border border-border/60 bg-card/20 overflow-hidden" open={isMonitor}>
+                  <summary className="px-2 py-2 text-[11px] font-medium cursor-pointer select-none list-none marker:content-none [&::-webkit-details-marker]:hidden hover:bg-muted/30">
+                    ตารางรถ × ชั่วโมง {isMonitor ? '(กดเพื่อดูรายละเอียดตามชั่วโมง)' : '(กดช่องว่างเพื่อจอง)'}
+                  </summary>
+                  <div className="h-[min(38vh,22rem)] min-h-[168px] border-t border-border/50 overflow-hidden flex flex-col">
+                    {vehicleHourGridEl}
+                  </div>
+                </details>
+                  </div>
+                </details>
               </div>
-              <details className="shrink-0 border-t border-border bg-card/20" defaultOpen={!isMonitor}>
-                <summary className="px-2 py-2 text-[11px] font-medium cursor-pointer select-none list-none marker:content-none [&::-webkit-details-marker]:hidden hover:bg-muted/30">
-                  ตารางรถ × ชั่วโมง {isMonitor ? '(กดเพื่อดูรายละเอียดตามชั่วโมง)' : '(กดเพื่อจอง — คลิกช่องว่างบนแถวรถ)'}
-                </summary>
-                <div className="h-[min(38vh,22rem)] min-h-[168px] border-t border-border/50 overflow-hidden flex flex-col">
-                  {vehicleHourGridEl}
-                </div>
-              </details>
             </div>
           ) : null}
 
