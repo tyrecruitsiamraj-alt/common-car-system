@@ -17,7 +17,6 @@ import changePasswordHandler from './auth/change-password.js';
 import brandingHandler from './branding.js';
 import vehiclesHandler from './vehicles.js';
 import vehicleBookingsHandler from './vehicle-bookings.js';
-
 export type ApiHandler = (req: ApiReq, res: ApiRes) => Promise<void>;
 
 /** Route table — Login + WL + Dashboard; clients/jobs ใช้ภายใน WL (มอบหมายงาน) */

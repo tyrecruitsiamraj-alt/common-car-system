@@ -2,10 +2,16 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import PageHeader from '@/components/shared/PageHeader';
 import AppPage from '@/components/layout/AppPage';
-import { Car, CalendarRange, LayoutGrid, Users, BarChart3 } from 'lucide-react';
+import { Car, CalendarRange, LayoutGrid, Users, BarChart3, ClipboardList } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 const items = [
+  {
+    path: '/exams',
+    label: 'ข้อสอบ',
+    desc: 'ลิงก์จาก QR — อ่านหัวข้อการอบรมแล้วกดเข้าทำข้อสอบ Microsoft Forms',
+    icon: ClipboardList,
+  },
   {
     path: '/fleet/bookings',
     label: 'จองรถ',

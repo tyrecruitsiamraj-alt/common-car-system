@@ -10,9 +10,13 @@ type AuthPageShellProps = {
   children: React.ReactNode;
   /** ลิงก์ใต้การ์ด (เช่น กลับไปล็อกอิน / สมัครสมาชิก) */
   footer?: React.ReactNode;
+  /** ความกว้างการ์ด — ใช้ wide สำหรับหน้าข้อสอบ */
+  maxWidth?: 'md' | '3xl';
+  /** ซ่อนหัวข้อแบรนด์ด้านบน (ใช้เมื่อมีหัวข้อในหน้าเอง) */
+  hideBrand?: boolean;
 };
 
-const AuthPageShell: React.FC<AuthPageShellProps> = ({ children, footer }) => {
+const AuthPageShell: React.FC<AuthPageShellProps> = ({ children, footer, maxWidth = 'md', hideBrand }) => {
   const { config } = useBranding();
   const shellBg = getAppShellBackgroundStyle(config);
 
@@ -28,8 +32,9 @@ const AuthPageShell: React.FC<AuthPageShellProps> = ({ children, footer }) => {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-md mx-auto"
+        className={cn('w-full mx-auto', maxWidth === '3xl' ? 'max-w-3xl' : 'max-w-md')}
       >
+        {!hideBrand ? (
         <div className="glass-card mb-8 rounded-[2rem] p-6 text-center">
           <Link to="/login" className="inline-flex flex-col items-center gap-2 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-ring">
             <BrandMark size="lg" />
@@ -39,6 +44,7 @@ const AuthPageShell: React.FC<AuthPageShellProps> = ({ children, footer }) => {
           </Link>
           <p className="text-sm text-muted-foreground mt-1">ฟลีต · Dashboard</p>
         </div>
+        ) : null}
 
         {children}
 

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { ClipboardList } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Input } from '@/components/ui/input';
 import { PasswordField } from '@/components/ui/password-field';
@@ -61,6 +62,14 @@ const LoginPage: React.FC = () => {
       }
     >
       <div className="glass-card rounded-2xl border border-border/80 p-5 sm:p-6 shadow-lg shadow-black/[0.04] space-y-4">
+        <Link
+          to="/exams"
+          className="flex w-full min-h-[48px] items-center justify-center gap-2 rounded-xl border-2 border-primary/30 bg-primary/5 px-4 py-3 text-sm font-semibold text-primary transition hover:border-primary hover:bg-primary/10 touch-manipulation"
+        >
+          <ClipboardList className="h-5 w-5 shrink-0" />
+          ข้อสอบ
+        </Link>
+
         <div className="rounded-lg border border-border/70 bg-muted/30 px-3 py-2.5 space-y-1">
           <p className="text-xs font-medium text-foreground">บัญชีทดลอง (หลังรัน db:seed)</p>
           <p className="text-xs text-muted-foreground">
