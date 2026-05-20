@@ -26,18 +26,16 @@ export function bookingEffectiveEnd(b: VehicleBooking): Date {
   return parseISO(b.ends_at);
 }
 
-/** สถานะจอง: กำลังดำเนินการ หรือ เสร็จสิ้น เท่านั้น */
+/** สถานะจอง: เสร็จสิ้นเมื่อกดเสร็จสิ้นเท่านั้น — ยังไม่กดจะค้างกำลังดำเนินการ */
 export function deriveBookingListStatus(
   b: VehicleBooking,
-  now = new Date(),
 ): Exclude<BookingListStatus, 'all'> {
   if (b.completed_at) return 'completed';
-  if (bookingEffectiveEnd(b) <= now) return 'completed';
   return 'inProgress';
 }
 
-export function isBookingInProgress(b: VehicleBooking, now = new Date()): boolean {
-  return deriveBookingListStatus(b, now) === 'inProgress';
+export function isBookingInProgress(b: VehicleBooking): boolean {
+  return deriveBookingListStatus(b) === 'inProgress';
 }
 
 function formatBookingDateLabel(startsAt: string): string {
@@ -98,7 +96,6 @@ function bookingToDetailRow(
   b: VehicleBooking,
   empLabel: (id: string) => string,
   vehMap: Map<string, Vehicle>,
-  now: Date,
 ): TodayBookingDetail {
   const v = vehMap.get(b.vehicle_id);
   const dest = (b.destination || '').trim();
@@ -110,7 +107,7 @@ function bookingToDetailRow(
     vehicleLabel: v?.label?.trim() || '—',
     time: `${format(parseISO(b.starts_at), 'HH:mm')} - ${format(bookingEffectiveEnd(b), 'HH:mm')}`,
     destination: dest || note || '—',
-    status: deriveBookingListStatus(b, now),
+    status: deriveBookingListStatus(b),
   };
 }
 
@@ -118,11 +115,11 @@ export function buildTodayBookingDetails(
   bookings: VehicleBooking[],
   empLabel: (id: string) => string,
   vehMap: Map<string, Vehicle>,
+  day: Date = new Date(),
 ): TodayBookingDetail[] {
-  const today = bookingsOnDay(bookings, new Date());
-  const now = new Date();
-  return today
-    .map((b) => bookingToDetailRow(b, empLabel, vehMap, now))
+  const onDay = bookingsOnDay(bookings, day);
+  return onDay
+    .map((b) => bookingToDetailRow(b, empLabel, vehMap))
     .sort((a, b) => a.time.localeCompare(b.time, 'th'));
 }
 
@@ -131,12 +128,12 @@ export function buildTodayBookingsByStatus(
   status: 'inProgress' | 'completed',
   empLabel: (id: string) => string,
   vehMap: Map<string, Vehicle>,
+  day: Date = new Date(),
 ): TodayBookingDetail[] {
-  const today = bookingsOnDay(bookings, new Date());
-  const now = new Date();
-  return today
-    .filter((b) => deriveBookingListStatus(b, now) === status)
-    .map((b) => bookingToDetailRow(b, empLabel, vehMap, now))
+  const onDay = bookingsOnDay(bookings, day);
+  return onDay
+    .filter((b) => deriveBookingListStatus(b) === status)
+    .map((b) => bookingToDetailRow(b, empLabel, vehMap))
     .sort((a, b) => a.time.localeCompare(b.time, 'th'));
 }
 
@@ -159,13 +156,13 @@ export function buildMaintenanceVehicleDetails(vehicles: Vehicle[]): Maintenance
 
 export function computeTodaySummaryCounts(
   bookings: VehicleBooking[],
-  now = new Date(),
+  day: Date = new Date(),
 ): { inProgress: number; completed: number } {
-  const today = bookingsOnDay(bookings, now);
+  const onDay = bookingsOnDay(bookings, day);
   let inProgress = 0;
   let completed = 0;
-  for (const b of today) {
-    const st = deriveBookingListStatus(b, now);
+  for (const b of onDay) {
+    const st = deriveBookingListStatus(b);
     if (st === 'completed') completed += 1;
     else inProgress += 1;
   }
@@ -175,24 +172,25 @@ export function computeTodaySummaryCounts(
 export function computeDashboardMetrics(
   bookings: VehicleBooking[],
   vehicles: Vehicle[],
+  day: Date = new Date(),
 ): DashboardMetric[] {
-  const today = bookingsOnDay(bookings, new Date());
-  const now = new Date();
+  const onDay = bookingsOnDay(bookings, day);
   let inProgress = 0;
   let completed = 0;
-  for (const b of today) {
-    const st = deriveBookingListStatus(b, now);
+  for (const b of onDay) {
+    const st = deriveBookingListStatus(b);
     if (st === 'completed') completed += 1;
     else inProgress += 1;
   }
   const maintenance = vehicles.filter((v) => v.is_active === false).length;
+  const dayBookingLabel = isSameDay(day, new Date()) ? 'จองวันนี้' : 'จองในวันที่เลือก';
 
   return [
     {
       id: 'today',
       icon: CalendarDays,
-      label: 'จองวันนี้',
-      value: String(today.length),
+      label: dayBookingLabel,
+      value: String(onDay.length),
       helper: 'รายการ',
       clickable: true,
     },
@@ -226,18 +224,18 @@ export function computeDashboardMetrics(
 export function computeUtilization(
   bookings: VehicleBooking[],
   vehicles: Vehicle[],
+  day: Date = new Date(),
 ): { pct: number; summary: string } {
   const activeVehicles = vehicles.filter((v) => v.is_active !== false);
-  const now = new Date();
-  const usedIds = new Set(
-    bookings.filter((b) => isBookingInProgress(b, now)).map((b) => b.vehicle_id),
-  );
+  const onDay = bookingsOnDay(bookings, day);
+  const usedIds = new Set(onDay.filter((b) => isBookingInProgress(b)).map((b) => b.vehicle_id));
   const usedCount = activeVehicles.filter((v) => usedIds.has(v.id)).length;
   const total = activeVehicles.length || 1;
   const pct = Math.round((usedCount / total) * 100);
+  const dayWord = isSameDay(day, new Date()) ? 'วันนี้' : 'วันที่เลือก';
   const summary =
     total > 0
-      ? `วันนี้มีรถพร้อมใช้งาน ${activeVehicles.length - usedCount} คัน จากทั้งหมด ${activeVehicles.length} คัน`
+      ? `${dayWord}มีรถพร้อมใช้งาน ${activeVehicles.length - usedCount} คัน จากทั้งหมด ${activeVehicles.length} คัน`
       : 'ยังไม่มีรถในระบบ';
   return { pct, summary };
 }

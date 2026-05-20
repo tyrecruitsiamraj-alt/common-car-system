@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom';
 import {
   CalendarDays,
   CheckCircle2,
-  ChevronDown,
   Clock3,
   Filter,
   MapPin,
@@ -15,7 +14,6 @@ import {
 } from 'lucide-react';
 import type { DashboardMetricId } from '@/lib/fleetBookingsDashboard';
 import { cn } from '@/lib/utils';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
@@ -102,6 +100,8 @@ type Props = {
   onCreateBooking?: () => void;
   onMetricClick?: (id: DashboardMetricId) => void;
   renderBookingMenu?: (bookingId: string) => React.ReactNode;
+  /** คำอธิบายใต้หัวข้อตาราง Booking Requests */
+  bookingsScopeLabel?: string;
   children?: React.ReactNode;
 };
 
@@ -237,6 +237,7 @@ export default function FleetBookingsDashboard({
   onCreateBooking,
   onMetricClick,
   renderBookingMenu,
+  bookingsScopeLabel,
   children,
 }: Props) {
   return (
@@ -250,33 +251,25 @@ export default function FleetBookingsDashboard({
           </div>
           <div className="flex flex-col gap-2 sm:flex-row">
             {onDayChange && dayValue ? (
-              <Popover>
-                <PopoverTrigger asChild>
-                  <button
-                    type="button"
-                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
-                  >
-                    <CalendarDays className="h-4 w-4" /> {dayLabel}
-                    <ChevronDown className="h-4 w-4 text-slate-400" />
-                  </button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto rounded-xl border-slate-200 p-3" align="end">
-                  <Label className="text-xs text-slate-600">เลือกวันที่</Label>
+              <div className="flex flex-col gap-1 min-w-[11rem]">
+                <Label className="text-xs text-slate-600">วันที่</Label>
+                <div className="relative">
+                  <CalendarDays className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                   <Input
                     type="date"
-                    className="mt-1.5 h-10 rounded-xl"
+                    className="h-10 rounded-xl pl-9 text-sm font-medium"
                     value={dayValue}
                     onChange={(e) => onDayChange(e.target.value)}
+                    aria-label={dayLabel}
                   />
-                </PopoverContent>
-              </Popover>
+                </div>
+              </div>
             ) : (
               <button
                 type="button"
                 className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm"
               >
                 <CalendarDays className="h-4 w-4" /> {dayLabel}
-                <ChevronDown className="h-4 w-4 text-slate-400" />
               </button>
             )}
             {!isMonitor && onCreateBooking ? (
@@ -306,7 +299,9 @@ export default function FleetBookingsDashboard({
               <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                 <div>
                   <h2 className="text-lg font-bold text-slate-950">Booking Requests</h2>
-                  <p className="mt-1 text-sm text-slate-500">รายการจองรถทั้งหมดในระบบ Fleet</p>
+                  <p className="mt-1 text-sm text-slate-500">
+                    {bookingsScopeLabel ?? 'รายการจองรถทั้งหมดในระบบ Fleet'}
+                  </p>
                 </div>
                 <div className="flex flex-col gap-2 sm:flex-row">
                   <div className="relative">

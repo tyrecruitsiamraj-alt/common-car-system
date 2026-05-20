@@ -388,8 +388,6 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
   });
 
   const [bookings, setBookings] = useState<VehicleBooking[]>([]);
-  /** จองวันนี้ — ใช้คำนวณการ์ดภาพรวมให้ตรงเสมอ แม้เลือกดูเดือนอื่น */
-  const [todayBookings, setTodayBookings] = useState<VehicleBooking[]>([]);
   const [availability, setAvailability] = useState<AvailabilityPayload | null>(null);
   const [empMap, setEmpMap] = useState<Map<string, Employee>>(new Map());
   const [vehMap, setVehMap] = useState<Map<string, Vehicle>>(new Map());
@@ -424,6 +422,8 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
   const [editEnd, setEditEnd] = useState('');
   const [editDestination, setEditDestination] = useState('');
   const [editNotes, setEditNotes] = useState('');
+  /** ช่วงเวลาเดิมตอนเปิดแก้ไข — แสดงเทียบกับค่าที่กำลังแก้ */
+  const [editTimeBaseline, setEditTimeBaseline] = useState<{ starts: string; ends: string } | null>(null);
 
   useEffect(() => {
     if (mode === 'book' && (viewMode === 'month' || viewMode === 'week')) {
@@ -499,12 +499,6 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
       setLoading(false);
       return;
     }
-    const todayFrom = startOfDay(new Date());
-    const todayTo = endOfDay(new Date());
-    const qToday = new URLSearchParams({
-      from: todayFrom.toISOString(),
-      to: todayTo.toISOString(),
-    });
     let fetchFrom = listRange.from;
     let fetchTo = listRange.to;
     if (!isMonitor && bookingWindow) {
@@ -523,9 +517,8 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
     setLoading(true);
     setAvailabilityError(null);
     try {
-      const [rBook, rToday, rAvail, rEmp, rVeh] = await Promise.all([
+      const [rBook, rAvail, rEmp, rVeh] = await Promise.all([
         apiFetch(`/api/vehicle-bookings?${qList}`),
-        apiFetch(`/api/vehicle-bookings?${qToday}`),
         qAvail ? apiFetch(`/api/vehicle-bookings?${qAvail}`) : Promise.resolve(null),
         apiFetch('/api/employees?limit=500'),
         apiFetch('/api/vehicles'),
@@ -541,13 +534,6 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
         bookingRows = [];
       }
       setBookings(bookingRows);
-
-      if (rToday?.ok) {
-        const todayData = (await rToday.json()) as unknown;
-        setTodayBookings(Array.isArray(todayData) ? todayData : []);
-      } else {
-        setTodayBookings(bookingsOnDay(bookingRows, new Date()));
-      }
 
       let employees: Employee[] = [];
       if (rEmp.ok) {
@@ -1152,13 +1138,21 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
   };
 
   const openEditBooking = (b: VehicleBooking) => {
+    const startLocal = toDatetimeLocalValue(parseISO(b.starts_at));
+    const endLocal = toDatetimeLocalValue(parseISO(b.ends_at));
     setEditBooking(b);
     setEditEmp(b.employee_id);
     setEditVeh(b.vehicle_id);
-    setEditStart(toDatetimeLocalValue(parseISO(b.starts_at)));
-    setEditEnd(toDatetimeLocalValue(parseISO(b.ends_at)));
+    setEditStart(startLocal);
+    setEditEnd(endLocal);
+    setEditTimeBaseline({ starts: startLocal, ends: endLocal });
     setEditDestination(b.destination ?? '');
     setEditNotes(b.notes ?? '');
+  };
+
+  const formatEditDt = (local: string) => {
+    const d = new Date(local);
+    return Number.isNaN(d.getTime()) ? local : format(d, 'dd/MM/yyyy HH:mm', { locale: th });
   };
 
   const saveEditBooking = async (e: React.FormEvent) => {
@@ -1188,6 +1182,7 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
       toast.success('บันทึกการแก้ไขแล้ว');
       if (editDestination.trim()) addDestinationSuggestion(editDestination);
       setEditBooking(null);
+      setEditTimeBaseline(null);
       setEmpDayDialog(null);
       await refresh();
     } catch (err) {
@@ -1228,24 +1223,55 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
   const todayYmd = format(new Date(), 'yyyy-MM-dd');
   const displayAvailability = bookingWindow ? (slotDerivedAvailability ?? availability) : null;
 
+  const selectedDay = useMemo(() => {
+    const d = parse(dayValue, 'yyyy-MM-dd', new Date());
+    return Number.isNaN(d.getTime()) ? startOfDay(new Date()) : startOfDay(d);
+  }, [dayValue]);
+
+  const selectedDayBookings = useMemo(
+    () => bookingsOnDay(bookings, selectedDay),
+    [bookings, selectedDay],
+  );
+
+  const bookEmpOptions = useMemo(() => {
+    if (displayAvailability?.availableEmployees.length) {
+      return displayAvailability.availableEmployees;
+    }
+    return Array.from(empMap.values()).filter((e) => e.status !== 'inactive' && e.status !== 'suspended');
+  }, [displayAvailability, empMap]);
+
+  const bookVehOptions = useMemo(() => {
+    if (displayAvailability?.availableVehicles.length) {
+      return displayAvailability.availableVehicles;
+    }
+    return Array.from(vehMap.values()).filter((v) => v.is_active !== false);
+  }, [displayAvailability, vehMap]);
+
   const vehiclesList = useMemo(() => Array.from(vehMap.values()), [vehMap]);
+  const bookingsForTable = useMemo(
+    () => (isMonitor ? selectedDayBookings : bookings),
+    [isMonitor, selectedDayBookings, bookings],
+  );
   const dashboardRows = useMemo(
-    () => bookings.map((b) => bookingToDashboardRow(b, empLabel, vehLabel, empMap, vehMap)),
-    [bookings, empMap, vehMap],
+    () => bookingsForTable.map((b) => bookingToDashboardRow(b, empLabel, vehLabel, empMap, vehMap)),
+    [bookingsForTable, empMap, vehMap],
   );
   const filteredDashboardRows = useMemo(
     () => filterDashboardBookings(dashboardRows, listQuery, listStatusFilter),
     [dashboardRows, listQuery, listStatusFilter],
   );
   const dashboardMetrics = useMemo(
-    () => computeDashboardMetrics(todayBookings, vehiclesList),
-    [todayBookings, vehiclesList],
+    () => computeDashboardMetrics(selectedDayBookings, vehiclesList, selectedDay),
+    [selectedDayBookings, vehiclesList, selectedDay],
   );
   const utilization = useMemo(
-    () => computeUtilization(bookings, vehiclesList),
-    [bookings, vehiclesList],
+    () => computeUtilization(selectedDayBookings, vehiclesList, selectedDay),
+    [selectedDayBookings, vehiclesList, selectedDay],
   );
-  const todaySummary = useMemo(() => computeTodaySummaryCounts(todayBookings), [todayBookings]);
+  const todaySummary = useMemo(
+    () => computeTodaySummaryCounts(selectedDayBookings, selectedDay),
+    [selectedDayBookings, selectedDay],
+  );
   const maintenanceCount = useMemo(
     () => vehiclesList.filter((v) => v.is_active === false).length,
     [vehiclesList],
@@ -1261,16 +1287,16 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
   }, [dayValue]);
 
   const todayBookingDetails = useMemo(
-    () => buildTodayBookingDetails(todayBookings, empLabel, vehMap),
-    [todayBookings, empMap, vehLabel],
+    () => buildTodayBookingDetails(selectedDayBookings, empLabel, vehMap, selectedDay),
+    [selectedDayBookings, empMap, vehLabel, selectedDay],
   );
   const inProgressDetails = useMemo(
-    () => buildTodayBookingsByStatus(todayBookings, 'inProgress', empLabel, vehMap),
-    [todayBookings, empMap, vehLabel],
+    () => buildTodayBookingsByStatus(selectedDayBookings, 'inProgress', empLabel, vehMap, selectedDay),
+    [selectedDayBookings, empMap, vehLabel, selectedDay],
   );
   const completedDetails = useMemo(
-    () => buildTodayBookingsByStatus(todayBookings, 'completed', empLabel, vehMap),
-    [todayBookings, empMap, vehLabel],
+    () => buildTodayBookingsByStatus(selectedDayBookings, 'completed', empLabel, vehMap, selectedDay),
+    [selectedDayBookings, empMap, vehLabel, selectedDay],
   );
   const maintenanceDetails = useMemo(
     () => buildMaintenanceVehicleDetails(vehiclesList),
@@ -1301,16 +1327,16 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
     { title: string; description: (count: number) => string }
   > = {
     today: {
-      title: 'จองวันนี้ — รายละเอียด',
-      description: (n) => `การจองทั้งหมดวันนี้ (${n} รายการ)`,
+      title: `${dayLabel} — รายการจอง`,
+      description: (n) => `การจองทั้งหมดในวันที่เลือก (${n} รายการ)`,
     },
     inProgress: {
       title: 'กำลังดำเนินการ — รายละเอียด',
-      description: (n) => `งานที่กำลังใช้รถอยู่ตอนนี้ (${n} รายการ)`,
+      description: (n) => `งานที่ยังไม่กดเสร็จสิ้น (${n} รายการ)`,
     },
     completed: {
       title: 'เสร็จสิ้น — รายละเอียด',
-      description: (n) => `งานที่เสร็จแล้ววันนี้ (${n} รายการ)`,
+      description: (n) => `งานที่กดเสร็จสิ้นแล้ว (${n} รายการ)`,
     },
     maintenance: {
       title: 'รถซ่อมบำรุง — รายละเอียด',
@@ -1329,7 +1355,7 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
         title={isMonitor ? 'ดูภาพรวม' : 'จองรถ'}
         description={
           isMonitor
-            ? 'ภาพรวมการใช้รถวันนี้ สถานะงาน และรถซ่อมบำรุง'
+            ? `ภาพรวมการใช้รถ — การ์ดและตารางตามวันที่เลือก (${dayLabel})`
             : 'ดูว่าใครและรถคันไหนว่าง แล้วสร้างการจอง — รายละเอียดการจองทั้งหมดดูที่หน้าภาพรวม'
         }
         isMonitor={isMonitor}
@@ -1357,12 +1383,12 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
         }
         onCreateBooking={isMonitor ? undefined : () => setCreateDialogOpen(true)}
         onMetricClick={isMonitor ? handleMetricClick : undefined}
+        bookingsScopeLabel={isMonitor ? `เฉพาะวันที่ ${dayLabel}` : undefined}
         renderBookingMenu={(id) => {
           const b = bookings.find((x) => x.id === id);
           if (!b) return null;
           const inProgress = isBookingInProgress(b);
           if (!canEdit && !canDelete) return null;
-          if (isMonitor && !inProgress) return null;
           return (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -1379,7 +1405,7 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                 {canEdit && inProgress ? (
                   <DropdownMenuItem onClick={() => void completeBooking(b)}>เสร็จสิ้น</DropdownMenuItem>
                 ) : null}
-                {canEdit && !isMonitor ? (
+                {canEdit ? (
                   <DropdownMenuItem onClick={() => openEditBooking(b)}>แก้ไขการจอง</DropdownMenuItem>
                 ) : null}
                 {canDelete && !isMonitor ? (
@@ -2162,55 +2188,40 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
               ) : null}
             </div>
 
-            {loading && !displayAvailability ? (
-              <p className="text-[10px] text-muted-foreground">กำลังโหลดความว่าง…</p>
-            ) : !displayAvailability ? (
-              <div className="rounded border border-amber-500/35 bg-amber-500/10 px-2 py-1.5 text-[10px] space-y-1">
-                <p className="break-words">{availabilityError || 'โหลดความว่างไม่สำเร็จ'}</p>
-                <button type="button" className="text-primary underline font-medium" onClick={() => void refresh()}>
-                  ลองอีกครั้ง
-                </button>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div className="space-y-0.5 min-w-0">
+                <Label className="text-[10px]">ผู้ขับ</Label>
+                <select
+                  className="w-full h-8 rounded-md border border-border bg-background px-2 text-xs min-w-0"
+                  value={selEmp}
+                  onChange={(e) => setSelEmp(e.target.value)}
+                  required
+                >
+                  <option value="">เลือก</option>
+                  {bookEmpOptions.map((e) => (
+                    <option key={e.id} value={e.id}>
+                      {e.first_name} {e.last_name}
+                    </option>
+                  ))}
+                </select>
               </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                <div className="space-y-0.5 min-w-0">
-                  <Label className="text-[10px]">
-                    ผู้ขับว่างในช่วงที่เลือก ({displayAvailability.availableEmployees.length})
-                  </Label>
-                  <select
-                    className="w-full h-8 rounded-md border border-border bg-background px-2 text-xs min-w-0"
-                    value={selEmp}
-                    onChange={(e) => setSelEmp(e.target.value)}
-                    required
-                  >
-                    <option value="">เลือก</option>
-                    {displayAvailability.availableEmployees.map((e) => (
-                      <option key={e.id} value={e.id}>
-                        {e.first_name} {e.last_name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="space-y-0.5 min-w-0">
-                  <Label className="text-[10px]">
-                    รถว่างในช่วงที่เลือก ({displayAvailability.availableVehicles.length})
-                  </Label>
-                  <select
-                    className="w-full h-8 rounded-md border border-border bg-background px-2 text-xs min-w-0"
-                    value={selVeh}
-                    onChange={(e) => setSelVeh(e.target.value)}
-                    required
-                  >
-                    <option value="">เลือก</option>
-                    {displayAvailability.availableVehicles.map((ve) => (
-                      <option key={ve.id} value={ve.id}>
-                        {ve.plate_no}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+              <div className="space-y-0.5 min-w-0">
+                <Label className="text-[10px]">รถ</Label>
+                <select
+                  className="w-full h-8 rounded-md border border-border bg-background px-2 text-xs min-w-0"
+                  value={selVeh}
+                  onChange={(e) => setSelVeh(e.target.value)}
+                  required
+                >
+                  <option value="">เลือก</option>
+                  {bookVehOptions.map((ve) => (
+                    <option key={ve.id} value={ve.id}>
+                      {ve.plate_no}
+                    </option>
+                  ))}
+                </select>
               </div>
-            )}
+            </div>
             <DestinationField value={destination} onChange={setDestination} />
             <div className="flex flex-wrap items-end gap-2">
               <div className="flex-1 min-w-[8rem] space-y-0.5">
@@ -2219,7 +2230,7 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
               </div>
               <Button
                 type="submit"
-                disabled={saving || loading || !selEmp || !selVeh || !displayAvailability}
+                disabled={saving || loading || !selEmp || !selVeh || !bookingWindow}
                 className="h-10 rounded-2xl px-5 shrink-0"
               >
                 {saving ? 'กำลังบันทึก…' : 'บันทึกการจอง'}
@@ -2282,7 +2293,15 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
         </DialogContent>
       </Dialog>
 
-      <Dialog open={editBooking !== null} onOpenChange={(open) => !open && setEditBooking(null)}>
+      <Dialog
+        open={editBooking !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setEditBooking(null);
+            setEditTimeBaseline(null);
+          }
+        }}
+      >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>แก้ไขการจอง</DialogTitle>
@@ -2320,13 +2339,33 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                   ))}
                 </select>
               </div>
+              {editTimeBaseline ? (
+                <div className="rounded-lg border border-amber-200/80 bg-amber-50/60 px-3 py-2 text-xs space-y-1.5">
+                  <p className="font-semibold text-foreground">ช่วงเวลาเดิม (ตอนเปิดแก้ไข)</p>
+                  <p className="text-muted-foreground">
+                    เริ่ม <span className="font-medium text-foreground">{formatEditDt(editTimeBaseline.starts)}</span>
+                    {' · '}
+                    สิ้นสุด <span className="font-medium text-foreground">{formatEditDt(editTimeBaseline.ends)}</span>
+                  </p>
+                  {(editStart !== editTimeBaseline.starts || editEnd !== editTimeBaseline.ends) && (
+                    <p className="pt-1 border-t border-amber-200/60 text-foreground">
+                      จะบันทึกเป็น เริ่ม {formatEditDt(editStart)} · สิ้นสุด {formatEditDt(editEnd)}
+                    </p>
+                  )}
+                  {isBookingInProgress(editBooking) ? (
+                    <p className="text-[10px] text-muted-foreground">
+                      ปรับเวลาได้ก่อนกดเสร็จสิ้น (เช่น รถมาไม่ตรงเวลา) — ระบบบันทึกลงประวัติการแก้ไข
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1">
-                  <Label className="text-xs">เริ่ม</Label>
+                  <Label className="text-xs">เริ่ม (แก้ไข)</Label>
                   <Input type="datetime-local" value={editStart} onChange={(e) => setEditStart(e.target.value)} className="h-9 text-xs" required />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs">สิ้นสุด</Label>
+                  <Label className="text-xs">สิ้นสุด (แก้ไข)</Label>
                   <Input type="datetime-local" value={editEnd} onChange={(e) => setEditEnd(e.target.value)} className="h-9 text-xs" required />
                 </div>
               </div>
