@@ -4,7 +4,7 @@ import {
   bookingToDashboardRow,
   buildTodayBookingDetails,
   computeDashboardMetrics,
-  computeTopVehicles,
+  computeTodaySummaryCounts,
   computeUtilization,
   filterDashboardBookings,
   type DashboardMetricId,
@@ -1146,13 +1146,14 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
     () => computeDashboardMetrics(bookings, vehiclesList),
     [bookings, vehiclesList],
   );
-  const topVehiclesUsage = useMemo(
-    () => computeTopVehicles(bookings, vehMap),
-    [bookings, vehMap],
-  );
   const utilization = useMemo(
     () => computeUtilization(bookings, vehiclesList),
     [bookings, vehiclesList],
+  );
+  const todaySummary = useMemo(() => computeTodaySummaryCounts(bookings), [bookings]);
+  const maintenanceCount = useMemo(
+    () => vehiclesList.filter((v) => v.is_active === false).length,
+    [vehiclesList],
   );
   const dayLabel = useMemo(() => {
     try {
@@ -1167,15 +1168,6 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
   const todayBookingDetails = useMemo(
     () => buildTodayBookingDetails(bookings, empLabel, vehMap),
     [bookings, empMap, vehLabel],
-  );
-
-  const sidebarStats = useMemo(
-    () => ({
-      fuel: dashboardMetrics[0]?.value ?? '0',
-      km: String(utilization.pct),
-      users: dashboardMetrics[1]?.value ?? '0',
-    }),
-    [dashboardMetrics, utilization.pct],
   );
 
   const handleMetricClick = (id: DashboardMetricId) => {
@@ -1206,10 +1198,12 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
         onQueryChange={setListQuery}
         statusFilter={listStatusFilter}
         onStatusFilterChange={setListStatusFilter}
-        utilizationPct={utilization.pct}
-        utilizationSummary={utilization.summary}
-        sidebarStats={sidebarStats}
-        topVehicles={topVehiclesUsage}
+        summary={{
+          utilizationPct: utilization.pct,
+          approvedToday: todaySummary.approved,
+          pendingToday: todaySummary.pending,
+          maintenanceCount,
+        }}
         onCreateBooking={isMonitor ? undefined : () => setCreateDialogOpen(true)}
         onMetricClick={handleMetricClick}
         renderBookingMenu={(id) => {

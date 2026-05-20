@@ -1,10 +1,9 @@
-import { addDays, format, isSameDay, parseISO, startOfDay } from 'date-fns';
+import { addDays, differenceInHours, format, isSameDay, parseISO, startOfDay } from 'date-fns';
 import { th } from 'date-fns/locale';
 import type {
   BookingListStatus,
   DashboardBookingRow,
   DashboardMetric,
-  DashboardVehicleUsage,
 } from '@/components/fleet/FleetBookingsDashboard';
 import type { Employee, Vehicle, VehicleBooking } from '@/types';
 import { CalendarDays, CheckCircle2, Clock3, Wrench } from 'lucide-react';
@@ -21,14 +20,18 @@ export type TodayBookingDetail = {
   status: Exclude<BookingListStatus, 'all'>;
 };
 
-/** สถานะจองในรายการ: กำลังใช้งาน หรือ เสร็จสิ้น เท่านั้น */
+/** สถานะจองในรายการ — ตาม mockup (อนุมัติ / รอ / กำลังใช้ / เสร็จ) */
 export function deriveBookingListStatus(
   b: VehicleBooking,
   now = new Date(),
 ): Exclude<BookingListStatus, 'all'> {
+  const start = parseISO(b.starts_at);
   const end = parseISO(b.ends_at);
   if (end <= now) return 'completed';
-  return 'inProgress';
+  if (start <= now && end > now) return 'inProgress';
+  const hoursUntil = differenceInHours(start, now);
+  if (hoursUntil > 0 && hoursUntil <= 4) return 'pending';
+  return 'approved';
 }
 
 function formatBookingDateLabel(startsAt: string): string {
@@ -47,13 +50,17 @@ export function bookingToDashboardRow(
   vehMap: Map<string, Vehicle>,
 ): DashboardBookingRow {
   const emp = empMap.get(b.employee_id);
+  const v = vehMap.get(b.vehicle_id);
   const shortId = b.id.slice(0, 8).toUpperCase();
   const dest = (b.destination || '').trim();
   const note = (b.notes || '').trim();
   const route = dest || note || '—';
-  let priority = 'ปกติ';
-  if (/อุบัติ|accident/i.test(note)) priority = 'ด่วน';
-  else if (/vip/i.test(note)) priority = 'VIP';
+  const vehicleName = v?.label?.trim() || vehLabel(b.vehicle_id);
+  const plate = v?.plate_no ?? '—';
+  const subtitleParts: string[] = [];
+  if (dest && note && note !== dest) subtitleParts.push(note.slice(0, 48));
+  else if (/vip/i.test(note)) subtitleParts.push('VIP');
+  else if (/อุบัติ|accident/i.test(note)) subtitleParts.push('ด่วน');
 
   return {
     id: `BK-${shortId}`,
@@ -61,16 +68,13 @@ export function bookingToDashboardRow(
     requester: empLabel(b.employee_id),
     department: emp?.position?.trim() || 'ผู้ขับ',
     route,
-    car: (() => {
-      const v = vehMap.get(b.vehicle_id);
-      if (!v) return vehLabel(b.vehicle_id);
-      return v.label?.trim() ? `${v.label.trim()} • ${v.plate_no}` : v.plate_no;
-    })(),
+    vehicleName,
+    plate,
     driver: empLabel(b.employee_id),
     date: formatBookingDateLabel(b.starts_at),
     time: `${format(parseISO(b.starts_at), 'HH:mm')} - ${format(parseISO(b.ends_at), 'HH:mm')}`,
     status: deriveBookingListStatus(b),
-    priority,
+    subtitle: subtitleParts.join(' · ') || route,
   };
 }
 
@@ -109,6 +113,21 @@ export function buildTodayBookingDetails(
     .sort((a, b) => a.time.localeCompare(b.time, 'th'));
 }
 
+export function computeTodaySummaryCounts(
+  bookings: VehicleBooking[],
+  now = new Date(),
+): { approved: number; pending: number } {
+  const today = bookingsOnDay(bookings, now);
+  let approved = 0;
+  let pending = 0;
+  for (const b of today) {
+    const st = deriveBookingListStatus(b, now);
+    if (st === 'approved') approved += 1;
+    if (st === 'pending') pending += 1;
+  }
+  return { approved, pending };
+}
+
 export function computeDashboardMetrics(
   bookings: VehicleBooking[],
   vehicles: Vehicle[],
@@ -120,7 +139,7 @@ export function computeDashboardMetrics(
   for (const b of today) {
     const st = deriveBookingListStatus(b, now);
     if (st === 'completed') completed += 1;
-    else inProgress += 1;
+    else if (st === 'inProgress') inProgress += 1;
   }
   const maintenance = vehicles.filter((v) => v.is_active === false).length;
 
@@ -157,30 +176,6 @@ export function computeDashboardMetrics(
   ];
 }
 
-export function computeTopVehicles(
-  bookings: VehicleBooking[],
-  vehMap: Map<string, Vehicle>,
-  max = 3,
-): DashboardVehicleUsage[] {
-  const counts = new Map<string, number>();
-  for (const b of bookings) {
-    counts.set(b.vehicle_id, (counts.get(b.vehicle_id) ?? 0) + 1);
-  }
-  const maxCount = Math.max(1, ...counts.values());
-  return [...counts.entries()]
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, max)
-    .map(([vehId, count]) => {
-      const v = vehMap.get(vehId);
-      return {
-        name: v?.label?.trim() || 'รถ',
-        plate: v?.plate_no ?? '?',
-        value: Math.round((count / maxCount) * 100),
-        label: `${count} ครั้ง`,
-      };
-    });
-}
-
 export function computeUtilization(
   bookings: VehicleBooking[],
   vehicles: Vehicle[],
@@ -192,7 +187,7 @@ export function computeUtilization(
   const pct = Math.round((usedCount / total) * 100);
   const summary =
     total > 0
-      ? `วันนี้มีรถพร้อมใช้งาน ${activeVehicles.length - usedCount} คัน จากทั้งหมด ${activeVehicles.length} คัน — จัดสรรรถให้เส้นทางในเมืองเพื่อใช้งานคุ้มค่า`
+      ? `วันนี้มีรถพร้อมใช้งาน ${activeVehicles.length - usedCount} คัน จากทั้งหมด ${activeVehicles.length} คัน`
       : 'ยังไม่มีรถในระบบ';
   return { pct, summary };
 }
@@ -207,7 +202,8 @@ export function filterDashboardBookings(
     const matchesStatus = statusFilter === 'all' || row.status === statusFilter;
     if (!matchesStatus) return false;
     if (!q) return true;
-    const text = `${row.id} ${row.requester} ${row.department} ${row.route} ${row.car} ${row.driver}`.toLowerCase();
+    const text =
+      `${row.id} ${row.requester} ${row.department} ${row.route} ${row.vehicleName} ${row.plate} ${row.driver}`.toLowerCase();
     return text.includes(q);
   });
 }
