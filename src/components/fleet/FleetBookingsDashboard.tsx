@@ -98,6 +98,7 @@ type Props = {
   summary?: SummaryProps;
   showMetrics?: boolean;
   showSummary?: boolean;
+  showBookingTable?: boolean;
   onCreateBooking?: () => void;
   onMetricClick?: (id: DashboardMetricId) => void;
   renderBookingMenu?: (bookingId: string) => React.ReactNode;
@@ -232,6 +233,7 @@ export default function FleetBookingsDashboard({
   summary,
   showMetrics = true,
   showSummary = true,
+  showBookingTable = true,
   onCreateBooking,
   onMetricClick,
   renderBookingMenu,
@@ -297,6 +299,7 @@ export default function FleetBookingsDashboard({
           </section>
         ) : null}
 
+        {showBookingTable ? (
         <section className={cn('gap-6', showSummary && summary ? 'grid xl:grid-cols-[1fr_340px]' : '')}>
           <div className="min-w-0 rounded-2xl border border-slate-200 bg-white shadow-sm">
             <div className="border-b border-slate-200 p-4 md:p-5">
@@ -420,6 +423,7 @@ export default function FleetBookingsDashboard({
 
           {showSummary && summary ? <SummaryPanel {...summary} /> : null}
         </section>
+        ) : null}
 
         {children}
       </div>
