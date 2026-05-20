@@ -70,6 +70,8 @@ export interface VehicleBooking {
   destination?: string;
   notes?: string;
   status?: 'active' | 'cancelled';
+  /** บันทึกเมื่อกดเสร็จสิ้น — ปิดงานก่อน ends_at ได้ */
+  completed_at?: string;
   created_at: string;
   updated_at: string;
 }

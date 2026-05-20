@@ -1,4 +1,4 @@
-import { addDays, differenceInHours, format, isSameDay, parseISO, startOfDay } from 'date-fns';
+import { addDays, addMinutes, format, isSameDay, parseISO, startOfDay } from 'date-fns';
 import { th } from 'date-fns/locale';
 import type {
   BookingListStatus,
@@ -20,18 +20,24 @@ export type TodayBookingDetail = {
   status: Exclude<BookingListStatus, 'all'>;
 };
 
-/** สถานะจองในรายการ — ตาม mockup (อนุมัติ / รอ / กำลังใช้ / เสร็จ) */
+/** เวลาสิ้นสุดจริงของการจอง (กดเสร็จสิ้นแล้ว หรือตาม ends_at) */
+export function bookingEffectiveEnd(b: VehicleBooking): Date {
+  if (b.completed_at) return parseISO(b.completed_at);
+  return parseISO(b.ends_at);
+}
+
+/** สถานะจอง: กำลังดำเนินการ หรือ เสร็จสิ้น เท่านั้น */
 export function deriveBookingListStatus(
   b: VehicleBooking,
   now = new Date(),
 ): Exclude<BookingListStatus, 'all'> {
-  const start = parseISO(b.starts_at);
-  const end = parseISO(b.ends_at);
-  if (end <= now) return 'completed';
-  if (start <= now && end > now) return 'inProgress';
-  const hoursUntil = differenceInHours(start, now);
-  if (hoursUntil > 0 && hoursUntil <= 4) return 'pending';
-  return 'approved';
+  if (b.completed_at) return 'completed';
+  if (bookingEffectiveEnd(b) <= now) return 'completed';
+  return 'inProgress';
+}
+
+export function isBookingInProgress(b: VehicleBooking, now = new Date()): boolean {
+  return deriveBookingListStatus(b, now) === 'inProgress';
 }
 
 function formatBookingDateLabel(startsAt: string): string {
@@ -72,7 +78,7 @@ export function bookingToDashboardRow(
     plate,
     driver: empLabel(b.employee_id),
     date: formatBookingDateLabel(b.starts_at),
-    time: `${format(parseISO(b.starts_at), 'HH:mm')} - ${format(parseISO(b.ends_at), 'HH:mm')}`,
+    time: `${format(parseISO(b.starts_at), 'HH:mm')} - ${format(bookingEffectiveEnd(b), 'HH:mm')}`,
     status: deriveBookingListStatus(b),
     subtitle: subtitleParts.join(' · ') || route,
   };
@@ -83,7 +89,7 @@ export function bookingsOnDay(bookings: VehicleBooking[], day: Date): VehicleBoo
   const d1 = addDays(d0, 1);
   return bookings.filter((b) => {
     const s = parseISO(b.starts_at);
-    const e = parseISO(b.ends_at);
+    const e = bookingEffectiveEnd(b);
     return s < d1 && e > d0;
   });
 }
@@ -102,7 +108,7 @@ function bookingToDetailRow(
     driverName: empLabel(b.employee_id),
     plate: v?.plate_no ?? '—',
     vehicleLabel: v?.label?.trim() || '—',
-    time: `${format(parseISO(b.starts_at), 'HH:mm')} - ${format(parseISO(b.ends_at), 'HH:mm')}`,
+    time: `${format(parseISO(b.starts_at), 'HH:mm')} - ${format(bookingEffectiveEnd(b), 'HH:mm')}`,
     destination: dest || note || '—',
     status: deriveBookingListStatus(b, now),
   };
@@ -154,16 +160,16 @@ export function buildMaintenanceVehicleDetails(vehicles: Vehicle[]): Maintenance
 export function computeTodaySummaryCounts(
   bookings: VehicleBooking[],
   now = new Date(),
-): { approved: number; pending: number } {
+): { inProgress: number; completed: number } {
   const today = bookingsOnDay(bookings, now);
-  let approved = 0;
-  let pending = 0;
+  let inProgress = 0;
+  let completed = 0;
   for (const b of today) {
     const st = deriveBookingListStatus(b, now);
-    if (st === 'approved') approved += 1;
-    if (st === 'pending') pending += 1;
+    if (st === 'completed') completed += 1;
+    else inProgress += 1;
   }
-  return { approved, pending };
+  return { inProgress, completed };
 }
 
 export function computeDashboardMetrics(
@@ -177,7 +183,7 @@ export function computeDashboardMetrics(
   for (const b of today) {
     const st = deriveBookingListStatus(b, now);
     if (st === 'completed') completed += 1;
-    else if (st === 'inProgress') inProgress += 1;
+    else inProgress += 1;
   }
   const maintenance = vehicles.filter((v) => v.is_active === false).length;
 
@@ -222,7 +228,10 @@ export function computeUtilization(
   vehicles: Vehicle[],
 ): { pct: number; summary: string } {
   const activeVehicles = vehicles.filter((v) => v.is_active !== false);
-  const usedIds = new Set(bookings.map((b) => b.vehicle_id));
+  const now = new Date();
+  const usedIds = new Set(
+    bookings.filter((b) => isBookingInProgress(b, now)).map((b) => b.vehicle_id),
+  );
   const usedCount = activeVehicles.filter((v) => usedIds.has(v.id)).length;
   const total = activeVehicles.length || 1;
   const pct = Math.round((usedCount / total) * 100);
@@ -247,4 +256,13 @@ export function filterDashboardBookings(
       `${row.id} ${row.requester} ${row.department} ${row.route} ${row.vehicleName} ${row.plate} ${row.driver}`.toLowerCase();
     return text.includes(q);
   });
+}
+
+/** คำนวณ ends_at หลังกดเสร็จสิ้น */
+export function endsAtForMarkComplete(b: VehicleBooking, now = new Date()): string {
+  const start = parseISO(b.starts_at);
+  let end = now > start ? now : addMinutes(start, 1);
+  const planned = parseISO(b.ends_at);
+  if (planned < end) end = planned;
+  return end.toISOString();
 }

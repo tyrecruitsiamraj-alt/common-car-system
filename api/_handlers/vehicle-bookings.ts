@@ -16,6 +16,8 @@ import {
 
 const tbl = tableInAppSchema('vehicle_bookings');
 const ACTIVE_ONLY = `coalesce(status, 'active') = 'active'`;
+/** ช่วงเวลาที่ยังถือว่ากำลังจอง (ยังไม่กดเสร็จสิ้น) */
+const EFFECTIVE_END = `coalesce(completed_at, ends_at)`;
 const tblV = tableInAppSchema('vehicles');
 const tblE = tableInAppSchema('employees');
 
@@ -28,6 +30,7 @@ type BookingRow = {
   notes: string | null;
   destination: string | null;
   status: string;
+  completed_at: string | Date | null;
   created_at: string | Date;
   updated_at: string | Date;
 };
@@ -57,6 +60,7 @@ function bookingSnapshot(row: BookingRow) {
     notes: row.notes || undefined,
     destination: row.destination || undefined,
     status: row.status || 'active',
+    completed_at: row.completed_at ? toIso(row.completed_at) : undefined,
   };
 }
 
@@ -74,6 +78,7 @@ function toBooking(row: BookingRow) {
     destination: row.destination || undefined,
     notes: row.notes || undefined,
     status: row.status === 'cancelled' ? 'cancelled' : 'active',
+    completed_at: row.completed_at ? toIso(row.completed_at) : undefined,
     created_at: toIso(row.created_at),
     updated_at: toIso(row.updated_at),
   };
@@ -99,7 +104,7 @@ async function overlapVehicle(
     select 1 from ${tbl}
     where vehicle_id = $1::uuid
       and starts_at < $3::timestamptz
-      and ends_at > $2::timestamptz
+      and ${EFFECTIVE_END} > $2::timestamptz
       and ${ACTIVE_ONLY}
   `;
   if (excludeId) {
@@ -122,7 +127,7 @@ async function overlapEmployee(
     select 1 from ${tbl}
     where employee_id = $1::uuid
       and starts_at < $3::timestamptz
-      and ends_at > $2::timestamptz
+      and ${EFFECTIVE_END} > $2::timestamptz
       and ${ACTIVE_ONLY}
   `;
   if (excludeId) {
@@ -201,7 +206,8 @@ async function handler(req: AuthedReq, res: ApiRes): Promise<void> {
               select 1 from ${tbl} vb
               where vb.employee_id = e.id
                 and vb.starts_at < $2::timestamptz
-                and vb.ends_at > $1::timestamptz
+                and coalesce(vb.completed_at, vb.ends_at) > $1::timestamptz
+                and coalesce(vb.status, 'active') = 'active'
             )
           order by e.first_name, e.last_name
         `,
@@ -217,7 +223,7 @@ async function handler(req: AuthedReq, res: ApiRes): Promise<void> {
               select 1 from ${tbl} vb
               where vb.vehicle_id = v.id
                 and vb.starts_at < $2::timestamptz
-                and vb.ends_at > $1::timestamptz
+                and coalesce(vb.completed_at, vb.ends_at) > $1::timestamptz
                 and coalesce(vb.status, 'active') = 'active'
             )
           order by v.plate_no
@@ -252,7 +258,7 @@ async function handler(req: AuthedReq, res: ApiRes): Promise<void> {
       const { rows } = await dbQuery<BookingRow>(
         `
         select * from ${tbl}
-        where starts_at < $2::timestamptz and ends_at > $1::timestamptz
+        where starts_at < $2::timestamptz and ${EFFECTIVE_END} > $1::timestamptz
           and ${ACTIVE_ONLY}
         order by starts_at asc
       `,
@@ -333,12 +339,30 @@ async function handler(req: AuthedReq, res: ApiRes): Promise<void> {
         return sendError(res, 409, 'Conflict', 'การจองนี้ถูกยกเลิกแล้ว — สร้างรายการจองใหม่แทน');
       }
 
+      const markCompleted = b.mark_completed === true;
+      if (markCompleted && cur.completed_at) {
+        return sendError(res, 409, 'Conflict', 'การจองนี้เสร็จสิ้นแล้ว');
+      }
+
       const employee_id = b.employee_id !== undefined ? getString(b.employee_id) : cur.employee_id;
       const vehicle_id = b.vehicle_id !== undefined ? getString(b.vehicle_id) : cur.vehicle_id;
-      const starts = b.starts_at !== undefined ? parseIso(b.starts_at) : new Date(cur.starts_at);
-      const ends = b.ends_at !== undefined ? parseIso(b.ends_at) : new Date(cur.ends_at);
+      let starts = b.starts_at !== undefined ? parseIso(b.starts_at) : new Date(cur.starts_at);
+      let ends = b.ends_at !== undefined ? parseIso(b.ends_at) : new Date(cur.ends_at);
       const notes = b.notes !== undefined ? optionalText(b.notes) : cur.notes;
       const destination = b.destination !== undefined ? optionalText(b.destination) : cur.destination;
+      let completedAt: Date | null = cur.completed_at ? new Date(cur.completed_at) : null;
+
+      if (markCompleted) {
+        const now = new Date();
+        completedAt = now;
+        if (!starts) starts = new Date(cur.starts_at);
+        if (!ends) ends = new Date(cur.ends_at);
+        if (now > starts) ends = now;
+        else ends = new Date(starts.getTime() + 60_000);
+        const plannedEnd = new Date(cur.ends_at);
+        if (plannedEnd < ends) ends = plannedEnd;
+        if (ends <= starts) ends = new Date(starts.getTime() + 60_000);
+      }
 
       if (!employee_id || !vehicle_id || !starts || !ends) {
         return sendError(res, 400, 'Bad request', 'Invalid field values');
@@ -361,11 +385,21 @@ async function handler(req: AuthedReq, res: ApiRes): Promise<void> {
           ends_at = $5::timestamptz,
           destination = $6,
           notes = $7,
+          completed_at = $8::timestamptz,
           updated_at = now()
         where id = $1::uuid and ${ACTIVE_ONLY}
         returning *
       `,
-        [id, employee_id, vehicle_id, starts.toISOString(), ends.toISOString(), destination, notes],
+        [
+          id,
+          employee_id,
+          vehicle_id,
+          starts.toISOString(),
+          ends.toISOString(),
+          destination,
+          notes,
+          completedAt ? completedAt.toISOString() : null,
+        ],
       );
       const row = rows[0];
       if (!row) return sendError(res, 404, 'Not found');

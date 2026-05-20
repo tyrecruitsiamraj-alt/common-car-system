@@ -12,7 +12,11 @@ import {
   type DashboardMetricId,
   type MaintenanceVehicleDetail,
   type TodayBookingDetail,
+  bookingEffectiveEnd,
+  deriveBookingListStatus,
+  isBookingInProgress,
 } from '@/lib/fleetBookingsDashboard';
+import { notifyFleetBookingsChanged } from '@/lib/bookingNotifications';
 import { BOOKING_ROW_STATUS_META } from '@/components/fleet/FleetBookingsDashboard';
 import { apiFetch } from '@/lib/apiFetch';
 import { useAuth } from '@/contexts/AuthContext';
@@ -87,8 +91,9 @@ function computeLocalAvailability(
   vehicles: Vehicle[],
 ): AvailabilityPayload {
   const overlaps = (b: VehicleBooking) => {
+    if (b.status === 'cancelled') return false;
     const s = parseISO(b.starts_at);
-    const e = parseISO(b.ends_at);
+    const e = bookingEffectiveEnd(b);
     return s < to && e > from;
   };
   const busyEmp = new Set(bookingRows.filter(overlaps).map((b) => b.employee_id));
@@ -172,7 +177,7 @@ function resolveBookingWindow(bookStart: string, bookEnd: string): { from: Date;
 
 function bookingSegmentOnLocalDay(b: VehicleBooking, day: Date): { startH: number; endH: number } | null {
   const s = parseISO(b.starts_at);
-  const e = parseISO(b.ends_at);
+  const e = bookingEffectiveEnd(b);
   const d0 = startOfDay(day);
   const d1 = endOfDay(day);
   if (s >= d1 || e <= d0) return null;
@@ -191,7 +196,7 @@ function bookingsOverlappingDay(bookings: VehicleBooking[], day: Date): VehicleB
   return bookings
     .filter((b) => {
       const s = parseISO(b.starts_at);
-      const e = parseISO(b.ends_at);
+      const e = bookingEffectiveEnd(b);
       return s < d1 && e > d0;
     })
     .sort((a, b) => parseISO(a.starts_at).getTime() - parseISO(b.starts_at).getTime());
@@ -201,7 +206,7 @@ function bookingOverlapsLocalHour(b: VehicleBooking, day: Date, hour: number): b
   const slotStart = setMinutes(setHours(day, hour), 0);
   const slotEnd = addHours(slotStart, 1);
   const s = parseISO(b.starts_at);
-  const e = parseISO(b.ends_at);
+  const e = bookingEffectiveEnd(b);
   return s < slotEnd && e > slotStart;
 }
 
@@ -574,6 +579,7 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
       setAvailabilityError('เครือข่ายหรือเซิร์ฟเวอร์ไม่ตอบ — ลองอีกครั้ง');
     } finally {
       setLoading(false);
+      notifyFleetBookingsChanged();
       if (listRange) {
         try {
           const qAudit = new URLSearchParams({
@@ -1058,6 +1064,28 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
     }
   };
 
+  const completeBooking = async (b: VehicleBooking) => {
+    if (!canEdit) return;
+    if (deriveBookingListStatus(b) === 'completed') {
+      toast.message('การจองนี้เสร็จสิ้นแล้ว');
+      return;
+    }
+    if (!window.confirm('บันทึกว่างานนี้เสร็จสิ้นแล้ว? รถและคนขับจะว่างในช่วงที่เหลือ')) return;
+    try {
+      const r = await apiFetch('/api/vehicle-bookings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: b.id, mark_completed: true }),
+      });
+      if (!r.ok) throw new Error(await parseApiError(r));
+      toast.success('บันทึกเสร็จสิ้นแล้ว');
+      setEmpDayDialog(null);
+      await refresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'บันทึกไม่สำเร็จ');
+    }
+  };
+
   const cancelBooking = async (id: string) => {
     if (!canDelete) return;
     if (!window.confirm('ยกเลิกการจองนี้? ช่วงเวลานี้จะว่าง — สามารถจองหรือแก้ไขตารางวันนี้ได้')) return;
@@ -1119,8 +1147,18 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
 
   const renderBookingActions = (b: VehicleBooking) => {
     if (isMonitor) return null;
+    const inProgress = isBookingInProgress(b);
     return (
       <span className="inline-flex flex-wrap gap-2 ml-1">
+        {canEdit && inProgress ? (
+          <button
+            type="button"
+            className="text-[10px] font-semibold text-emerald-700 hover:underline"
+            onClick={() => void completeBooking(b)}
+          >
+            เสร็จสิ้น
+          </button>
+        ) : null}
         {canEdit ? (
           <button type="button" className="text-[10px] text-primary hover:underline" onClick={() => openEditBooking(b)}>
             แก้ไข
@@ -1258,8 +1296,8 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
           isMonitor
             ? {
                 utilizationPct: utilization.pct,
-                approvedToday: todaySummary.approved,
-                pendingToday: todaySummary.pending,
+                inProgressToday: todaySummary.inProgress,
+                completedToday: todaySummary.completed,
                 maintenanceCount,
               }
             : undefined
@@ -1268,8 +1306,10 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
         onMetricClick={isMonitor ? handleMetricClick : undefined}
         renderBookingMenu={(id) => {
           const b = bookings.find((x) => x.id === id);
-          if (!b || isMonitor) return null;
+          if (!b) return null;
+          const inProgress = isBookingInProgress(b);
           if (!canEdit && !canDelete) return null;
+          if (isMonitor && !inProgress) return null;
           return (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -1283,10 +1323,13 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="rounded-xl">
-                {canEdit ? (
+                {canEdit && inProgress ? (
+                  <DropdownMenuItem onClick={() => void completeBooking(b)}>เสร็จสิ้น</DropdownMenuItem>
+                ) : null}
+                {canEdit && !isMonitor ? (
                   <DropdownMenuItem onClick={() => openEditBooking(b)}>แก้ไขการจอง</DropdownMenuItem>
                 ) : null}
-                {canDelete ? (
+                {canDelete && !isMonitor ? (
                   <DropdownMenuItem
                     className="text-destructive focus:text-destructive"
                     onClick={() => void cancelBooking(b.id)}

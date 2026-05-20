@@ -19,15 +19,9 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
-export type BookingListStatus = 'all' | 'approved' | 'pending' | 'inProgress' | 'completed';
+export type BookingListStatus = 'all' | 'inProgress' | 'completed';
 
-export const BOOKING_LIST_STATUS_FILTERS: BookingListStatus[] = [
-  'all',
-  'approved',
-  'pending',
-  'inProgress',
-  'completed',
-];
+export const BOOKING_LIST_STATUS_FILTERS: BookingListStatus[] = ['all', 'inProgress', 'completed'];
 
 type StatusKey = Exclude<BookingListStatus, 'all'>;
 
@@ -36,18 +30,8 @@ export const BOOKING_STATUS_META: Record<
   { label: string; dot: string; pill: string }
 > = {
   all: { label: 'ทั้งหมด', dot: 'bg-slate-400', pill: 'bg-slate-100 text-slate-700 ring-slate-200' },
-  approved: {
-    label: 'อนุมัติแล้ว',
-    dot: 'bg-emerald-500',
-    pill: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
-  },
-  pending: {
-    label: 'รออนุมัติ',
-    dot: 'bg-amber-500',
-    pill: 'bg-amber-50 text-amber-700 ring-amber-200',
-  },
   inProgress: {
-    label: 'กำลังใช้งาน',
+    label: 'กำลังดำเนินการ',
     dot: 'bg-blue-500',
     pill: 'bg-blue-50 text-blue-700 ring-blue-200',
   },
@@ -63,8 +47,6 @@ export const BOOKING_ROW_STATUS_META: Record<
   Exclude<BookingListStatus, 'all'>,
   { label: string; className: string }
 > = {
-  approved: { label: BOOKING_STATUS_META.approved.label, className: BOOKING_STATUS_META.approved.pill },
-  pending: { label: BOOKING_STATUS_META.pending.label, className: BOOKING_STATUS_META.pending.pill },
   inProgress: { label: BOOKING_STATUS_META.inProgress.label, className: BOOKING_STATUS_META.inProgress.pill },
   completed: { label: BOOKING_STATUS_META.completed.label, className: BOOKING_STATUS_META.completed.pill },
 };
@@ -95,8 +77,8 @@ export type DashboardMetric = {
 
 type SummaryProps = {
   utilizationPct: number;
-  approvedToday: number;
-  pendingToday: number;
+  inProgressToday: number;
+  completedToday: number;
   maintenanceCount: number;
 };
 
@@ -174,7 +156,7 @@ function MetricCard({
   return <div className={className}>{inner}</div>;
 }
 
-function SummaryPanel({ utilizationPct, approvedToday, pendingToday, maintenanceCount }: SummaryProps) {
+function SummaryPanel({ utilizationPct, inProgressToday, completedToday, maintenanceCount }: SummaryProps) {
   return (
     <aside className="space-y-6">
       <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -194,14 +176,14 @@ function SummaryPanel({ utilizationPct, approvedToday, pendingToday, maintenance
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="rounded-xl bg-slate-50 p-4">
-              <CheckCircle2 className="h-5 w-5 text-emerald-600" />
-              <p className="mt-3 text-2xl font-bold text-slate-950">{approvedToday}</p>
-              <p className="text-xs text-slate-500">อนุมัติแล้ว</p>
+              <Clock3 className="h-5 w-5 text-blue-600" />
+              <p className="mt-3 text-2xl font-bold text-slate-950">{inProgressToday}</p>
+              <p className="text-xs text-slate-500">กำลังดำเนินการ</p>
             </div>
             <div className="rounded-xl bg-slate-50 p-4">
-              <Clock3 className="h-5 w-5 text-amber-600" />
-              <p className="mt-3 text-2xl font-bold text-slate-950">{pendingToday}</p>
-              <p className="text-xs text-slate-500">รออนุมัติ</p>
+              <CheckCircle2 className="h-5 w-5 text-slate-500" />
+              <p className="mt-3 text-2xl font-bold text-slate-950">{completedToday}</p>
+              <p className="text-xs text-slate-500">เสร็จสิ้น</p>
             </div>
           </div>
         </div>
@@ -444,3 +426,5 @@ export default function FleetBookingsDashboard({
     </main>
   );
 }
+
+

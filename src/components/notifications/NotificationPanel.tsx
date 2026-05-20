@@ -47,7 +47,7 @@ const NotificationPanel: React.FC = () => {
         </div>
         <div className="max-h-80 overflow-y-auto">
           {notifications.length === 0 ? (
-            <div className="p-6 text-center text-muted-foreground text-sm">ไม่มีการแจ้งเตือน</div>
+            <div className="p-6 text-center text-muted-foreground text-sm">ไม่มีการจองที่ยังไม่เสร็จสิ้น</div>
           ) : (
             notifications.map(n => {
               const config = typeConfig[n.type];
@@ -87,3 +87,4 @@ const NotificationPanel: React.FC = () => {
 };
 
 export default NotificationPanel;
+
