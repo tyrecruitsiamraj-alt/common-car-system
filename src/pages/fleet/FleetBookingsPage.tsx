@@ -2,12 +2,16 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import FleetBookingsDashboard, { type BookingListStatus } from '@/components/fleet/FleetBookingsDashboard';
 import {
   bookingToDashboardRow,
+  buildMaintenanceVehicleDetails,
   buildTodayBookingDetails,
+  buildTodayBookingsByStatus,
   computeDashboardMetrics,
   computeTodaySummaryCounts,
   computeUtilization,
   filterDashboardBookings,
   type DashboardMetricId,
+  type MaintenanceVehicleDetail,
+  type TodayBookingDetail,
 } from '@/lib/fleetBookingsDashboard';
 import { BOOKING_ROW_STATUS_META } from '@/components/fleet/FleetBookingsDashboard';
 import { apiFetch } from '@/lib/apiFetch';
@@ -391,7 +395,8 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
   const [listStatusFilter, setListStatusFilter] = useState<BookingListStatus>('all');
   const bookingFormRef = useRef<HTMLFormElement>(null);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
-  const [todayDetailOpen, setTodayDetailOpen] = useState(false);
+  const [metricDetailOpen, setMetricDetailOpen] = useState(false);
+  const [metricDetailKind, setMetricDetailKind] = useState<DashboardMetricId | null>(null);
 
   const [empDayDialog, setEmpDayDialog] = useState<{
     employee: Employee;
@@ -1169,14 +1174,58 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
     () => buildTodayBookingDetails(bookings, empLabel, vehMap),
     [bookings, empMap, vehLabel],
   );
+  const inProgressDetails = useMemo(
+    () => buildTodayBookingsByStatus(bookings, 'inProgress', empLabel, vehMap),
+    [bookings, empMap, vehLabel],
+  );
+  const completedDetails = useMemo(
+    () => buildTodayBookingsByStatus(bookings, 'completed', empLabel, vehMap),
+    [bookings, empMap, vehLabel],
+  );
+  const maintenanceDetails = useMemo(
+    () => buildMaintenanceVehicleDetails(vehiclesList),
+    [vehiclesList],
+  );
+
+  const openMetricDetail = (id: DashboardMetricId) => {
+    setMetricDetailKind(id);
+    setMetricDetailOpen(true);
+  };
 
   const handleMetricClick = (id: DashboardMetricId) => {
-    if (id === 'today') {
-      setTodayDetailOpen(true);
-      return;
-    }
-    if (id === 'inProgress') setListStatusFilter('inProgress');
-    if (id === 'completed') setListStatusFilter('completed');
+    if (!isMonitor) return;
+    openMetricDetail(id);
+  };
+
+  const metricDetailBookings: TodayBookingDetail[] =
+    metricDetailKind === 'today'
+      ? todayBookingDetails
+      : metricDetailKind === 'inProgress'
+        ? inProgressDetails
+        : metricDetailKind === 'completed'
+          ? completedDetails
+          : [];
+
+  const metricDetailMeta: Record<
+    DashboardMetricId,
+    { title: string; description: (count: number) => string }
+  > = {
+    today: {
+      title: 'จองวันนี้ — รายละเอียด',
+      description: (n) => `การจองทั้งหมดวันนี้ (${n} รายการ)`,
+    },
+    inProgress: {
+      title: 'กำลังดำเนินการ — รายละเอียด',
+      description: (n) => `งานที่กำลังใช้รถอยู่ตอนนี้ (${n} รายการ)`,
+    },
+    completed: {
+      title: 'เสร็จสิ้น — รายละเอียด',
+      description: (n) => `งานที่เสร็จแล้ววันนี้ (${n} รายการ)`,
+    },
+    maintenance: {
+      title: 'รถซ่อมบำรุง — รายละเอียด',
+      description: (n) => `รถที่ไม่พร้อมใช้งาน (${n} คัน)`,
+    },
   };
 
   const handleDayChange = (ymd: string) => {
@@ -1187,25 +1236,36 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
   return (
     <>
       <FleetBookingsDashboard
-        title={isMonitor ? 'Fleet Monitor' : 'Fleet Bookings'}
+        title={isMonitor ? 'ดูภาพรวม' : 'จองรถ'}
+        description={
+          isMonitor
+            ? 'ภาพรวมการใช้รถวันนี้ สถานะงาน และรถซ่อมบำรุง'
+            : 'สร้างและจัดการการจองรถ ดูตารางเวลา และแก้ไขรายการจอง'
+        }
         isMonitor={isMonitor}
         dayLabel={dayLabel}
         dayValue={dayValue}
         onDayChange={handleDayChange}
-        metrics={dashboardMetrics}
+        metrics={isMonitor ? dashboardMetrics : []}
+        showMetrics={isMonitor}
+        showSummary={isMonitor}
         bookings={filteredDashboardRows}
         query={listQuery}
         onQueryChange={setListQuery}
         statusFilter={listStatusFilter}
         onStatusFilterChange={setListStatusFilter}
-        summary={{
-          utilizationPct: utilization.pct,
-          approvedToday: todaySummary.approved,
-          pendingToday: todaySummary.pending,
-          maintenanceCount,
-        }}
+        summary={
+          isMonitor
+            ? {
+                utilizationPct: utilization.pct,
+                approvedToday: todaySummary.approved,
+                pendingToday: todaySummary.pending,
+                maintenanceCount,
+              }
+            : undefined
+        }
         onCreateBooking={isMonitor ? undefined : () => setCreateDialogOpen(true)}
-        onMetricClick={handleMetricClick}
+        onMetricClick={isMonitor ? handleMetricClick : undefined}
         renderBookingMenu={(id) => {
           const b = bookings.find((x) => x.id === id);
           if (!b || isMonitor) return null;
@@ -1758,19 +1818,43 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
         </details>
       </FleetBookingsDashboard>
 
-      <Dialog open={todayDetailOpen} onOpenChange={setTodayDetailOpen}>
+      <Dialog
+        open={metricDetailOpen}
+        onOpenChange={(open) => {
+          setMetricDetailOpen(open);
+          if (!open) setMetricDetailKind(null);
+        }}
+      >
         <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg rounded-[1.5rem]">
+          {metricDetailKind ? (
+            <>
           <DialogHeader>
-            <DialogTitle>จองวันนี้ — รายละเอียด</DialogTitle>
+            <DialogTitle>{metricDetailMeta[metricDetailKind].title}</DialogTitle>
             <DialogDescription>
-              ผู้ขับและทะเบียนรถที่ถูกใช้งานวันนี้ ({todayBookingDetails.length} รายการ)
+              {metricDetailKind === 'maintenance'
+                ? metricDetailMeta.maintenance.description(maintenanceDetails.length)
+                : metricDetailMeta[metricDetailKind].description(metricDetailBookings.length)}
             </DialogDescription>
           </DialogHeader>
-          {todayBookingDetails.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-4 text-center">วันนี้ยังไม่มีการจอง</p>
+          {metricDetailKind === 'maintenance' ? (
+            maintenanceDetails.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-4 text-center">ไม่มีรถซ่อมบำรุง</p>
+            ) : (
+              <ul className="space-y-3">
+                {maintenanceDetails.map((row: MaintenanceVehicleDetail) => (
+                  <li key={row.id} className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
+                    <p className="font-bold text-slate-950">{row.plate}</p>
+                    {row.label !== '—' ? <p className="text-sm text-slate-600 mt-0.5">{row.label}</p> : null}
+                    <p className="mt-2 text-xs font-semibold text-amber-700">ไม่พร้อมใช้งาน</p>
+                  </li>
+                ))}
+              </ul>
+            )
+          ) : metricDetailBookings.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-4 text-center">ไม่มีรายการในหมวดนี้</p>
           ) : (
             <ul className="space-y-3">
-              {todayBookingDetails.map((row) => {
+              {metricDetailBookings.map((row) => {
                 const st = BOOKING_ROW_STATUS_META[row.status];
                 return (
                   <li
@@ -1806,6 +1890,8 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
               })}
             </ul>
           )}
+            </>
+          ) : null}
         </DialogContent>
       </Dialog>
 

@@ -88,6 +88,26 @@ export function bookingsOnDay(bookings: VehicleBooking[], day: Date): VehicleBoo
   });
 }
 
+function bookingToDetailRow(
+  b: VehicleBooking,
+  empLabel: (id: string) => string,
+  vehMap: Map<string, Vehicle>,
+  now: Date,
+): TodayBookingDetail {
+  const v = vehMap.get(b.vehicle_id);
+  const dest = (b.destination || '').trim();
+  const note = (b.notes || '').trim();
+  return {
+    id: b.id,
+    driverName: empLabel(b.employee_id),
+    plate: v?.plate_no ?? '—',
+    vehicleLabel: v?.label?.trim() || '—',
+    time: `${format(parseISO(b.starts_at), 'HH:mm')} - ${format(parseISO(b.ends_at), 'HH:mm')}`,
+    destination: dest || note || '—',
+    status: deriveBookingListStatus(b, now),
+  };
+}
+
 export function buildTodayBookingDetails(
   bookings: VehicleBooking[],
   empLabel: (id: string) => string,
@@ -96,21 +116,39 @@ export function buildTodayBookingDetails(
   const today = bookingsOnDay(bookings, new Date());
   const now = new Date();
   return today
-    .map((b) => {
-      const v = vehMap.get(b.vehicle_id);
-      const dest = (b.destination || '').trim();
-      const note = (b.notes || '').trim();
-      return {
-        id: b.id,
-        driverName: empLabel(b.employee_id),
-        plate: v?.plate_no ?? '—',
-        vehicleLabel: v?.label?.trim() || '—',
-        time: `${format(parseISO(b.starts_at), 'HH:mm')} - ${format(parseISO(b.ends_at), 'HH:mm')}`,
-        destination: dest || note || '—',
-        status: deriveBookingListStatus(b, now),
-      };
-    })
+    .map((b) => bookingToDetailRow(b, empLabel, vehMap, now))
     .sort((a, b) => a.time.localeCompare(b.time, 'th'));
+}
+
+export function buildTodayBookingsByStatus(
+  bookings: VehicleBooking[],
+  status: 'inProgress' | 'completed',
+  empLabel: (id: string) => string,
+  vehMap: Map<string, Vehicle>,
+): TodayBookingDetail[] {
+  const today = bookingsOnDay(bookings, new Date());
+  const now = new Date();
+  return today
+    .filter((b) => deriveBookingListStatus(b, now) === status)
+    .map((b) => bookingToDetailRow(b, empLabel, vehMap, now))
+    .sort((a, b) => a.time.localeCompare(b.time, 'th'));
+}
+
+export type MaintenanceVehicleDetail = {
+  id: string;
+  plate: string;
+  label: string;
+};
+
+export function buildMaintenanceVehicleDetails(vehicles: Vehicle[]): MaintenanceVehicleDetail[] {
+  return vehicles
+    .filter((v) => v.is_active === false)
+    .map((v) => ({
+      id: v.id,
+      plate: v.plate_no,
+      label: v.label?.trim() || '—',
+    }))
+    .sort((a, b) => a.plate.localeCompare(b.plate, 'th'));
 }
 
 export function computeTodaySummaryCounts(
@@ -158,6 +196,7 @@ export function computeDashboardMetrics(
       label: 'กำลังดำเนินการ',
       value: String(inProgress),
       helper: 'งาน',
+      clickable: true,
     },
     {
       id: 'completed',
@@ -165,6 +204,7 @@ export function computeDashboardMetrics(
       label: 'เสร็จสิ้น',
       value: String(completed),
       helper: 'งาน',
+      clickable: true,
     },
     {
       id: 'maintenance',
@@ -172,6 +212,7 @@ export function computeDashboardMetrics(
       label: 'รถซ่อมบำรุง',
       value: String(maintenance),
       helper: 'คัน',
+      clickable: true,
     },
   ];
 }

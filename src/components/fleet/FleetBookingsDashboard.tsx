@@ -113,7 +113,9 @@ type Props = {
   onQueryChange: (q: string) => void;
   statusFilter: BookingListStatus;
   onStatusFilterChange: (s: BookingListStatus) => void;
-  summary: SummaryProps;
+  summary?: SummaryProps;
+  showMetrics?: boolean;
+  showSummary?: boolean;
   onCreateBooking?: () => void;
   onMetricClick?: (id: DashboardMetricId) => void;
   renderBookingMenu?: (bookingId: string) => React.ReactNode;
@@ -246,6 +248,8 @@ export default function FleetBookingsDashboard({
   statusFilter,
   onStatusFilterChange,
   summary,
+  showMetrics = true,
+  showSummary = true,
   onCreateBooking,
   onMetricClick,
   renderBookingMenu,
@@ -303,7 +307,7 @@ export default function FleetBookingsDashboard({
           </div>
         </div>
 
-        {metrics.length > 0 ? (
+        {showMetrics && metrics.length > 0 ? (
           <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             {metrics.map((m) => (
               <MetricCard key={m.id ?? m.label} metric={m} onClick={onMetricClick} />
@@ -311,7 +315,7 @@ export default function FleetBookingsDashboard({
           </section>
         ) : null}
 
-        <section className="grid gap-6 xl:grid-cols-[1fr_340px]">
+        <section className={cn('gap-6', showSummary && summary ? 'grid xl:grid-cols-[1fr_340px]' : '')}>
           <div className="min-w-0 rounded-2xl border border-slate-200 bg-white shadow-sm">
             <div className="border-b border-slate-200 p-4 md:p-5">
               <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
@@ -432,7 +436,7 @@ export default function FleetBookingsDashboard({
             </div>
           </div>
 
-          <SummaryPanel {...summary} />
+          {showSummary && summary ? <SummaryPanel {...summary} /> : null}
         </section>
 
         {children}
