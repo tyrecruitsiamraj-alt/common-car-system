@@ -268,7 +268,6 @@ async function handler(req: AuthedReq, res: ApiRes): Promise<void> {
         `
         select * from ${tbl}
         where starts_at < $2::timestamptz and ${effectiveEnd} > $1::timestamptz
-          and ${ACTIVE_ONLY}
         order by starts_at asc
       `,
         [fromQ.toISOString(), toQ.toISOString()],

@@ -12,6 +12,7 @@ import {
   computeTodaySummaryCounts,
   computeUtilization,
   filterDashboardBookings,
+  isBookingActive,
   type DashboardMetricId,
   type MaintenanceVehicleDetail,
   type TodayBookingDetail,
@@ -219,6 +220,7 @@ function bookingsOverlappingDay(bookings: VehicleBooking[], day: Date): VehicleB
 }
 
 function bookingOverlapsLocalHour(b: VehicleBooking, day: Date, hour: number): boolean {
+  if (!isBookingActive(b)) return false;
   const slotStart = setMinutes(setHours(day, hour), 0);
   const slotEnd = addHours(slotStart, 1);
   const s = parseISO(b.starts_at);
@@ -283,7 +285,7 @@ function isIncidentBooking(b: VehicleBooking): boolean {
 
 function dayPlannerStatusForEmployee(bookings: VehicleBooking[], empId: string, day: Date): 'free' | 'busy' | 'incident' {
   const onDay = bookingsOverlappingDay(
-    bookings.filter((b) => b.employee_id === empId),
+    bookings.filter((b) => b.employee_id === empId && isBookingActive(b)),
     day,
   );
   if (onDay.length === 0) return 'free';
@@ -794,7 +796,10 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
   };
 
   const dayBusyRows = useMemo(() => {
-    const onDay = bookingsOverlappingDay(bookings, dayAnchor);
+    const onDay = bookingsOverlappingDay(
+      bookings.filter(isBookingActive),
+      dayAnchor,
+    );
     const byEmp = new Map<string, VehicleBooking[]>();
     for (const b of onDay) {
       const cur = byEmp.get(b.employee_id) ?? [];
@@ -838,7 +843,9 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
   );
 
   const dayFreeVehicles = useMemo(() => {
-    const busy = new Set(dayBookingsList.map((b) => b.vehicle_id));
+    const busy = new Set(
+      dayBookingsList.filter(isBookingActive).map((b) => b.vehicle_id),
+    );
     return vehiclesForGrid.filter((v) => !busy.has(v.id));
   }, [dayBookingsList, vehiclesForGrid]);
 
@@ -1167,7 +1174,7 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
     try {
       const r = await apiFetch(`/api/vehicle-bookings?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
       if (!r.ok) throw new Error(await parseApiError(r));
-      toast.success('ยกเลิกการจองแล้ว — จองช่วงนี้ใหม่ได้');
+      toast.success('ยกเลิกการจองแล้ว — ยังแสดงในตารางสถานะยกเลิก');
       if (editBooking?.id === id) closeEditDialog();
       setEmpDayDialog(null);
       await refresh();
@@ -1367,6 +1374,7 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
     const busyEmpIds = new Set<string>();
     const byEmp = new Map<string, VehicleBooking[]>();
     for (const b of onDay) {
+      if (!isBookingActive(b)) continue;
       busyEmpIds.add(b.employee_id);
       const cur = byEmp.get(b.employee_id) ?? [];
       cur.push(b);
@@ -1408,7 +1416,12 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
     const freeAtHour = (hour: number) =>
       activeEmps.filter(
         (emp) =>
-          !bookings.some((b) => b.employee_id === emp.id && bookingOverlapsLocalHour(b, selectedDay, hour)),
+          !bookings.some(
+            (b) =>
+              isBookingActive(b) &&
+              b.employee_id === emp.id &&
+              bookingOverlapsLocalHour(b, selectedDay, hour),
+          ),
       );
 
     const stats: SummaryEmployeeStats = {
@@ -1443,6 +1456,10 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
     () => buildTodayBookingsByStatus(selectedDayBookings, 'completed', empLabel, vehMap, selectedDay),
     [selectedDayBookings, empMap, vehLabel, selectedDay],
   );
+  const cancelledDetails = useMemo(
+    () => buildTodayBookingsByStatus(selectedDayBookings, 'cancelled', empLabel, vehMap, selectedDay),
+    [selectedDayBookings, empMap, vehLabel, selectedDay],
+  );
   const maintenanceDetails = useMemo(
     () => buildMaintenanceVehicleDetails(vehiclesList),
     [vehiclesList],
@@ -1460,12 +1477,14 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
 
   const metricDetailBookings: TodayBookingDetail[] =
     metricDetailKind === 'today'
-      ? todayBookingDetails
+      ? todayBookingDetails.filter((r) => r.status !== 'cancelled')
       : metricDetailKind === 'inProgress'
         ? inProgressDetails
         : metricDetailKind === 'completed'
           ? completedDetails
-          : [];
+          : metricDetailKind === 'cancelled'
+            ? cancelledDetails
+            : [];
 
   const metricDetailMeta: Record<
     DashboardMetricId,
@@ -1482,6 +1501,10 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
     completed: {
       title: 'เสร็จสิ้น — รายละเอียด',
       description: (n) => `งานที่กดเสร็จสิ้นแล้ว (${n} รายการ)`,
+    },
+    cancelled: {
+      title: 'ยกเลิก — รายละเอียด',
+      description: (n) => `การจองที่ยกเลิกในวันที่เลือก (${n} ใบ)`,
     },
     maintenance: {
       title: 'รถซ่อมบำรุง — รายละเอียด',
@@ -1522,6 +1545,7 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                 utilizationPct: utilization.pct,
                 inProgressToday: todaySummary.inProgress,
                 completedToday: todaySummary.completed,
+                cancelledToday: todaySummary.cancelled,
                 maintenanceCount,
                 employeeStats: summaryEmployeeBundle.stats,
                 summaryDayLabel: dayLabel,
@@ -1541,6 +1565,7 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
         renderBookingMenu={(id) => {
           const b = bookings.find((x) => x.id === id);
           if (!b) return null;
+          if (!isBookingActive(b)) return null;
           const inProgress = isBookingInProgress(b);
           if (!canEdit && !canDelete) return null;
           return (

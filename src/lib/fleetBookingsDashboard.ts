@@ -7,9 +7,13 @@ import type {
   DashboardMetric,
 } from '@/components/fleet/FleetBookingsDashboard';
 import type { Employee, Vehicle, VehicleBooking } from '@/types';
-import { CalendarDays, CheckCircle2, Clock3, Wrench } from 'lucide-react';
+import { Ban, CalendarDays, CheckCircle2, Clock3, Wrench } from 'lucide-react';
 
-export type DashboardMetricId = 'today' | 'inProgress' | 'completed' | 'maintenance';
+export type DashboardMetricId = 'today' | 'inProgress' | 'completed' | 'cancelled' | 'maintenance';
+
+export function isBookingActive(b: VehicleBooking): boolean {
+  return b.status !== 'cancelled';
+}
 
 export type TodayBookingDetail = {
   id: string;
@@ -31,12 +35,21 @@ export function bookingEffectiveEnd(b: VehicleBooking): Date {
 export function deriveBookingListStatus(
   b: VehicleBooking,
 ): Exclude<BookingListStatus, 'all'> {
+  if (b.status === 'cancelled') return 'cancelled';
   if (b.completed_at) return 'completed';
   return 'inProgress';
 }
 
 export function isBookingInProgress(b: VehicleBooking): boolean {
-  return deriveBookingListStatus(b) === 'inProgress';
+  return isBookingActive(b) && deriveBookingListStatus(b) === 'inProgress';
+}
+
+/** เลยเวลาสิ้นสุดที่จองไว้แล้ว แต่ยังไม่กดเสร็จสิ้น — ใช้แจ้งเตือน */
+export function isBookingOverdueNotCompleted(b: VehicleBooking, now = new Date()): boolean {
+  if (b.status === 'cancelled' || b.completed_at) return false;
+  const end = parseISO(b.ends_at);
+  if (Number.isNaN(end.getTime())) return false;
+  return end <= now;
 }
 
 function formatBookingDateLabel(startsAt: string): string {
@@ -126,7 +139,7 @@ export function buildTodayBookingDetails(
 
 export function buildTodayBookingsByStatus(
   bookings: VehicleBooking[],
-  status: 'inProgress' | 'completed',
+  status: 'inProgress' | 'completed' | 'cancelled',
   empLabel: (id: string) => string,
   vehMap: Map<string, Vehicle>,
   day: Date = new Date(),
@@ -158,16 +171,18 @@ export function buildMaintenanceVehicleDetails(vehicles: Vehicle[]): Maintenance
 export function computeTodaySummaryCounts(
   bookings: VehicleBooking[],
   day: Date = new Date(),
-): { inProgress: number; completed: number } {
+): { inProgress: number; completed: number; cancelled: number } {
   const onDay = bookingsOnDay(bookings, day);
   let inProgress = 0;
   let completed = 0;
+  let cancelled = 0;
   for (const b of onDay) {
     const st = deriveBookingListStatus(b);
-    if (st === 'completed') completed += 1;
+    if (st === 'cancelled') cancelled += 1;
+    else if (st === 'completed') completed += 1;
     else inProgress += 1;
   }
-  return { inProgress, completed };
+  return { inProgress, completed, cancelled };
 }
 
 export function computeDashboardMetrics(
@@ -178,20 +193,23 @@ export function computeDashboardMetrics(
   const onDay = bookingsOnDay(bookings, day);
   let inProgress = 0;
   let completed = 0;
+  let cancelled = 0;
   for (const b of onDay) {
     const st = deriveBookingListStatus(b);
-    if (st === 'completed') completed += 1;
+    if (st === 'cancelled') cancelled += 1;
+    else if (st === 'completed') completed += 1;
     else inProgress += 1;
   }
   const maintenance = vehicles.filter((v) => v.is_active === false).length;
   const dayBookingLabel = isSameDay(day, new Date()) ? 'จองวันนี้' : 'จองในวันที่เลือก';
+  const activeOnDay = onDay.length - cancelled;
 
   return [
     {
       id: 'today',
       icon: CalendarDays,
       label: dayBookingLabel,
-      value: String(onDay.length),
+      value: String(activeOnDay),
       helper: 'รายการ',
       clickable: true,
     },
@@ -209,6 +227,14 @@ export function computeDashboardMetrics(
       label: 'เสร็จสิ้น',
       value: String(completed),
       helper: 'งาน',
+      clickable: true,
+    },
+    {
+      id: 'cancelled',
+      icon: Ban,
+      label: 'ยกเลิก',
+      value: String(cancelled),
+      helper: 'ใบ',
       clickable: true,
     },
     {

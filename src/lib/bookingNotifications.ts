@@ -1,6 +1,5 @@
-import { addDays, format, parseISO, startOfDay } from 'date-fns';
-import { th } from 'date-fns/locale';
-import { isBookingInProgress } from '@/lib/fleetBookingsDashboard';
+import { addDays, parseISO, startOfDay } from 'date-fns';
+import { isBookingOverdueNotCompleted } from '@/lib/fleetBookingsDashboard';
 import { formatThaiTimeRange } from '@/lib/thaiDateTimeFormat';
 import type { Notification, NotificationType } from '@/types/notification';
 import type { Employee, Vehicle, VehicleBooking } from '@/types';
@@ -38,6 +37,7 @@ function pickNotificationType(b: VehicleBooking): NotificationType {
   return 'alert';
 }
 
+/** แจ้งเตือนเฉพาะจองที่เลยเวลาสิ้นสุดแล้วแต่ยังไม่กดเสร็จสิ้น */
 export function buildInProgressBookingNotifications(
   bookings: VehicleBooking[],
   employees: Employee[],
@@ -49,7 +49,7 @@ export function buildInProgressBookingNotifications(
   const vehMap = new Map(vehicles.map((v) => [v.id, v]));
 
   return bookings
-    .filter((b) => b.status !== 'cancelled' && isBookingInProgress(b, now))
+    .filter((b) => isBookingOverdueNotCompleted(b, now))
     .sort((a, b) => parseISO(a.starts_at).getTime() - parseISO(b.starts_at).getTime())
     .map((b) => {
       const emp = empMap.get(b.employee_id);
@@ -64,8 +64,8 @@ export function buildInProgressBookingNotifications(
       return {
         id,
         type: pickNotificationType(b),
-        title: `จองรถยังไม่เสร็จ: ${dest.length > 36 ? `${dest.slice(0, 36)}…` : dest}`,
-        message: `${driver} · ${plate} · ${time} — กรุณากดเสร็จสิ้นเมื่องานจบ`,
+        title: `เลยเวลาแล้วยังไม่เสร็จ: ${dest.length > 36 ? `${dest.slice(0, 36)}…` : dest}`,
+        message: `${driver} · ${plate} · ${time} — กรุณากดเสร็จสิ้น`,
         timestamp: b.updated_at || b.starts_at,
         read: readIds.has(id),
         link: '/fleet/bookings',
