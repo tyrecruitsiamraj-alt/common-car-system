@@ -1,5 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import FleetBookingsDashboard, { type BookingListStatus } from '@/components/fleet/FleetBookingsDashboard';
+import FleetBookingsDashboard, {
+  type BookingListStatus,
+  type SummaryEmployeeStats,
+} from '@/components/fleet/FleetBookingsDashboard';
 import {
   bookingToDashboardRow,
   buildMaintenanceVehicleDetails,
@@ -38,7 +41,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { TimeHm24Select } from '@/components/shared/TimeHm24Select';
-import { DateDmySelect } from '@/components/shared/DateDmySelect';
+import DateSelectDmyBe from '@/components/shared/DateSelectDmyBe';
 import {
   formatThaiDate,
   formatThaiDateTime,
@@ -247,9 +250,10 @@ function freeHourRangesOnLocalDay(
 }
 
 function formatLocalFreeHourRange(day: Date, startH: number, endH: number): string {
-  const a = format(setMinutes(setHours(day, startH), 0), 'HH:mm');
-  const b = endH >= 24 ? '24:00' : format(setMinutes(setHours(day, endH), 0), 'HH:mm');
-  return `${a}–${b}`;
+  const from = setMinutes(setHours(day, startH), 0);
+  const to =
+    endH >= 24 ? addHours(startOfDay(day), 24) : setMinutes(setHours(day, endH), 0);
+  return formatThaiTimeRange(from, to);
 }
 
 const PLANNER_FILTER_ALL = '__all__';
@@ -415,6 +419,8 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [metricDetailOpen, setMetricDetailOpen] = useState(false);
   const [metricDetailKind, setMetricDetailKind] = useState<DashboardMetricId | null>(null);
+  const [summaryDetailOpen, setSummaryDetailOpen] = useState<'free' | 'partial' | 'inUse' | null>(null);
+  const [summaryPartialHour, setSummaryPartialHour] = useState(() => new Date().getHours());
 
   const [empDayDialog, setEmpDayDialog] = useState<{
     employee: Employee;
@@ -1355,6 +1361,66 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
     () => vehiclesList.filter((v) => v.is_active === false).length,
     [vehiclesList],
   );
+
+  const summaryEmployeeBundle = useMemo(() => {
+    const onDay = bookingsOverlappingDay(bookings, selectedDay);
+    const busyEmpIds = new Set<string>();
+    const byEmp = new Map<string, VehicleBooking[]>();
+    for (const b of onDay) {
+      busyEmpIds.add(b.employee_id);
+      const cur = byEmp.get(b.employee_id) ?? [];
+      cur.push(b);
+      byEmp.set(b.employee_id, cur);
+    }
+    const activeEmps = employeesForPlanner;
+    const freeAllDayList = activeEmps.filter((e) => !busyEmpIds.has(e.id));
+    const inUseList = [...byEmp.entries()]
+      .map(([id, bs]) => {
+        const emp = empMap.get(id);
+        if (!emp) return null;
+        const sorted = [...bs].sort(
+          (a, b) => parseISO(a.starts_at).getTime() - parseISO(b.starts_at).getTime(),
+        );
+        return { emp, bookings: sorted };
+      })
+      .filter((x): x is { emp: Employee; bookings: VehicleBooking[] } => x !== null)
+      .sort((a, b) =>
+        `${a.emp.first_name} ${a.emp.last_name}`.localeCompare(`${b.emp.first_name} ${b.emp.last_name}`, 'th'),
+      );
+
+    const partialFreeList: {
+      emp: Employee;
+      ranges: { startH: number; endH: number; label: string }[];
+    }[] = [];
+    for (const emp of activeEmps) {
+      if (!busyEmpIds.has(emp.id)) continue;
+      const ranges = freeHourRangesOnLocalDay(bookings, selectedDay, (b) => b.employee_id === emp.id);
+      if (ranges.length === 0) continue;
+      partialFreeList.push({
+        emp,
+        ranges: ranges.map((r) => ({
+          ...r,
+          label: formatLocalFreeHourRange(selectedDay, r.startH, r.endH),
+        })),
+      });
+    }
+
+    const freeAtHour = (hour: number) =>
+      activeEmps.filter(
+        (emp) =>
+          !bookings.some((b) => b.employee_id === emp.id && bookingOverlapsLocalHour(b, selectedDay, hour)),
+      );
+
+    const stats: SummaryEmployeeStats = {
+      total: activeEmps.length,
+      inUse: busyEmpIds.size,
+      freeAllDay: freeAllDayList.length,
+      partialFree: partialFreeList.length,
+    };
+
+    return { stats, freeAllDayList, inUseList, partialFreeList, freeAtHour };
+  }, [bookings, selectedDay, employeesForPlanner, empMap]);
+
   const dayLabel = useMemo(() => {
     try {
       const d = parse(dayValue, 'yyyy-MM-dd', new Date());
@@ -1457,6 +1523,15 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                 inProgressToday: todaySummary.inProgress,
                 completedToday: todaySummary.completed,
                 maintenanceCount,
+                employeeStats: summaryEmployeeBundle.stats,
+                summaryDayLabel: dayLabel,
+                onEmployeeFreeClick: () => setSummaryDetailOpen('free'),
+                onEmployeePartialClick: () => {
+                  const h = isSameDay(selectedDay, new Date()) ? new Date().getHours() : 9;
+                  setSummaryPartialHour(h);
+                  setSummaryDetailOpen('partial');
+                },
+                onEmployeeInUseClick: () => setSummaryDetailOpen('inUse'),
               }
             : undefined
         }
@@ -1560,13 +1635,14 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                 <Label className="text-xs">
                   {viewMode === 'week' ? 'สัปดาห์ (เลือกวันที่ในสัปดาห์)' : 'วันที่'}
                 </Label>
-                <DateDmySelect
+                <DateSelectDmyBe
                   value={dayValue}
                   onChange={(ymd) => {
                     setDayValue(ymd);
                     if (!isMonitor) setViewMode('day');
                   }}
-                  selectClassName="h-9 rounded-md border border-input bg-background px-1.5 text-sm min-w-[3.25rem]"
+                  yearKind="ce"
+                  triggerClassName="h-9 rounded-md border border-input bg-background px-3 text-sm"
                 />
               </div>
             )}
@@ -2218,6 +2294,139 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
         </DialogContent>
       </Dialog>
 
+      <Dialog
+        open={summaryDetailOpen !== null}
+        onOpenChange={(open) => {
+          if (!open) setSummaryDetailOpen(null);
+        }}
+      >
+        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg rounded-[1.5rem]">
+          {summaryDetailOpen === 'free' ? (
+            <>
+              <DialogHeader>
+                <DialogTitle>ว่างทั้งวัน — {dayLabel}</DialogTitle>
+                <DialogDescription>
+                  พนักงานที่ไม่มีการจองคร่อมวันนี้ ({summaryEmployeeBundle.freeAllDayList.length} คน)
+                </DialogDescription>
+              </DialogHeader>
+              {summaryEmployeeBundle.freeAllDayList.length === 0 ? (
+                <p className="text-sm text-muted-foreground py-4 text-center">ไม่มีผู้ขับว่างทั้งวัน</p>
+              ) : (
+                <ul className="space-y-2">
+                  {summaryEmployeeBundle.freeAllDayList.map((e) => (
+                    <li
+                      key={e.id}
+                      className="rounded-xl border border-emerald-200/80 bg-emerald-50/50 px-3 py-2.5 text-sm font-medium text-foreground"
+                    >
+                      {e.first_name} {e.last_name}
+                      {e.employee_code ? (
+                        <span className="text-muted-foreground font-normal"> · {e.employee_code}</span>
+                      ) : null}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </>
+          ) : null}
+          {summaryDetailOpen === 'inUse' ? (
+            <>
+              <DialogHeader>
+                <DialogTitle>ถูกใช้งาน — {dayLabel}</DialogTitle>
+                <DialogDescription>
+                  ผู้ขับที่มีการจองในวันนี้ ({summaryEmployeeBundle.inUseList.length} คน)
+                </DialogDescription>
+              </DialogHeader>
+              {summaryEmployeeBundle.inUseList.length === 0 ? (
+                <p className="text-sm text-muted-foreground py-4 text-center">ไม่มีผู้ขับที่ถูกใช้งานในวันนี้</p>
+              ) : (
+                <ul className="space-y-3">
+                  {summaryEmployeeBundle.inUseList.map(({ emp, bookings: bs }) => (
+                    <li key={emp.id} className="rounded-xl border border-blue-200/80 bg-blue-50/40 p-3 space-y-1.5">
+                      <p className="font-semibold text-foreground text-sm">
+                        {emp.first_name} {emp.last_name}
+                      </p>
+                      {bs.map((b) => (
+                        <p key={b.id} className="text-xs text-muted-foreground tabular-nums">
+                          {formatThaiTimeRange(b.starts_at, bookingEffectiveEnd(b))}
+                          {(b.destination || '').trim() ? ` · ${b.destination?.trim()}` : ''}
+                        </p>
+                      ))}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </>
+          ) : null}
+          {summaryDetailOpen === 'partial' ? (
+            <>
+              <DialogHeader>
+                <DialogTitle>ว่างบางช่วง — {dayLabel}</DialogTitle>
+                <DialogDescription>
+                  เลือกชั่วโมงเพื่อดูว่าใครว่างในช่วงนั้น หรือดูช่วงว่างทั้งหมดของแต่ละคน
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="rounded-xl border border-border bg-muted/20 p-3 space-y-2">
+                  <Label className="text-xs font-medium">ดูว่าใครว่าง ช่วงเวลา</Label>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <select
+                      className="h-9 rounded-md border border-input bg-background px-2 text-sm min-w-[5rem]"
+                      value={summaryPartialHour}
+                      onChange={(e) => setSummaryPartialHour(Number(e.target.value))}
+                    >
+                      {Array.from({ length: 24 }, (_, h) => (
+                        <option key={h} value={h}>
+                          {String(h).padStart(2, '0')} น.
+                        </option>
+                      ))}
+                    </select>
+                    <span className="text-xs text-muted-foreground">ถึง {String(summaryPartialHour + 1).padStart(2, '0')} น.</span>
+                  </div>
+                  {summaryEmployeeBundle.freeAtHour(summaryPartialHour).length === 0 ? (
+                    <p className="text-xs text-muted-foreground">ไม่มีผู้ขับว่างในช่วงนี้</p>
+                  ) : (
+                    <div className="flex flex-wrap gap-1.5">
+                      {summaryEmployeeBundle.freeAtHour(summaryPartialHour).map((e) => (
+                        <span
+                          key={e.id}
+                          className="text-[11px] px-2 py-1 rounded-md bg-emerald-500/15 text-emerald-950 border border-emerald-600/20"
+                        >
+                          {e.first_name} {e.last_name}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-foreground mb-2">
+                    ว่างบางช่วง — ช่วงเวลาว่างของแต่ละคน ({summaryEmployeeBundle.partialFreeList.length} คน)
+                  </p>
+                  {summaryEmployeeBundle.partialFreeList.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">ไม่มีผู้ขับที่ว่างบางช่วง</p>
+                  ) : (
+                    <ul className="space-y-2 max-h-52 overflow-y-auto pr-1">
+                      {summaryEmployeeBundle.partialFreeList.map(({ emp, ranges }) => (
+                        <li
+                          key={emp.id}
+                          className="rounded-lg border border-amber-200/70 bg-amber-50/50 px-3 py-2 text-sm"
+                        >
+                          <span className="font-medium text-foreground">
+                            {emp.first_name} {emp.last_name}
+                          </span>
+                          <span className="text-muted-foreground text-xs block mt-0.5 tabular-nums">
+                            ว่าง {ranges.map((r) => r.label).join(', ')}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              </div>
+            </>
+          ) : null}
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg rounded-[1.5rem]">
           <DialogHeader>
@@ -2233,14 +2442,15 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
           >
             <div className="space-y-1">
               <p className="text-xs font-medium text-foreground">เวลาจอง</p>
-              <p className="text-[10px] text-muted-foreground">วันที่แบบ วัน/เดือน/ปี · เวลาแบบ 24 ชม. (… น.) — นาทีทุก 10 นาที</p>
+              <p className="text-[10px] text-muted-foreground">กดปฏิทินเลือกวัน (แสดง วัน/เดือน/ปี) · เวลา 24 ชม. (… น.) — นาทีทุก 10 นาที</p>
               <div className="space-y-3 max-w-lg">
                 <div className="space-y-1.5">
                   <Label className="text-[10px]">เริ่ม</Label>
                   <div className="flex flex-wrap gap-2 items-end">
-                    <DateDmySelect
-                      className="flex-1 min-w-0"
-                      selectClassName="h-8 rounded-md border border-input bg-background px-1.5 text-xs min-w-[3rem]"
+                    <DateSelectDmyBe
+                      className="flex-1 min-w-[10rem]"
+                      yearKind="ce"
+                      triggerClassName="h-8 rounded-md border border-input bg-background px-2 text-xs"
                       value={ymdFromDatetimeLocalField(bookStart) ?? todayYmd}
                       onChange={(ymd) => {
                         const next = combineBookYmdHm(ymd, hmFromBookField(bookStart));
@@ -2280,9 +2490,10 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                 <div className="space-y-1.5">
                   <Label className="text-[10px]">สิ้นสุด</Label>
                   <div className="flex flex-wrap gap-2 items-end">
-                    <DateDmySelect
-                      className="flex-1 min-w-0"
-                      selectClassName="h-8 rounded-md border border-input bg-background px-1.5 text-xs min-w-[3rem]"
+                    <DateSelectDmyBe
+                      className="flex-1 min-w-[10rem]"
+                      yearKind="ce"
+                      triggerClassName="h-8 rounded-md border border-input bg-background px-2 text-xs"
                       minYmd={ymdFromDatetimeLocalField(bookStart) ?? undefined}
                       value={ymdFromDatetimeLocalField(bookEnd) ?? ymdFromDatetimeLocalField(bookStart) ?? todayYmd}
                       onChange={(ymd) => {
@@ -2504,14 +2715,16 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                 </div>
               ) : null}
               <div className="space-y-2 rounded-lg border border-border/70 bg-muted/15 p-2.5">
-                <p className="text-xs font-semibold text-foreground">ช่วงเวลา (วัน/เดือน/ปี · น.)</p>
+                <p className="text-xs font-semibold text-foreground">ช่วงเวลา (กดปฏิทินเลือกวัน · เวลา น.)</p>
                 <div className="space-y-2">
                   <Label className="text-[10px] text-muted-foreground">เริ่ม</Label>
                   <div className="flex flex-wrap gap-2 items-end">
-                    <DateDmySelect
+                    <DateSelectDmyBe
+                      className="flex-1 min-w-[9.5rem]"
+                      yearKind="ce"
+                      triggerClassName="h-9 rounded-md border border-input bg-background px-2 text-xs"
                       value={ymdFromDatetimeLocalField(editStart) ?? todayYmd}
                       onChange={(ymd) => patchEditStart(ymd, hmFromBookField(editStart))}
-                      selectClassName="h-9 rounded-md border border-input bg-background px-1.5 text-xs min-w-[3.25rem]"
                     />
                     <TimeHm24Select
                       minuteStep={BOOK_MINUTE_STEP}
@@ -2528,11 +2741,13 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                 <div className="space-y-2">
                   <Label className="text-[10px] text-muted-foreground">สิ้นสุด</Label>
                   <div className="flex flex-wrap gap-2 items-end">
-                    <DateDmySelect
+                    <DateSelectDmyBe
+                      className="flex-1 min-w-[9.5rem]"
+                      yearKind="ce"
+                      triggerClassName="h-9 rounded-md border border-input bg-background px-2 text-xs"
                       value={ymdFromDatetimeLocalField(editEnd) ?? ymdFromDatetimeLocalField(editStart) ?? todayYmd}
                       minYmd={ymdFromDatetimeLocalField(editStart) ?? undefined}
                       onChange={(ymd) => patchEditEnd(ymd, hmFromBookField(editEnd))}
-                      selectClassName="h-9 rounded-md border border-input bg-background px-1.5 text-xs min-w-[3.25rem]"
                     />
                     <TimeHm24Select
                       minuteStep={BOOK_MINUTE_STEP}

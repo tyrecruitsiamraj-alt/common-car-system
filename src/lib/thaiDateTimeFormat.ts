@@ -1,5 +1,6 @@
 import { format, parseISO } from 'date-fns';
 import { th } from 'date-fns/locale';
+import { formatYmdDmyCe } from '@/lib/dateTh';
 
 function toDate(d: Date | string): Date {
   return typeof d === 'string' ? parseISO(d) : d;
@@ -28,11 +29,7 @@ export function formatThaiDateTime(d: Date | string): string {
   return `${formatThaiDate(d)} ${formatThaiTime(d)}`;
 }
 
-/** จาก yyyy-MM-dd */
+/** จาก yyyy-MM-dd — วัน/เดือน/ปี ค.ศ. */
 export function formatThaiDateFromYmd(ymd: string): string {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(ymd)) return ymd;
-  const [y, m, d] = ymd.split('-').map(Number);
-  const dt = new Date(y, m - 1, d);
-  if (Number.isNaN(dt.getTime())) return ymd;
-  return formatThaiDate(dt);
+  return formatYmdDmyCe(ymd) || ymd;
 }

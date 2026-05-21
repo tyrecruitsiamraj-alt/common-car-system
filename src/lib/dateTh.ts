@@ -51,13 +51,22 @@ export function dmyBeToYmd(day: number, month: number, yearBe: number): string |
   return `${yCe}-${m}-${d}`;
 }
 
+/** แสดงเป็น วัน/เดือน/ปี ค.ศ. (dd/MM/yyyy) */
+export function formatYmdDmyCe(ymd: string | undefined | null): string {
+  const raw = (ymd ?? '').trim();
+  if (!raw) return '';
+  const p = parseYmd(raw.slice(0, 10));
+  if (!p) return raw;
+  return `${String(p.d).padStart(2, '0')}/${String(p.m).padStart(2, '0')}/${p.y}`;
+}
+
 /** แสดงเป็น วัน/เดือน/ปี พ.ศ. จาก YYYY-MM-DD หรือสตริง ISO ที่ขึ้นต้นด้วยวันที่ */
 export function formatYmdDmyBe(ymd: string | undefined | null): string {
   const raw = (ymd ?? '').trim();
   if (!raw) return '-';
   const p = parseYmd(raw.slice(0, 10));
   if (!p) return raw;
-  return `${p.d}/${p.m}/${ceToBeYear(p.y)}`;
+  return `${String(p.d).padStart(2, '0')}/${String(p.m).padStart(2, '0')}/${ceToBeYear(p.y)}`;
 }
 
 export function beYearRange(centerCeYear: number, delta = 15): number[] {

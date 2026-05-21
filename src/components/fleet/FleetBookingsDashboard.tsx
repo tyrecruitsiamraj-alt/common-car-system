@@ -9,13 +9,14 @@ import {
   MoreHorizontal,
   Plus,
   Search,
+  Users,
   Wrench,
   type LucideIcon,
 } from 'lucide-react';
 import type { DashboardMetricId } from '@/lib/fleetBookingsDashboard';
 import { cn } from '@/lib/utils';
 import { Label } from '@/components/ui/label';
-import { DateDmySelect } from '@/components/shared/DateDmySelect';
+import DateSelectDmyBe from '@/components/shared/DateSelectDmyBe';
 
 export type BookingListStatus = 'all' | 'inProgress' | 'completed';
 
@@ -73,11 +74,23 @@ export type DashboardMetric = {
   clickable?: boolean;
 };
 
+export type SummaryEmployeeStats = {
+  total: number;
+  inUse: number;
+  freeAllDay: number;
+  partialFree: number;
+};
+
 type SummaryProps = {
   utilizationPct: number;
   inProgressToday: number;
   completedToday: number;
   maintenanceCount: number;
+  employeeStats?: SummaryEmployeeStats;
+  summaryDayLabel?: string;
+  onEmployeeFreeClick?: () => void;
+  onEmployeePartialClick?: () => void;
+  onEmployeeInUseClick?: () => void;
 };
 
 type Props = {
@@ -157,15 +170,96 @@ function MetricCard({
   return <div className={className}>{inner}</div>;
 }
 
-function SummaryPanel({ utilizationPct, inProgressToday, completedToday, maintenanceCount }: SummaryProps) {
+function SummaryStatButton({
+  label,
+  value,
+  sub,
+  onClick,
+  className,
+}: {
+  label: string;
+  value: number;
+  sub?: string;
+  onClick?: () => void;
+  className?: string;
+}) {
+  const inner = (
+    <>
+      <p className="text-2xl font-bold text-slate-950 tabular-nums">{value}</p>
+      <p className="text-xs font-medium text-slate-600 mt-1">{label}</p>
+      {sub ? <p className="text-[10px] text-blue-600 font-semibold mt-1.5">{sub}</p> : null}
+    </>
+  );
+  const boxClass = cn(
+    'rounded-xl p-3 text-left transition w-full',
+    onClick && 'hover:ring-2 hover:ring-blue-200 cursor-pointer focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100',
+    className ?? 'bg-slate-50',
+  );
+  if (onClick) {
+    return (
+      <button type="button" className={boxClass} onClick={onClick}>
+        {inner}
+      </button>
+    );
+  }
+  return <div className={boxClass}>{inner}</div>;
+}
+
+function SummaryPanel({
+  utilizationPct,
+  inProgressToday,
+  completedToday,
+  maintenanceCount,
+  employeeStats,
+  summaryDayLabel,
+  onEmployeeFreeClick,
+  onEmployeePartialClick,
+  onEmployeeInUseClick,
+}: SummaryProps) {
   return (
     <aside className="space-y-6">
       <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-2">
           <h3 className="font-bold text-slate-950">Today Summary</h3>
-          <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700">Healthy</span>
+          {summaryDayLabel ? (
+            <span className="text-[10px] font-medium text-slate-500 shrink-0">{summaryDayLabel}</span>
+          ) : null}
         </div>
-        <div className="mt-5 space-y-4">
+
+        {employeeStats ? (
+          <div className="mt-4 space-y-3">
+            <div className="flex items-center gap-2 text-sm font-semibold text-slate-800">
+              <Users className="h-4 w-4 text-slate-500" />
+              พนักงาน (ผู้ขับ)
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <SummaryStatButton label="ทั้งหมด" value={employeeStats.total} className="bg-slate-50" />
+              <SummaryStatButton
+                label="ถูกใช้งาน"
+                value={employeeStats.inUse}
+                sub={onEmployeeInUseClick ? 'ดูรายชื่อ' : undefined}
+                onClick={onEmployeeInUseClick}
+                className="bg-blue-50/80 border border-blue-100"
+              />
+              <SummaryStatButton
+                label="ว่างทั้งวัน"
+                value={employeeStats.freeAllDay}
+                sub={onEmployeeFreeClick ? 'ดูว่าใครว่าง' : undefined}
+                onClick={onEmployeeFreeClick}
+                className="bg-emerald-50/90 border border-emerald-100"
+              />
+              <SummaryStatButton
+                label="ว่างบางช่วง"
+                value={employeeStats.partialFree}
+                sub={onEmployeePartialClick ? 'ดูช่วงเวลา' : undefined}
+                onClick={onEmployeePartialClick}
+                className="bg-amber-50/90 border border-amber-100"
+              />
+            </div>
+          </div>
+        ) : null}
+
+        <div className={cn('space-y-4', employeeStats ? 'mt-5 pt-4 border-t border-slate-100' : 'mt-5')}>
           <div>
             <div className="mb-2 flex items-center justify-between text-sm">
               <span className="font-medium text-slate-600">Fleet utilization</span>
@@ -253,10 +347,11 @@ export default function FleetBookingsDashboard({
             {onDayChange && dayValue ? (
               <div className="flex flex-col gap-1 min-w-[11rem]">
                 <Label className="text-xs text-slate-600">วันที่</Label>
-                <DateDmySelect
+                <DateSelectDmyBe
                   value={dayValue}
                   onChange={onDayChange}
-                  selectClassName="h-10 rounded-xl border border-slate-200 bg-white px-2 text-sm font-medium min-w-[3.25rem]"
+                  yearKind="ce"
+                  triggerClassName="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium shadow-sm"
                   aria-label={dayLabel}
                 />
               </div>
