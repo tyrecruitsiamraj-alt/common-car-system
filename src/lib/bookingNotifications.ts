@@ -1,6 +1,7 @@
 import { addDays, format, parseISO, startOfDay } from 'date-fns';
 import { th } from 'date-fns/locale';
 import { isBookingInProgress } from '@/lib/fleetBookingsDashboard';
+import { formatThaiTimeRange } from '@/lib/thaiDateTimeFormat';
 import type { Notification, NotificationType } from '@/types/notification';
 import type { Employee, Vehicle, VehicleBooking } from '@/types';
 
@@ -57,7 +58,7 @@ export function buildInProgressBookingNotifications(
         emp ? `${emp.first_name} ${emp.last_name}`.trim() : 'ผู้ขับ';
       const plate = veh?.plate_no ?? '—';
       const dest = (b.destination || b.notes || '').trim() || 'ไม่ระบุสถานที่';
-      const time = `${format(parseISO(b.starts_at), 'HH:mm', { locale: th })} – ${format(parseISO(b.ends_at), 'HH:mm', { locale: th })}`;
+      const time = formatThaiTimeRange(b.starts_at, b.ends_at);
       const id = notificationIdForBooking(b.id);
 
       return {

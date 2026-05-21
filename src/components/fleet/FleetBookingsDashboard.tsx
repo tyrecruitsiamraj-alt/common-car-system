@@ -14,8 +14,8 @@ import {
 } from 'lucide-react';
 import type { DashboardMetricId } from '@/lib/fleetBookingsDashboard';
 import { cn } from '@/lib/utils';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { DateDmySelect } from '@/components/shared/DateDmySelect';
 
 export type BookingListStatus = 'all' | 'inProgress' | 'completed';
 
@@ -253,16 +253,12 @@ export default function FleetBookingsDashboard({
             {onDayChange && dayValue ? (
               <div className="flex flex-col gap-1 min-w-[11rem]">
                 <Label className="text-xs text-slate-600">วันที่</Label>
-                <div className="relative">
-                  <CalendarDays className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                  <Input
-                    type="date"
-                    className="h-10 rounded-xl pl-9 text-sm font-medium"
-                    value={dayValue}
-                    onChange={(e) => onDayChange(e.target.value)}
-                    aria-label={dayLabel}
-                  />
-                </div>
+                <DateDmySelect
+                  value={dayValue}
+                  onChange={onDayChange}
+                  selectClassName="h-10 rounded-xl border border-slate-200 bg-white px-2 text-sm font-medium min-w-[3.25rem]"
+                  aria-label={dayLabel}
+                />
               </div>
             ) : (
               <button

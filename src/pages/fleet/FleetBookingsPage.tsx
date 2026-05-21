@@ -38,6 +38,13 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { TimeHm24Select } from '@/components/shared/TimeHm24Select';
+import { DateDmySelect } from '@/components/shared/DateDmySelect';
+import {
+  formatThaiDate,
+  formatThaiDateTime,
+  formatThaiTime,
+  formatThaiTimeRange,
+} from '@/lib/thaiDateTimeFormat';
 import BookingAuditHistory from '@/components/fleet/BookingAuditHistory';
 import { diffBookingAuditEntry } from '@/lib/bookingAuditDisplay';
 import { cn } from '@/lib/utils';
@@ -698,7 +705,7 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
     const day = timelineDay;
     const from = setMinutes(setHours(day, h), 0);
     const to = addHours(from, 1);
-    return `${format(from, 'HH:mm')}–${format(to, 'HH:mm')}`;
+    return formatThaiTimeRange(from, to);
   };
 
   const employeesForPlanner = useMemo(() => {
@@ -1194,7 +1201,28 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
 
   const formatEditDt = (local: string) => {
     const d = new Date(local);
-    return Number.isNaN(d.getTime()) ? local : format(d, 'dd/MM/yyyy HH:mm', { locale: th });
+    return Number.isNaN(d.getTime()) ? local : formatThaiDateTime(d);
+  };
+
+  const patchEditStart = (ymd: string, hm: string) => {
+    const next = combineBookYmdHm(ymd, hm);
+    setEditStart(next);
+    const t = new Date(next);
+    const e = new Date(editEnd);
+    if (!Number.isNaN(t.getTime()) && !Number.isNaN(e.getTime()) && e <= t) {
+      setEditEnd(toDatetimeLocalValue(addHours(t, 1)));
+    }
+  };
+
+  const patchEditEnd = (ymd: string, hm: string) => {
+    const next = combineBookYmdHm(ymd, hm);
+    const a = new Date(editStart);
+    const b = new Date(next);
+    if (!Number.isNaN(a.getTime()) && !Number.isNaN(b.getTime()) && b <= a) {
+      setEditEnd(toDatetimeLocalValue(addHours(a, 1)));
+      return;
+    }
+    setEditEnd(next);
   };
 
   const saveEditBooking = async (e: React.FormEvent) => {
@@ -1331,7 +1359,7 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
     try {
       const d = parse(dayValue, 'yyyy-MM-dd', new Date());
       if (isSameDay(d, new Date())) return 'วันนี้';
-      return format(d, 'd MMM yyyy', { locale: th });
+      return formatThaiDate(d);
     } catch {
       return dayValue;
     }
@@ -1532,14 +1560,13 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                 <Label className="text-xs">
                   {viewMode === 'week' ? 'สัปดาห์ (เลือกวันที่ในสัปดาห์)' : 'วันที่'}
                 </Label>
-                <Input
-                  type="date"
+                <DateDmySelect
                   value={dayValue}
-                  onChange={(e) => {
-                    setDayValue(e.target.value);
+                  onChange={(ymd) => {
+                    setDayValue(ymd);
                     if (!isMonitor) setViewMode('day');
                   }}
-                  className="h-9 text-sm"
+                  selectClassName="h-9 rounded-md border border-input bg-background px-1.5 text-sm min-w-[3.25rem]"
                 />
               </div>
             )}
@@ -1837,7 +1864,7 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
             <div className="flex-1 min-h-0 flex flex-col min-w-0 overflow-hidden">
               <div className="shrink-0 px-2 py-2 border-b border-border bg-muted/25">
                 <p className="text-sm font-semibold text-foreground">
-                  วันที่ {format(dayAnchor, 'EEEE d MMMM yyyy', { locale: th })}
+                  วันที่ {format(dayAnchor, 'EEEE', { locale: th })} {formatThaiDate(dayAnchor)}
                 </p>
                 <p className="text-[10px] text-muted-foreground mt-0.5">
                   {isMonitor ? (
@@ -1877,9 +1904,7 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                             >
                               <div className="flex flex-wrap items-start justify-between gap-2">
                                 <p className="text-base font-bold tabular-nums text-foreground tracking-tight">
-                                  {format(parseISO(b.starts_at), 'HH:mm')}
-                                  <span className="text-muted-foreground font-semibold"> – </span>
-                                  {format(bookingEffectiveEnd(b), 'HH:mm')}
+                                  {formatThaiTimeRange(b.starts_at, bookingEffectiveEnd(b))}
                                 </p>
                                 <span
                                   className={cn(
@@ -2208,18 +2233,16 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
           >
             <div className="space-y-1">
               <p className="text-xs font-medium text-foreground">เวลาจอง</p>
-              <p className="text-[10px] text-muted-foreground">เลือกชั่วโมง–นาทีแบบ 24 ชม. (ไม่มี AM/PM) — นาทีทุก 10 นาที</p>
+              <p className="text-[10px] text-muted-foreground">วันที่แบบ วัน/เดือน/ปี · เวลาแบบ 24 ชม. (… น.) — นาทีทุก 10 นาที</p>
               <div className="space-y-3 max-w-lg">
                 <div className="space-y-1.5">
                   <Label className="text-[10px]">เริ่ม</Label>
                   <div className="flex flex-wrap gap-2 items-end">
-                    <Input
-                      type="date"
-                      className="h-8 text-xs min-w-[10.5rem] flex-1"
-                      value={ymdFromDatetimeLocalField(bookStart) ?? ''}
-                      onChange={(e) => {
-                        const ymd = e.target.value;
-                        if (!ymd) return;
+                    <DateDmySelect
+                      className="flex-1 min-w-0"
+                      selectClassName="h-8 rounded-md border border-input bg-background px-1.5 text-xs min-w-[3rem]"
+                      value={ymdFromDatetimeLocalField(bookStart) ?? todayYmd}
+                      onChange={(ymd) => {
                         const next = combineBookYmdHm(ymd, hmFromBookField(bookStart));
                         const t = new Date(next);
                         if (Number.isNaN(t.getTime())) return;
@@ -2257,14 +2280,12 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                 <div className="space-y-1.5">
                   <Label className="text-[10px]">สิ้นสุด</Label>
                   <div className="flex flex-wrap gap-2 items-end">
-                    <Input
-                      type="date"
-                      className="h-8 text-xs min-w-[10.5rem] flex-1"
-                      min={ymdFromDatetimeLocalField(bookStart) ?? undefined}
-                      value={ymdFromDatetimeLocalField(bookEnd) ?? ''}
-                      onChange={(e) => {
-                        const ymd = e.target.value;
-                        if (!ymd) return;
+                    <DateDmySelect
+                      className="flex-1 min-w-0"
+                      selectClassName="h-8 rounded-md border border-input bg-background px-1.5 text-xs min-w-[3rem]"
+                      minYmd={ymdFromDatetimeLocalField(bookStart) ?? undefined}
+                      value={ymdFromDatetimeLocalField(bookEnd) ?? ymdFromDatetimeLocalField(bookStart) ?? todayYmd}
+                      onChange={(ymd) => {
                         const startY = ymdFromDatetimeLocalField(bookStart) ?? todayYmd;
                         if (ymd < startY) {
                           toast.error('วันสิ้นสุดต้องไม่ก่อนวันเริ่ม');
@@ -2423,19 +2444,20 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
       </Dialog>
 
       <Dialog open={editBooking !== null} onOpenChange={(open) => !open && closeEditDialog()}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
+        <DialogContent className="sm:max-w-md max-h-[min(92dvh,720px)] flex flex-col gap-0 p-0 overflow-hidden">
+          <DialogHeader className="shrink-0 px-6 pt-6 pb-2 text-left">
             <DialogTitle>
               {editDialogMode === 'complete' ? 'เสร็จสิ้น — ปรับเวลาก่อนบันทึก' : 'แก้ไขการจอง'}
             </DialogTitle>
             <DialogDescription>
               {editDialogMode === 'complete'
-                ? 'ตรวจสอบหรือแก้ช่วงเวลาจริง (เช่น รถมาไม่ตรงเวลา) แล้วกดบันทึกและเสร็จสิ้น — ระบบบันทึกลงประวัติการแก้ไข'
+                ? 'ปรับวัน–เวลาจริงด้านล่าง แล้วกดปุ่มเขียวที่แถบล่าง (ไม่ต้องเลื่อนหา)'
                 : 'ปรับผู้ขับ รถ ช่วงเวลา สถานที่ที่ไป หรือหมายเหตุ — บันทึกลงประวัติการแก้ไข'}
             </DialogDescription>
           </DialogHeader>
           {editBooking ? (
-            <form onSubmit={(e) => void saveEditBooking(e)} className="space-y-3">
+            <form onSubmit={(e) => void saveEditBooking(e)} className="flex flex-col flex-1 min-h-0">
+              <div className="flex-1 min-h-0 overflow-y-auto px-6 space-y-3 pb-2">
               <div className="space-y-1">
                 <Label className="text-xs">ผู้ขับ</Label>
                 <select
@@ -2479,23 +2501,56 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                       จะบันทึกเป็น เริ่ม {formatEditDt(editStart)} · สิ้นสุด {formatEditDt(editEnd)}
                     </p>
                   )}
-                  {editDialogMode === 'complete' || isBookingInProgress(editBooking) ? (
-                    <p className="text-[10px] text-muted-foreground">
-                      {editDialogMode === 'complete'
-                        ? 'แก้เวลาเริ่ม–สิ้นสุดให้ตรงจริง แล้วกดบันทึกและเสร็จสิ้นด้านล่าง'
-                        : 'ปรับเวลาได้ก่อนกดเสร็จสิ้น (เช่น รถมาไม่ตรงเวลา) — ระบบบันทึกลงประวัติการแก้ไข'}
-                    </p>
-                  ) : null}
                 </div>
               ) : null}
-              <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-1">
-                  <Label className="text-xs">เริ่ม (แก้ไข)</Label>
-                  <Input type="datetime-local" value={editStart} onChange={(e) => setEditStart(e.target.value)} className="h-9 text-xs" required />
+              <div className="space-y-2 rounded-lg border border-border/70 bg-muted/15 p-2.5">
+                <p className="text-xs font-semibold text-foreground">ช่วงเวลา (วัน/เดือน/ปี · น.)</p>
+                <div className="space-y-2">
+                  <Label className="text-[10px] text-muted-foreground">เริ่ม</Label>
+                  <div className="flex flex-wrap gap-2 items-end">
+                    <DateDmySelect
+                      value={ymdFromDatetimeLocalField(editStart) ?? todayYmd}
+                      onChange={(ymd) => patchEditStart(ymd, hmFromBookField(editStart))}
+                      selectClassName="h-9 rounded-md border border-input bg-background px-1.5 text-xs min-w-[3.25rem]"
+                    />
+                    <TimeHm24Select
+                      minuteStep={BOOK_MINUTE_STEP}
+                      value={hmFromBookField(editStart)}
+                      onChange={(hm) => {
+                        const ymd = ymdFromDatetimeLocalField(editStart) ?? todayYmd;
+                        patchEditStart(ymd, hm);
+                      }}
+                      selectClassName="h-9 rounded-md border border-input bg-background px-1.5 text-xs min-w-[3.75rem]"
+                      aria-label="เวลาเริ่ม"
+                    />
+                  </div>
                 </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">สิ้นสุด (แก้ไข)</Label>
-                  <Input type="datetime-local" value={editEnd} onChange={(e) => setEditEnd(e.target.value)} className="h-9 text-xs" required />
+                <div className="space-y-2">
+                  <Label className="text-[10px] text-muted-foreground">สิ้นสุด</Label>
+                  <div className="flex flex-wrap gap-2 items-end">
+                    <DateDmySelect
+                      value={ymdFromDatetimeLocalField(editEnd) ?? ymdFromDatetimeLocalField(editStart) ?? todayYmd}
+                      minYmd={ymdFromDatetimeLocalField(editStart) ?? undefined}
+                      onChange={(ymd) => patchEditEnd(ymd, hmFromBookField(editEnd))}
+                      selectClassName="h-9 rounded-md border border-input bg-background px-1.5 text-xs min-w-[3.25rem]"
+                    />
+                    <TimeHm24Select
+                      minuteStep={BOOK_MINUTE_STEP}
+                      minHm={
+                        (ymdFromDatetimeLocalField(editEnd) ?? '') === (ymdFromDatetimeLocalField(editStart) ?? '')
+                          ? hmFromBookField(editStart)
+                          : undefined
+                      }
+                      value={hmFromBookField(editEnd)}
+                      onChange={(hm) => {
+                        const ymd =
+                          ymdFromDatetimeLocalField(editEnd) ?? ymdFromDatetimeLocalField(editStart) ?? todayYmd;
+                        patchEditEnd(ymd, hm);
+                      }}
+                      selectClassName="h-9 rounded-md border border-input bg-background px-1.5 text-xs min-w-[3.75rem]"
+                      aria-label="เวลาสิ้นสุด"
+                    />
+                  </div>
                 </div>
               </div>
               <DestinationField
@@ -2508,11 +2563,16 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                 <Label className="text-xs">หมายเหตุ</Label>
                 <Input value={editNotes} onChange={(e) => setEditNotes(e.target.value)} className="h-9 text-xs" />
               </div>
-              <div className="space-y-1 pt-1 border-t border-border">
-                <Label className="text-xs font-medium">ประวัติการแก้ไข</Label>
-                <BookingAuditHistory bookingId={editBooking.id} empMap={empMap} vehMap={vehMap} />
+              <details className="rounded-md border border-border/60 text-xs" open={editDialogMode !== 'complete'}>
+                <summary className="cursor-pointer select-none px-2 py-2 font-medium hover:bg-muted/30">
+                  ประวัติการแก้ไข
+                </summary>
+                <div className="px-2 pb-2 border-t border-border/50">
+                  <BookingAuditHistory bookingId={editBooking.id} empMap={empMap} vehMap={vehMap} />
+                </div>
+              </details>
               </div>
-              <div className="flex flex-wrap gap-2 justify-between pt-1">
+              <div className="shrink-0 border-t border-border bg-background px-6 py-3 flex flex-wrap gap-2 justify-between shadow-[0_-4px_12px_rgba(0,0,0,0.06)]">
                 {editDialogMode === 'complete' && canDelete ? (
                   <Button
                     type="button"
@@ -2523,9 +2583,9 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                     ยกเลิกการจอง
                   </Button>
                 ) : (
-                  <span />
+                  <span className="min-w-[1px]" />
                 )}
-                <div className="flex gap-2 ml-auto">
+                <div className="flex flex-wrap gap-2 ml-auto">
                   <Button type="button" variant="outline" onClick={closeEditDialog} disabled={saving}>
                     ปิด
                   </Button>

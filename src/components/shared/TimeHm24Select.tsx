@@ -147,6 +147,7 @@ export const TimeHm24Select: React.FC<TimeHm24SelectProps> = ({
         <select disabled className={`${selectClassName} opacity-50`} value="">
           <option value="">—</option>
         </select>
+        <span className="text-xs font-medium text-muted-foreground select-none shrink-0">น.</span>
       </div>
     );
   }
@@ -210,6 +211,7 @@ export const TimeHm24Select: React.FC<TimeHm24SelectProps> = ({
           </option>
         ))}
       </select>
+      <span className="text-xs font-medium text-muted-foreground select-none shrink-0">น.</span>
     </div>
   );
 };

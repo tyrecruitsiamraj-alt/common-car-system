@@ -1,4 +1,5 @@
-import { format, parseISO } from 'date-fns';
+import { parseISO } from 'date-fns';
+import { formatThaiDateTime } from '@/lib/thaiDateTimeFormat';
 import type { Employee, Vehicle, VehicleBookingAudit } from '@/types';
 
 const FIELD_LABELS: Record<string, string> = {
@@ -29,7 +30,7 @@ export function formatBookingAuditValue(
   }
   if (key === 'starts_at' || key === 'ends_at') {
     try {
-      return format(parseISO(s), 'dd/MM/yyyy HH:mm');
+      return formatThaiDateTime(parseISO(s));
     } catch {
       return s;
     }

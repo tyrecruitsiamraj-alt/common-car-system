@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { format, parseISO } from 'date-fns';
+import { parseISO } from 'date-fns';
+import { formatThaiDateTime } from '@/lib/thaiDateTimeFormat';
 import { apiFetch } from '@/lib/apiFetch';
 import { diffBookingAuditEntry } from '@/lib/bookingAuditDisplay';
 import type { Employee, Vehicle, VehicleBookingAudit } from '@/types';
@@ -62,7 +63,7 @@ export default function BookingAuditHistory({ bookingId, empMap, vehMap }: Props
               {ACTION_LABEL[a.action]}
               <span className="text-muted-foreground font-normal">
                 {' '}
-                · {format(parseISO(a.created_at), 'dd/MM HH:mm')} · {a.user_name}
+                · {formatThaiDateTime(a.created_at)} · {a.user_name}
               </span>
             </div>
             {diffs.length > 0 ? (

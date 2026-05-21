@@ -1,5 +1,6 @@
 import { addDays, addMinutes, format, isSameDay, parseISO, startOfDay } from 'date-fns';
 import { th } from 'date-fns/locale';
+import { formatThaiDate, formatThaiTimeRange } from '@/lib/thaiDateTimeFormat';
 import type {
   BookingListStatus,
   DashboardBookingRow,
@@ -43,7 +44,7 @@ function formatBookingDateLabel(startsAt: string): string {
   const today = startOfDay(new Date());
   if (isSameDay(d, today)) return 'วันนี้';
   if (isSameDay(d, addDays(today, 1))) return 'พรุ่งนี้';
-  return format(d, 'd MMM', { locale: th });
+  return formatThaiDate(d);
 }
 
 export function bookingToDashboardRow(
@@ -76,7 +77,7 @@ export function bookingToDashboardRow(
     plate,
     driver: empLabel(b.employee_id),
     date: formatBookingDateLabel(b.starts_at),
-    time: `${format(parseISO(b.starts_at), 'HH:mm')} - ${format(bookingEffectiveEnd(b), 'HH:mm')}`,
+    time: formatThaiTimeRange(b.starts_at, bookingEffectiveEnd(b)),
     status: deriveBookingListStatus(b),
     subtitle: subtitleParts.join(' · ') || route,
   };
@@ -105,7 +106,7 @@ function bookingToDetailRow(
     driverName: empLabel(b.employee_id),
     plate: v?.plate_no ?? '—',
     vehicleLabel: v?.label?.trim() || '—',
-    time: `${format(parseISO(b.starts_at), 'HH:mm')} - ${format(bookingEffectiveEnd(b), 'HH:mm')}`,
+    time: formatThaiTimeRange(b.starts_at, bookingEffectiveEnd(b)),
     destination: dest || note || '—',
     status: deriveBookingListStatus(b),
   };
