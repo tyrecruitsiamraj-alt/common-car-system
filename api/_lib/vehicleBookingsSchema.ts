@@ -3,6 +3,10 @@ import { tableInAppSchema } from './schema.js';
 
 let completedAtColumnExists: boolean | null = null;
 
+export function resetVehicleBookingCompletedAtCache(): void {
+  completedAtColumnExists = null;
+}
+
 /** ตรวจว่ามีคอลัมน์ completed_at (migration 027) — cache ต่อ process */
 export async function hasVehicleBookingCompletedAt(): Promise<boolean> {
   if (completedAtColumnExists !== null) return completedAtColumnExists;
@@ -26,6 +30,20 @@ export async function hasVehicleBookingCompletedAt(): Promise<boolean> {
     completedAtColumnExists = false;
   }
   return completedAtColumnExists;
+}
+
+/** สร้างคอลัมน์ completed_at ถ้ายังไม่มี (กดเสร็จสิ้นต้องใช้คอลัมน์นี้) */
+export async function ensureVehicleBookingCompletedAt(): Promise<boolean> {
+  if (await hasVehicleBookingCompletedAt()) return true;
+  try {
+    const tbl = tableInAppSchema('vehicle_bookings');
+    await dbQuery(`alter table ${tbl} add column if not exists completed_at timestamptz null`);
+    completedAtColumnExists = true;
+    return true;
+  } catch {
+    completedAtColumnExists = false;
+    return false;
+  }
 }
 
 export function bookingEffectiveEndSql(useCompletedAt: boolean): string {

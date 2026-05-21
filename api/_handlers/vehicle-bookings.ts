@@ -16,6 +16,7 @@ import {
 import {
   bookingEffectiveEndSql,
   bookingEffectiveEndSqlQualified,
+  ensureVehicleBookingCompletedAt,
   hasVehicleBookingCompletedAt,
 } from '../_lib/vehicleBookingsSchema.js';
 
@@ -231,7 +232,7 @@ async function handler(req: AuthedReq, res: ApiRes): Promise<void> {
               select 1 from ${tbl} vb
               where vb.vehicle_id = v.id
                 and vb.starts_at < $2::timestamptz
-                and coalesce(vb.completed_at, vb.ends_at) > $1::timestamptz
+                and ${vbEffectiveEnd} > $1::timestamptz
                 and coalesce(vb.status, 'active') = 'active'
             )
           order by v.plate_no
@@ -348,14 +349,21 @@ async function handler(req: AuthedReq, res: ApiRes): Promise<void> {
       }
 
       const markCompleted = b.mark_completed === true;
-      if (markCompleted && useCompletedAt && cur.completed_at) {
-        return sendError(res, 409, 'Conflict', 'การจองนี้เสร็จสิ้นแล้ว');
-      }
-      if (markCompleted && !useCompletedAt) {
-        const curEnd = new Date(cur.ends_at);
-        if (curEnd <= new Date()) {
-          return sendError(res, 409, 'Conflict', 'การจองนี้เสร็จสิ้นแล้ว');
+      let supportsCompletedAt = useCompletedAt;
+      if (markCompleted) {
+        supportsCompletedAt = await ensureVehicleBookingCompletedAt();
+        if (!supportsCompletedAt) {
+          return sendError(
+            res,
+            503,
+            'Schema not ready',
+            'ยังไม่มีคอลัมน์ completed_at — รัน npm run db:migrate บนฐานข้อมูล production',
+          );
         }
+      }
+      const patchEffectiveEnd = bookingEffectiveEndSql(supportsCompletedAt);
+      if (markCompleted && cur.completed_at) {
+        return sendError(res, 409, 'Conflict', 'การจองนี้เสร็จสิ้นแล้ว');
       }
 
       const employee_id = b.employee_id !== undefined ? getString(b.employee_id) : cur.employee_id;
@@ -369,13 +377,17 @@ async function handler(req: AuthedReq, res: ApiRes): Promise<void> {
       if (markCompleted) {
         const now = new Date();
         completedAt = now;
-        if (!starts) starts = new Date(cur.starts_at);
-        if (!ends) ends = new Date(cur.ends_at);
-        if (now > starts) ends = now;
-        else ends = new Date(starts.getTime() + 60_000);
-        const plannedEnd = new Date(cur.ends_at);
-        if (plannedEnd < ends) ends = plannedEnd;
-        if (ends <= starts) ends = new Date(starts.getTime() + 60_000);
+        const userSetEnds = b.ends_at !== undefined;
+        const userSetStarts = b.starts_at !== undefined;
+        if (!userSetStarts && !starts) starts = new Date(cur.starts_at);
+        if (!userSetEnds) {
+          if (!ends) ends = new Date(cur.ends_at);
+          if (now > starts) ends = now;
+          else ends = new Date(starts.getTime() + 60_000);
+          const plannedEnd = new Date(cur.ends_at);
+          if (plannedEnd < ends) ends = plannedEnd;
+          if (ends <= starts) ends = new Date(starts.getTime() + 60_000);
+        }
       }
 
       if (!employee_id || !vehicle_id || !starts || !ends) {
@@ -383,14 +395,14 @@ async function handler(req: AuthedReq, res: ApiRes): Promise<void> {
       }
       if (starts >= ends) return sendError(res, 400, 'Bad request', 'ends_at must be after starts_at');
 
-      if (await overlapVehicle(vehicle_id, starts, ends, id, effectiveEnd)) {
+      if (await overlapVehicle(vehicle_id, starts, ends, id, patchEffectiveEnd)) {
         return sendError(res, 409, 'Conflict', 'รถคันนี้ถูกจองในช่วงเวลานี้แล้ว');
       }
-      if (await overlapEmployee(employee_id, starts, ends, id, effectiveEnd)) {
+      if (await overlapEmployee(employee_id, starts, ends, id, patchEffectiveEnd)) {
         return sendError(res, 409, 'Conflict', 'ผู้ขับคนนี้มีการจองทับช่วงเวลานี้แล้ว');
       }
 
-      const { rows } = useCompletedAt
+      const { rows } = supportsCompletedAt
         ? await dbQuery<BookingRow>(
             `
         update ${tbl} set

@@ -424,6 +424,8 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
   const [editNotes, setEditNotes] = useState('');
   /** ช่วงเวลาเดิมตอนเปิดแก้ไข — แสดงเทียบกับค่าที่กำลังแก้ */
   const [editTimeBaseline, setEditTimeBaseline] = useState<{ starts: string; ends: string } | null>(null);
+  /** แก้ไขทั่วไป หรือ เปิดจากปุ่มเสร็จสิ้น (ต้องปรับเวลาก่อนบันทึก) */
+  const [editDialogMode, setEditDialogMode] = useState<'edit' | 'complete'>('edit');
 
   useEffect(() => {
     if (mode === 'book' && viewMode !== 'day') {
@@ -493,7 +495,6 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
   const refresh = useCallback(async () => {
     if (!listRange) {
       setBookings([]);
-      setTodayBookings([]);
       setAvailability(null);
       setAvailabilityError(null);
       setLoading(false);
@@ -1133,12 +1134,18 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
         body: JSON.stringify({ id: b.id, mark_completed: true }),
       });
       if (!r.ok) throw new Error(await parseApiError(r));
+      const updated = (await r.json()) as VehicleBooking;
+      setBookings((prev) => prev.map((x) => (x.id === updated.id ? updated : x)));
       toast.success('บันทึกเสร็จสิ้นแล้ว');
       setEmpDayDialog(null);
       await refresh();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'บันทึกไม่สำเร็จ');
     }
+  };
+
+  const mergeBookingFromApi = (updated: VehicleBooking) => {
+    setBookings((prev) => prev.map((x) => (x.id === updated.id ? updated : x)));
   };
 
   const cancelBooking = async (id: string) => {
@@ -1148,6 +1155,7 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
       const r = await apiFetch(`/api/vehicle-bookings?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
       if (!r.ok) throw new Error(await parseApiError(r));
       toast.success('ยกเลิกการจองแล้ว — จองช่วงนี้ใหม่ได้');
+      if (editBooking?.id === id) closeEditDialog();
       setEmpDayDialog(null);
       await refresh();
     } catch (err) {
@@ -1155,9 +1163,16 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
     }
   };
 
-  const openEditBooking = (b: VehicleBooking) => {
+  const closeEditDialog = () => {
+    setEditBooking(null);
+    setEditTimeBaseline(null);
+    setEditDialogMode('edit');
+  };
+
+  const openEditBooking = (b: VehicleBooking, mode: 'edit' | 'complete' = 'edit') => {
     const startLocal = toDatetimeLocalValue(parseISO(b.starts_at));
     const endLocal = toDatetimeLocalValue(parseISO(b.ends_at));
+    setEditDialogMode(mode);
     setEditBooking(b);
     setEditEmp(b.employee_id);
     setEditVeh(b.vehicle_id);
@@ -1166,6 +1181,15 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
     setEditTimeBaseline({ starts: startLocal, ends: endLocal });
     setEditDestination(b.destination ?? '');
     setEditNotes(b.notes ?? '');
+  };
+
+  const openCompleteBooking = (b: VehicleBooking) => {
+    if (!canEdit) return;
+    if (deriveBookingListStatus(b) === 'completed') {
+      toast.message('การจองนี้เสร็จสิ้นแล้ว');
+      return;
+    }
+    openEditBooking(b, 'complete');
   };
 
   const formatEditDt = (local: string) => {
@@ -1181,6 +1205,8 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
       toast.error('ช่วงเวลาไม่ถูกต้อง');
       return;
     }
+    const completing = editDialogMode === 'complete';
+    if (completing && !window.confirm('บันทึกช่วงเวลาที่แก้แล้วระบุว่าเสร็จสิ้น?')) return;
     setSaving(true);
     try {
       const r = await apiFetch('/api/vehicle-bookings', {
@@ -1194,13 +1220,20 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
           ends_at: win.to.toISOString(),
           destination: editDestination.trim() || undefined,
           notes: editNotes.trim() || undefined,
+          ...(completing ? { mark_completed: true } : {}),
         }),
       });
       if (!r.ok) throw new Error(await parseApiError(r));
-      toast.success('บันทึกการแก้ไขแล้ว');
+      const updated = (await r.json()) as VehicleBooking;
+      mergeBookingFromApi(updated);
+      if (completing && !updated.completed_at) {
+        toast.error('บันทึกแล้วแต่สถานะเสร็จสิ้นไม่ติด — ติดต่อผู้ดูแลระบบ (คอลัมน์ completed_at)');
+        await refresh();
+        return;
+      }
+      toast.success(completing ? 'บันทึกเวลาและเสร็จสิ้นแล้ว' : 'บันทึกการแก้ไขแล้ว');
       if (editDestination.trim()) addDestinationSuggestion(editDestination);
-      setEditBooking(null);
-      setEditTimeBaseline(null);
+      closeEditDialog();
       setEmpDayDialog(null);
       await refresh();
     } catch (err) {
@@ -1421,12 +1454,14 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="rounded-xl">
                 {canEdit && inProgress ? (
-                  <DropdownMenuItem onClick={() => void completeBooking(b)}>เสร็จสิ้น</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => openCompleteBooking(b)}>
+                    {isMonitor ? 'เสร็จสิ้น (ปรับเวลาก่อน)' : 'เสร็จสิ้น'}
+                  </DropdownMenuItem>
                 ) : null}
                 {canEdit ? (
                   <DropdownMenuItem onClick={() => openEditBooking(b)}>แก้ไขการจอง</DropdownMenuItem>
                 ) : null}
-                {canDelete && !isMonitor ? (
+                {canDelete ? (
                   <DropdownMenuItem
                     className="text-destructive focus:text-destructive"
                     onClick={() => void cancelBooking(b.id)}
@@ -2387,19 +2422,17 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
         </DialogContent>
       </Dialog>
 
-      <Dialog
-        open={editBooking !== null}
-        onOpenChange={(open) => {
-          if (!open) {
-            setEditBooking(null);
-            setEditTimeBaseline(null);
-          }
-        }}
-      >
+      <Dialog open={editBooking !== null} onOpenChange={(open) => !open && closeEditDialog()}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>แก้ไขการจอง</DialogTitle>
-            <DialogDescription>ปรับผู้ขับ รถ ช่วงเวลา สถานที่ที่ไป หรือหมายเหตุ — บันทึกลงประวัติการแก้ไข</DialogDescription>
+            <DialogTitle>
+              {editDialogMode === 'complete' ? 'เสร็จสิ้น — ปรับเวลาก่อนบันทึก' : 'แก้ไขการจอง'}
+            </DialogTitle>
+            <DialogDescription>
+              {editDialogMode === 'complete'
+                ? 'ตรวจสอบหรือแก้ช่วงเวลาจริง (เช่น รถมาไม่ตรงเวลา) แล้วกดบันทึกและเสร็จสิ้น — ระบบบันทึกลงประวัติการแก้ไข'
+                : 'ปรับผู้ขับ รถ ช่วงเวลา สถานที่ที่ไป หรือหมายเหตุ — บันทึกลงประวัติการแก้ไข'}
+            </DialogDescription>
           </DialogHeader>
           {editBooking ? (
             <form onSubmit={(e) => void saveEditBooking(e)} className="space-y-3">
@@ -2446,9 +2479,11 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                       จะบันทึกเป็น เริ่ม {formatEditDt(editStart)} · สิ้นสุด {formatEditDt(editEnd)}
                     </p>
                   )}
-                  {isBookingInProgress(editBooking) ? (
+                  {editDialogMode === 'complete' || isBookingInProgress(editBooking) ? (
                     <p className="text-[10px] text-muted-foreground">
-                      ปรับเวลาได้ก่อนกดเสร็จสิ้น (เช่น รถมาไม่ตรงเวลา) — ระบบบันทึกลงประวัติการแก้ไข
+                      {editDialogMode === 'complete'
+                        ? 'แก้เวลาเริ่ม–สิ้นสุดให้ตรงจริง แล้วกดบันทึกและเสร็จสิ้นด้านล่าง'
+                        : 'ปรับเวลาได้ก่อนกดเสร็จสิ้น (เช่น รถมาไม่ตรงเวลา) — ระบบบันทึกลงประวัติการแก้ไข'}
                     </p>
                   ) : null}
                 </div>
@@ -2477,13 +2512,35 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                 <Label className="text-xs font-medium">ประวัติการแก้ไข</Label>
                 <BookingAuditHistory bookingId={editBooking.id} empMap={empMap} vehMap={vehMap} />
               </div>
-              <div className="flex gap-2 justify-end pt-1">
-                <Button type="button" variant="outline" onClick={() => setEditBooking(null)}>
-                  ปิด
-                </Button>
-                <Button type="submit" disabled={saving}>
-                  {saving ? 'กำลังบันทึก…' : 'บันทึก'}
-                </Button>
+              <div className="flex flex-wrap gap-2 justify-between pt-1">
+                {editDialogMode === 'complete' && canDelete ? (
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    disabled={saving}
+                    onClick={() => void cancelBooking(editBooking.id)}
+                  >
+                    ยกเลิกการจอง
+                  </Button>
+                ) : (
+                  <span />
+                )}
+                <div className="flex gap-2 ml-auto">
+                  <Button type="button" variant="outline" onClick={closeEditDialog} disabled={saving}>
+                    ปิด
+                  </Button>
+                  <Button
+                    type="submit"
+                    disabled={saving}
+                    className={editDialogMode === 'complete' ? 'bg-emerald-600 hover:bg-emerald-700' : undefined}
+                  >
+                    {saving
+                      ? 'กำลังบันทึก…'
+                      : editDialogMode === 'complete'
+                        ? 'บันทึกและเสร็จสิ้น'
+                        : 'บันทึก'}
+                  </Button>
+                </div>
               </div>
             </form>
           ) : null}
