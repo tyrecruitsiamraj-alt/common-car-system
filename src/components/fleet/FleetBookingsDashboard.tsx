@@ -18,6 +18,7 @@ import type { DashboardMetricId } from '@/lib/fleetBookingsDashboard';
 import { cn } from '@/lib/utils';
 import { Label } from '@/components/ui/label';
 import DateSelectDmyBe from '@/components/shared/DateSelectDmyBe';
+import ExportExcelButton from '@/components/shared/ExportExcelButton';
 
 export type BookingListStatus = 'all' | 'inProgress' | 'completed' | 'cancelled';
 
@@ -124,6 +125,8 @@ type Props = {
   showSummary?: boolean;
   showBookingTable?: boolean;
   onCreateBooking?: () => void;
+  onExportExcel?: () => void;
+  exportExcelDisabled?: boolean;
   onMetricClick?: (id: DashboardMetricId) => void;
   renderBookingMenu?: (bookingId: string) => React.ReactNode;
   /** คำอธิบายใต้หัวข้อตาราง Booking Requests */
@@ -348,6 +351,8 @@ export default function FleetBookingsDashboard({
   showSummary = true,
   showBookingTable = true,
   onCreateBooking,
+  onExportExcel,
+  exportExcelDisabled,
   onMetricClick,
   renderBookingMenu,
   bookingsScopeLabel,
@@ -382,6 +387,14 @@ export default function FleetBookingsDashboard({
                 <CalendarDays className="h-4 w-4" /> {dayLabel}
               </button>
             )}
+            {onExportExcel ? (
+              <ExportExcelButton
+                onClick={onExportExcel}
+                disabled={exportExcelDisabled}
+                label="Export Excel"
+                className="h-10 rounded-xl border-slate-200 shadow-sm"
+              />
+            ) : null}
             {!isMonitor && onCreateBooking ? (
               <button
                 type="button"

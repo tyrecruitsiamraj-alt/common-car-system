@@ -3,6 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import PageHeader from '@/components/shared/PageHeader';
 import AppPage from '@/components/layout/AppPage';
 import QuickAddDriverForm from '@/components/wl/QuickAddDriverForm';
+import ExportExcelButton from '@/components/shared/ExportExcelButton';
+import { exportDriversExcel } from '@/lib/fleetExcelExport';
+import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import type { Candidate, Employee, EmployeeStatus } from '@/types';
 import { Search } from 'lucide-react';
@@ -126,6 +129,19 @@ const WLEmployees: React.FC = () => {
       );
   }, [employees, filter, search]);
 
+  const handleExportDriversExcel = useCallback(() => {
+    if (filtered.length === 0) {
+      toast.message('ไม่มีข้อมูลให้ส่งออก');
+      return;
+    }
+    try {
+      exportDriversExcel(filtered);
+      toast.success(`ส่งออก Excel แล้ว (${filtered.length} คน)`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'ส่งออก Excel ไม่สำเร็จ');
+    }
+  }, [filtered]);
+
   return (
     <AppPage maxWidth="4xl" panel>
       <PageHeader
@@ -134,6 +150,12 @@ const WLEmployees: React.FC = () => {
         subtitle={`${filtered.length} คน — เพิ่มชื่อได้จากฟอร์มด้านล่าง`}
         backPath="/fleet"
         className="mb-6"
+        actions={
+          <ExportExcelButton
+            onClick={handleExportDriversExcel}
+            disabled={loading || filtered.length === 0}
+          />
+        }
       />
 
       <div className="space-y-4">

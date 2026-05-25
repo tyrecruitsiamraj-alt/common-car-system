@@ -13,25 +13,21 @@ import { getCandidates, hydrateCandidateStaffing } from '@/lib/demoStorage';
 import { mergeCandidateSources } from '@/lib/mergeCandidates';
 import { cn } from '@/lib/utils';
 import { subDays } from 'date-fns';
+import ExportExcelButton from '@/components/shared/ExportExcelButton';
 import {
   buildDriverBookingRows,
   buildDriverDestinationStats,
   buildDriverVehicleUsage,
   countEarlyBookings,
   countLateBookings,
+  DRIVER_BOOKING_TIMING_LABEL,
   type DriverBookingTiming,
 } from '@/lib/driverBookingHistory';
+import { exportDriverProfileExcel } from '@/lib/fleetExcelExport';
+import { toast } from 'sonner';
 import { bookingEffectiveEnd } from '@/lib/fleetBookingsDashboard';
 
 const HISTORY_DAYS = 365;
-
-const TIMING_LABEL: Record<DriverBookingTiming, string> = {
-  early: 'ก่อนเวลา',
-  late: 'เกินเวลา',
-  on_time: 'ตรงเวลา',
-  in_progress: 'กำลังดำเนินการ',
-  cancelled: 'ยกเลิก',
-};
 
 const TIMING_CLASS: Record<DriverBookingTiming, string> = {
   early: 'bg-emerald-500/15 text-emerald-800 ring-emerald-600/25',
@@ -218,6 +214,23 @@ const EmployeeProfile: React.FC = () => {
   );
   const destinations = useMemo(() => buildDriverDestinationStats(bookings), [bookings]);
 
+  const handleExportProfileExcel = useCallback(() => {
+    if (!employee) return;
+    try {
+      exportDriverProfileExcel(
+        employee,
+        jobRows,
+        vehicleUsage,
+        destinations,
+        earlyCount,
+        lateCount,
+      );
+      toast.success('ส่งออก Excel แล้ว');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'ส่งออก Excel ไม่สำเร็จ');
+    }
+  }, [employee, jobRows, vehicleUsage, destinations, earlyCount, lateCount]);
+
   if (loading) {
     return (
       <AppPage maxWidth="3xl">
@@ -262,7 +275,16 @@ const EmployeeProfile: React.FC = () => {
 
   return (
     <AppPage maxWidth="3xl" panel>
-      <PageHeader title="Driver" backPath="/fleet/drivers" />
+      <PageHeader
+        title="Driver"
+        backPath="/fleet/drivers"
+        actions={
+          <ExportExcelButton
+            onClick={handleExportProfileExcel}
+            disabled={historyLoading}
+          />
+        }
+      />
 
       <div className="rounded-2xl border border-border/80 bg-white/80 p-5 shadow-sm space-y-3">
         {employee.title_prefix?.trim() ? (
@@ -360,7 +382,7 @@ const EmployeeProfile: React.FC = () => {
                       TIMING_CLASS[timing],
                     )}
                   >
-                    {TIMING_LABEL[timing]}
+                    {DRIVER_BOOKING_TIMING_LABEL[timing]}
                   </span>
                 </div>
                 <p className="text-sm text-foreground">

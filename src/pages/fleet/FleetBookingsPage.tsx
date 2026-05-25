@@ -22,6 +22,7 @@ import {
   isBookingInProgress,
 } from '@/lib/fleetBookingsDashboard';
 import { notifyFleetBookingsChanged } from '@/lib/bookingNotifications';
+import { exportBookingsExcel } from '@/lib/fleetExcelExport';
 import {
   addDestinationSuggestion,
   mergeDestinationsFromBookings,
@@ -1426,6 +1427,24 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
     () => filterDashboardBookings(dashboardRows, listQuery, listStatusFilter),
     [dashboardRows, listQuery, listStatusFilter],
   );
+
+  const bookingsToExport = useMemo(() => {
+    const ids = new Set(filteredDashboardRows.map((r) => r.rawId));
+    return bookingsForTable.filter((b) => ids.has(b.id));
+  }, [filteredDashboardRows, bookingsForTable]);
+
+  const handleExportBookingsExcel = useCallback(() => {
+    if (bookingsToExport.length === 0) {
+      toast.message('ไม่มีข้อมูลให้ส่งออก');
+      return;
+    }
+    try {
+      exportBookingsExcel(bookingsToExport, empLabel, vehLabel, dayValue);
+      toast.success(`ส่งออก Excel แล้ว (${bookingsToExport.length} รายการ)`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'ส่งออก Excel ไม่สำเร็จ');
+    }
+  }, [bookingsToExport, empLabel, vehLabel, dayValue]);
   const dashboardMetrics = useMemo(
     () => computeDashboardMetrics(selectedDayBookings, vehiclesList, selectedDay),
     [selectedDayBookings, vehiclesList, selectedDay],
@@ -1634,6 +1653,8 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
             : undefined
         }
         onCreateBooking={isMonitor ? undefined : () => setCreateDialogOpen(true)}
+        onExportExcel={handleExportBookingsExcel}
+        exportExcelDisabled={loading || bookingsToExport.length === 0}
         onMetricClick={isMonitor ? handleMetricClick : undefined}
         bookingsScopeLabel={isMonitor ? `เฉพาะวันที่ ${dayLabel}` : undefined}
         renderBookingMenu={(id) => {

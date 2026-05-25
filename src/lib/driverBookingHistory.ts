@@ -3,6 +3,14 @@ import type { Vehicle, VehicleBooking } from '@/types';
 
 export type DriverBookingTiming = 'early' | 'late' | 'on_time' | 'in_progress' | 'cancelled';
 
+export const DRIVER_BOOKING_TIMING_LABEL: Record<DriverBookingTiming, string> = {
+  early: 'ก่อนเวลา',
+  late: 'เกินเวลา',
+  on_time: 'ตรงเวลา',
+  in_progress: 'กำลังดำเนินการ',
+  cancelled: 'ยกเลิก',
+};
+
 export type DriverBookingRow = {
   booking: VehicleBooking;
   timing: DriverBookingTiming;
