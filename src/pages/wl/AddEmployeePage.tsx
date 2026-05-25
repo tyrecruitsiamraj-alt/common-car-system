@@ -37,7 +37,7 @@ const AddEmployeePage: React.FC = () => {
 
   return (
     <>
-      <PageHeader title="เพิ่มชื่อผู้ขับ" subtitle="กรอกชื่อ นามสกุล และเบอร์โทร" backPath="/fleet/drivers" />
+      <PageHeader title="Add Driver" subtitle="กรอกชื่อ นามสกุล และเบอร์โทร" backPath="/fleet/drivers" />
       <div className="px-4 md:px-6">
         <form
           onSubmit={(e) => void handleSave(e)}

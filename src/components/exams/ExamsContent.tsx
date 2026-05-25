@@ -48,7 +48,7 @@ const ExamsContent: React.FC = () => (
             <Button asChild className="rounded-2xl h-11 w-full sm:w-auto sm:min-w-[200px]">
               <a href={item.url} target="_blank" rel="noopener noreferrer">
                 <ExternalLink className="h-4 w-4 mr-2" />
-                เข้าทำข้อสอบ
+                Open exam
               </a>
             </Button>
           </div>

@@ -9,10 +9,10 @@ export type DockNavItem = {
 
 /** เมนูหลัก 5 รายการ — ลำดับต้องตรงกับ bottom dock / header */
 export const DOCK_NAV_ITEMS: DockNavItem[] = [
-  { path: '/fleet/bookings', label: 'จองรถ', icon: CalendarPlus },
-  { path: '/fleet/monitor', label: 'ดูภาพรวม', icon: LayoutGrid },
-  { path: '/fleet/vehicles', label: 'รายการรถ', icon: Car },
-  { path: '/fleet/drivers', label: 'ผู้ขับ', icon: Users },
+  { path: '/fleet/bookings', label: 'Bookings', icon: CalendarPlus },
+  { path: '/fleet/monitor', label: 'Monitor', icon: LayoutGrid },
+  { path: '/fleet/vehicles', label: 'Vehicles', icon: Car },
+  { path: '/fleet/drivers', label: 'Drivers', icon: Users },
   { path: '/dashboard', label: 'Dashboard', icon: BarChart3 },
 ];
 

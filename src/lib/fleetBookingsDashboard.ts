@@ -201,7 +201,7 @@ export function computeDashboardMetrics(
     else inProgress += 1;
   }
   const maintenance = vehicles.filter((v) => v.is_active === false).length;
-  const dayBookingLabel = isSameDay(day, new Date()) ? 'จองวันนี้' : 'จองในวันที่เลือก';
+  const dayBookingLabel = isSameDay(day, new Date()) ? "Today's bookings" : 'Selected day';
   const activeOnDay = onDay.length - cancelled;
 
   return [
@@ -210,39 +210,39 @@ export function computeDashboardMetrics(
       icon: CalendarDays,
       label: dayBookingLabel,
       value: String(activeOnDay),
-      helper: 'รายการ',
+      helper: 'bookings',
       clickable: true,
     },
     {
       id: 'inProgress',
       icon: Clock3,
-      label: 'กำลังดำเนินการ',
+      label: 'In progress',
       value: String(inProgress),
-      helper: 'งาน',
+      helper: 'bookings',
       clickable: true,
     },
     {
       id: 'completed',
       icon: CheckCircle2,
-      label: 'เสร็จสิ้น',
+      label: 'Completed',
       value: String(completed),
-      helper: 'งาน',
+      helper: 'bookings',
       clickable: true,
     },
     {
       id: 'cancelled',
       icon: Ban,
-      label: 'ยกเลิก',
+      label: 'Cancelled',
       value: String(cancelled),
-      helper: 'ใบ',
+      helper: 'bookings',
       clickable: true,
     },
     {
       id: 'maintenance',
       icon: Wrench,
-      label: 'รถซ่อมบำรุง',
+      label: 'Maintenance',
       value: String(maintenance),
-      helper: 'คัน',
+      helper: 'vehicles',
       clickable: true,
     },
   ];

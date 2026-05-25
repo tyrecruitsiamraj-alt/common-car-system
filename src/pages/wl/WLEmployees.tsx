@@ -130,7 +130,7 @@ const WLEmployees: React.FC = () => {
     <AppPage maxWidth="4xl" panel>
       <PageHeader
         showBrandKicker
-        title="ผู้ขับ / ผู้ใช้รถ"
+        title="Drivers"
         subtitle={`${filtered.length} คน — เพิ่มชื่อได้จากฟอร์มด้านล่าง`}
         backPath="/fleet"
         className="mb-6"

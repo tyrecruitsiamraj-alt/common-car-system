@@ -39,10 +39,10 @@ const ExamsPage: React.FC = () => {
           </Link>
           <div className="flex items-center justify-center gap-2 text-foreground">
             <ClipboardList className="h-5 w-5 text-primary" />
-            <h1 className="text-xl font-bold">ข้อสอบ</h1>
+            <h1 className="text-xl font-bold">Exams</h1>
           </div>
           <p className="text-sm text-muted-foreground">
-            อ่านหัวข้อการอบรมแล้วกดเข้าทำข้อสอบ
+            Read training topics, then open the exam form
           </p>
         </div>
 

@@ -159,8 +159,8 @@ const FleetVehicles: React.FC = () => {
     <AppPage maxWidth="2xl" panel>
       <PageHeader
         showBrandKicker
-        title="รายการรถ"
-        subtitle="ทะเบียนรถ — เลือกรุ่น Toyota จากรายการ · แก้ไขได้หลังบันทึก"
+        title="Vehicles"
+        subtitle="Plate numbers — pick a Toyota model from the list · editable after save"
         backPath="/fleet"
         className="mb-6"
       />

@@ -34,19 +34,19 @@ export const BOOKING_STATUS_META: Record<
   BookingListStatus,
   { label: string; dot: string; pill: string }
 > = {
-  all: { label: 'ทั้งหมด', dot: 'bg-slate-400', pill: 'bg-slate-100 text-slate-700 ring-slate-200' },
+  all: { label: 'All', dot: 'bg-slate-400', pill: 'bg-slate-100 text-slate-700 ring-slate-200' },
   inProgress: {
-    label: 'กำลังดำเนินการ',
+    label: 'In progress',
     dot: 'bg-blue-500',
     pill: 'bg-blue-50 text-blue-700 ring-blue-200',
   },
   completed: {
-    label: 'เสร็จสิ้น',
+    label: 'Completed',
     dot: 'bg-slate-500',
     pill: 'bg-slate-100 text-slate-600 ring-slate-200',
   },
   cancelled: {
-    label: 'ยกเลิก',
+    label: 'Cancelled',
     dot: 'bg-red-500',
     pill: 'bg-red-50 text-red-700 ring-red-200',
   },
@@ -244,26 +244,26 @@ function SummaryPanel({
           <div className="mt-4 space-y-3">
             <div className="flex items-center gap-2 text-sm font-semibold text-slate-800">
               <Users className="h-4 w-4 text-slate-500" />
-              พนักงาน (ผู้ขับ)
+              Drivers
             </div>
             <div className="grid grid-cols-2 gap-2">
-              <SummaryStatButton label="ทั้งหมด" value={employeeStats.total} className="bg-slate-50" />
+              <SummaryStatButton label="Total" value={employeeStats.total} className="bg-slate-50" />
               <SummaryStatButton
-                label="ถูกใช้งาน"
+                label="In use"
                 value={employeeStats.inUse}
                 sub={onEmployeeInUseClick ? 'ดูรายชื่อ' : undefined}
                 onClick={onEmployeeInUseClick}
                 className="bg-blue-50/80 border border-blue-100"
               />
               <SummaryStatButton
-                label="ว่างทั้งวัน"
+                label="Free all day"
                 value={employeeStats.freeAllDay}
                 sub={onEmployeeFreeClick ? 'ดูว่าใครว่าง' : undefined}
                 onClick={onEmployeeFreeClick}
                 className="bg-emerald-50/90 border border-emerald-100"
               />
               <SummaryStatButton
-                label="ว่างบางช่วง"
+                label="Partially free"
                 value={employeeStats.partialFree}
                 sub={onEmployeePartialClick ? 'ดูช่วงเวลา' : undefined}
                 onClick={onEmployeePartialClick}
@@ -287,17 +287,17 @@ function SummaryPanel({
             <div className="rounded-xl bg-slate-50 p-3">
               <Clock3 className="h-4 w-4 text-blue-600" />
               <p className="mt-2 text-xl font-bold text-slate-950 tabular-nums">{inProgressToday}</p>
-              <p className="text-[10px] text-slate-500 leading-tight">กำลังดำเนินการ</p>
+              <p className="text-[10px] text-slate-500 leading-tight">In progress</p>
             </div>
             <div className="rounded-xl bg-slate-50 p-3">
               <CheckCircle2 className="h-4 w-4 text-slate-500" />
               <p className="mt-2 text-xl font-bold text-slate-950 tabular-nums">{completedToday}</p>
-              <p className="text-[10px] text-slate-500 leading-tight">เสร็จสิ้น</p>
+              <p className="text-[10px] text-slate-500 leading-tight">Completed</p>
             </div>
             <div className="rounded-xl bg-red-50/90 border border-red-100 p-3">
               <Ban className="h-4 w-4 text-red-600" />
               <p className="mt-2 text-xl font-bold text-slate-950 tabular-nums">{cancelledToday}</p>
-              <p className="text-[10px] text-slate-600 leading-tight">ยกเลิก</p>
+              <p className="text-[10px] text-slate-600 leading-tight">Cancelled</p>
             </div>
           </div>
         </div>
@@ -310,19 +310,19 @@ function SummaryPanel({
           </div>
           <div>
             <h3 className="font-bold text-slate-950">Maintenance impact</h3>
-            <p className="text-xs text-slate-500">รถซ่อมบำรุง {maintenanceCount} คัน</p>
+            <p className="text-xs text-slate-500">{maintenanceCount} vehicle(s) in maintenance</p>
           </div>
         </div>
       </div>
 
       <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <h3 className="font-bold text-slate-950">ลิงก์ด่วน</h3>
+        <h3 className="font-bold text-slate-950">Quick links</h3>
         <div className="mt-4 space-y-2">
           <Link to="/fleet/vehicles" className="block rounded-xl bg-slate-50 p-3 text-sm font-semibold text-blue-600 hover:bg-slate-100">
-            ดูรายการรถทั้งหมด
+            View all vehicles
           </Link>
           <Link to="/fleet/drivers" className="block rounded-xl bg-slate-50 p-3 text-sm font-semibold text-blue-600 hover:bg-slate-100">
-            ดูรายชื่อผู้ขับ
+            View all drivers
           </Link>
         </div>
       </div>

@@ -8,32 +8,32 @@ import { motion } from 'framer-motion';
 const items = [
   {
     path: '/exams',
-    label: 'ข้อสอบ',
-    desc: 'ลิงก์จาก QR — อ่านหัวข้อการอบรมแล้วกดเข้าทำข้อสอบ Microsoft Forms',
+    label: 'Exams',
+    desc: 'QR links — read training topics, then open Microsoft Forms',
     icon: ClipboardList,
   },
   {
     path: '/fleet/bookings',
-    label: 'จองรถ',
-    desc: 'รายวัน / รายชั่วโมง — เลือกช่วงเวลา ดูคนว่าง/รถว่าง แล้วมอบหมาย',
+    label: 'Bookings',
+    desc: 'Daily / hourly — pick a time slot, see who and which vehicles are free, then assign',
     icon: CalendarRange,
   },
   {
     path: '/fleet/monitor',
-    label: 'ดูภาพรวม',
-    desc: 'รายเดือน รายสัปดาห์ และมุมมองอ่านอย่างเดียว — คลิกช่องที่มีจองเพื่อดูรายละเอียด',
+    label: 'Monitor',
+    desc: 'Month, week, and read-only views — click booked slots for details',
     icon: LayoutGrid,
   },
   {
     path: '/fleet/vehicles',
-    label: 'รายการรถ',
-    desc: 'ทะเบียนรถ กับ รุ่นรถ',
+    label: 'Vehicles',
+    desc: 'Plate numbers and vehicle models',
     icon: Car,
   },
   {
     path: '/fleet/drivers',
-    label: 'ผู้ขับ',
-    desc: 'จัดการรายชื่อผู้ใช้รถ (เดิมคือพนักงาน)',
+    label: 'Drivers',
+    desc: 'Manage vehicle users (driver roster)',
     icon: Users,
   },
   {
@@ -52,7 +52,7 @@ const FleetHome: React.FC = () => {
       <PageHeader
         showBrandKicker
         title="Fleet Home"
-        subtitle="มอบหมายว่าใครใช้รถคันไหน ช่วงเวลาใด — ดูรายเดือน รายสัปดาห์ รายวัน และรายชั่วโมงได้"
+        subtitle="Assign who uses which vehicle and when — month, week, day, and hour views"
         className="mb-6"
       />
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">

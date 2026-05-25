@@ -1491,24 +1491,24 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
     { title: string; description: (count: number) => string }
   > = {
     today: {
-      title: `${dayLabel} — รายการจอง`,
-      description: (n) => `การจองทั้งหมดในวันที่เลือก (${n} รายการ)`,
+      title: `${dayLabel} — Bookings`,
+      description: (n) => `All active bookings on the selected day (${n})`,
     },
     inProgress: {
-      title: 'กำลังดำเนินการ — รายละเอียด',
-      description: (n) => `งานที่ยังไม่กดเสร็จสิ้น (${n} รายการ)`,
+      title: 'In progress — details',
+      description: (n) => `Not yet marked complete (${n})`,
     },
     completed: {
-      title: 'เสร็จสิ้น — รายละเอียด',
-      description: (n) => `งานที่กดเสร็จสิ้นแล้ว (${n} รายการ)`,
+      title: 'Completed — details',
+      description: (n) => `Marked complete (${n})`,
     },
     cancelled: {
-      title: 'ยกเลิก — รายละเอียด',
-      description: (n) => `การจองที่ยกเลิกในวันที่เลือก (${n} ใบ)`,
+      title: 'Cancelled — details',
+      description: (n) => `Cancelled on the selected day (${n})`,
     },
     maintenance: {
-      title: 'รถซ่อมบำรุง — รายละเอียด',
-      description: (n) => `รถที่ไม่พร้อมใช้งาน (${n} คัน)`,
+      title: 'Maintenance — details',
+      description: (n) => `Vehicles not available (${n})`,
     },
   };
 
@@ -1520,11 +1520,11 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
   return (
     <>
       <FleetBookingsDashboard
-        title={isMonitor ? 'ดูภาพรวม' : 'จองรถ'}
+        title={isMonitor ? 'Monitor' : 'Bookings'}
         description={
           isMonitor
-            ? `ภาพรวมการใช้รถ — การ์ดและตารางตามวันที่เลือก (${dayLabel})`
-            : `เลือกวันที่แล้วดูรายการจองทั้งวัน — ใครไปที่ไหน กี่โมงถึงกี่โมง (${dayLabel})`
+            ? `Fleet overview — metrics and table for the selected day (${dayLabel})`
+            : `Pick a date to see all bookings for the day — who went where and when (${dayLabel})`
         }
         isMonitor={isMonitor}
         showBookingTable={isMonitor}
