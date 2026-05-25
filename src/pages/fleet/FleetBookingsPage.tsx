@@ -295,6 +295,30 @@ function dayPlannerStatusForEmployee(bookings: VehicleBooking[], empId: string, 
 
 const WEEKDAY_LABELS = ['จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส', 'อา'] as const;
 
+/** ชั่วโมงในตารางปฏิทินรายวัน (หน้า Bookings) — 08.00 ถึง 23.00 */
+const BOOK_PLANNER_START_HOUR = 8;
+const BOOK_PLANNER_END_HOUR = 24;
+const BOOK_PLANNER_HOURS = Array.from(
+  { length: BOOK_PLANNER_END_HOUR - BOOK_PLANNER_START_HOUR },
+  (_, i) => BOOK_PLANNER_START_HOUR + i,
+);
+
+function formatBookPlannerHourHeading(h: number): string {
+  return `${String(h).padStart(2, '0')}.00`;
+}
+
+function employeeBusyPlannerSlots(
+  bookings: VehicleBooking[],
+  empId: string,
+  day: Date,
+): number {
+  return BOOK_PLANNER_HOURS.filter((h) =>
+    bookings.some(
+      (b) => isBookingActive(b) && b.employee_id === empId && bookingOverlapsLocalHour(b, day, h),
+    ),
+  ).length;
+}
+
 const BOOKING_AUDIT_LABEL: Record<VehicleBookingAudit['action'], string> = {
   created: 'สร้างจอง',
   updated: 'แก้ไข',
@@ -362,16 +386,16 @@ function ceilToNextHour(d: Date): Date {
 function defaultBookRangeForDay(day: Date): { start: Date; end: Date } {
   const tick = new Date();
   const day0 = startOfDay(day);
-  const nine = setMinutes(setHours(day0, 9), 0);
-  const ten = addHours(nine, 1);
+  const dayStart = setMinutes(setHours(day0, BOOK_PLANNER_START_HOUR), 0);
+  const dayStartPlus1 = addHours(dayStart, 1);
   if (isBefore(day0, startOfDay(tick))) {
-    return { start: nine, end: ten };
+    return { start: dayStart, end: dayStartPlus1 };
   }
   if (isBefore(startOfDay(tick), day0)) {
-    return { start: nine, end: ten };
+    return { start: dayStart, end: dayStartPlus1 };
   }
-  if (isBefore(tick, nine)) {
-    return { start: nine, end: ten };
+  if (isBefore(tick, dayStart)) {
+    return { start: dayStart, end: dayStartPlus1 };
   }
   const f = ceilToNextHour(tick);
   return { start: f, end: addHours(f, 1) };
@@ -727,6 +751,16 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
     [employeesForPlanner, plannerFilterEmpId],
   );
 
+  const employeesForPlannerDisplay = useMemo(() => {
+    if (isMonitor) return filteredEmployeesForPlanner;
+    return [...filteredEmployeesForPlanner].sort((a, b) => {
+      const busyA = employeeBusyPlannerSlots(bookings, a.id, timelineDay);
+      const busyB = employeeBusyPlannerSlots(bookings, b.id, timelineDay);
+      if (busyA !== busyB) return busyA - busyB;
+      return `${a.first_name} ${a.last_name}`.localeCompare(`${b.first_name} ${b.last_name}`, 'th');
+    });
+  }, [filteredEmployeesForPlanner, isMonitor, bookings, timelineDay]);
+
   const filteredVehiclesForGrid = useMemo(
     () => vehiclesForGrid.filter((v) => vehicleMatchesPlannerFilterId(v, plannerFilterVehId)),
     [vehiclesForGrid, plannerFilterVehId],
@@ -735,7 +769,10 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
   const onEmployeeHourClick = (employeeId: string, hour: number) => {
     if (isMonitor) return;
     const busy = bookings.some(
-      (b) => b.employee_id === employeeId && bookingOverlapsLocalHour(b, timelineDay, hour),
+      (b) =>
+        isBookingActive(b) &&
+        b.employee_id === employeeId &&
+        bookingOverlapsLocalHour(b, timelineDay, hour),
     );
     if (busy) return;
     const day = timelineDay;
@@ -747,8 +784,15 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
     setSelVeh('');
   };
 
-  const showVehicleHourGrid = viewMode === 'day' && listRange && bookingWindow;
-  const showEmployeeHourPlanner = viewMode === 'hour' && listRange && bookingWindow;
+  const showVehicleHourGrid = isMonitor && viewMode === 'day' && listRange && bookingWindow;
+  const showEmployeeHourPlanner =
+    listRange &&
+    bookingWindow &&
+    ((!isMonitor && viewMode === 'day') || (isMonitor && viewMode === 'hour'));
+  const bookDayCalendar = !isMonitor && viewMode === 'day' && showEmployeeHourPlanner;
+  const plannerHourSlots = bookDayCalendar || (!isMonitor && viewMode === 'hour')
+    ? BOOK_PLANNER_HOURS
+    : Array.from({ length: 24 }, (_, h) => h);
 
   const monthAnchor = useMemo(() => parse(`${monthValue}-01`, 'yyyy-MM-dd', new Date()), [monthValue]);
   const daysInSelectedMonth = useMemo(() => {
@@ -1003,45 +1047,63 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
       <div className="flex-1 min-h-0 flex flex-col min-w-0 overflow-hidden">
         <div className="shrink-0 px-2 py-1 border-b border-border bg-muted/20 space-y-1">
           <p className="text-[10px] font-medium text-foreground">
-            รายชั่วโมง — ใครว่างช่วงไหน ({format(timelineDay, 'dd/MM/yyyy')})
-            {isMonitor ? ' (ดูอย่างเดียว)' : ' · คลิกช่องว่าง = เลือกพนักงาน + เวลา แล้วเลือกรถในฟอร์ม'}
+            {bookDayCalendar
+              ? `Daily calendar (${format(timelineDay, 'dd/MM/yyyy')})`
+              : `รายชั่วโมง — ใครว่างช่วงไหน (${format(timelineDay, 'dd/MM/yyyy')})`}
+            {isMonitor ? ' (ดูอย่างเดียว)' : ' · คลิกช่องเขียว = เลือกพนักงาน + เวลา แล้วเลือกรถในฟอร์ม'}
           </p>
           <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[9px] text-muted-foreground">
             <span className="inline-flex items-center gap-1">
               <span className="inline-block size-2.5 rounded-sm bg-emerald-500/50 border border-emerald-600/40" />
-              ว่าง
+              {bookDayCalendar ? 'Available' : 'ว่าง'}
             </span>
             <span className="inline-flex items-center gap-1">
-              <span className="inline-block size-2.5 rounded-sm bg-primary/50 border border-primary/50" />
-              มีจอง
+              <span
+                className={cn(
+                  'inline-block size-2.5 rounded-sm border',
+                  bookDayCalendar
+                    ? 'bg-red-500/50 border-red-600/50'
+                    : 'bg-primary/50 border-primary/50',
+                )}
+              />
+              {bookDayCalendar ? 'In use' : 'มีจอง'}
             </span>
-            <span className="inline-flex items-center gap-1">
-              <span className="inline-block size-2.5 rounded-sm bg-amber-500/55 border border-amber-700/40" />
-              ระบุอุบัติเหตุในหมายเหตุ
-            </span>
+            {!bookDayCalendar ? (
+              <span className="inline-flex items-center gap-1">
+                <span className="inline-block size-2.5 rounded-sm bg-amber-500/55 border border-amber-700/40" />
+                ระบุอุบัติเหตุในหมายเหตุ
+              </span>
+            ) : null}
           </div>
         </div>
         <div className="flex-1 min-h-0 overflow-auto">
-          <div className="w-full min-w-[720px] border border-border rounded-md overflow-hidden bg-background/50">
+          <div
+            className="w-full border border-border rounded-md overflow-hidden bg-background/50"
+            style={{ minWidth: `${8.5 * 16 + plannerHourSlots.length * 2.75}rem` }}
+          >
             <div
               className="grid border-b border-border bg-muted/30 text-muted-foreground sticky top-0 z-[1]"
-              style={{ gridTemplateColumns: `8.5rem repeat(24, minmax(0, 1fr))` }}
+              style={{ gridTemplateColumns: `8.5rem repeat(${plannerHourSlots.length}, minmax(2.75rem, 1fr))` }}
             >
-              <div className="px-1 py-1 text-[10px] font-medium text-foreground border-r border-border/60">พนักงาน</div>
-              {Array.from({ length: 24 }, (_, h) => (
+              <div className="px-1 py-1 text-[10px] font-medium text-foreground border-r border-border/60">
+                {bookDayCalendar ? 'Driver' : 'พนักงาน'}
+              </div>
+              {plannerHourSlots.map((h) => (
                 <div key={h} className="min-w-0 border-l border-border/50 py-0.5 text-center" title={hourSlotLabel(h)}>
-                  <span className="text-[7px] sm:text-[8px] font-medium text-foreground">{h}</span>
+                  <span className="text-[8px] sm:text-[9px] font-semibold tabular-nums text-foreground">
+                    {bookDayCalendar ? formatBookPlannerHourHeading(h) : h}
+                  </span>
                 </div>
               ))}
             </div>
-            {filteredEmployeesForPlanner.length === 0 ? (
+            {employeesForPlannerDisplay.length === 0 ? (
               <p className="text-[10px] text-muted-foreground px-2 py-3">ไม่มีพนักงานตรงตัวกรอง — ลองล้างช่องค้นหาพนักงาน</p>
             ) : null}
-            {filteredEmployeesForPlanner.map((emp) => (
+            {employeesForPlannerDisplay.map((emp) => (
               <div
                 key={emp.id}
                 className="grid border-b border-border/60 last:border-b-0"
-                style={{ gridTemplateColumns: `8.5rem repeat(24, minmax(0, 1fr))` }}
+                style={{ gridTemplateColumns: `8.5rem repeat(${plannerHourSlots.length}, minmax(2.75rem, 1fr))` }}
               >
                 <div className="px-1 py-1 text-[10px] leading-tight border-r border-border/60 bg-muted/10 min-w-0">
                   <div className="font-medium text-foreground line-clamp-2 leading-tight" title={empLabel(emp.id)}>
@@ -1049,9 +1111,12 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                   </div>
                   <div className="text-[9px] text-muted-foreground truncate">{emp.employee_code}</div>
                 </div>
-                {Array.from({ length: 24 }, (_, h) => {
+                {plannerHourSlots.map((h) => {
                   const slotBs = bookings.filter(
-                    (b) => b.employee_id === emp.id && bookingOverlapsLocalHour(b, timelineDay, h),
+                    (b) =>
+                      isBookingActive(b) &&
+                      b.employee_id === emp.id &&
+                      bookingOverlapsLocalHour(b, timelineDay, h),
                   );
                   const first = slotBs[0];
                   const incident = slotBs.some(isIncidentBooking);
@@ -1066,11 +1131,20 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                     : hourSlotLabel(h);
                   const cellClass = cn(
                     'min-h-[2rem] min-w-0 border-l border-border/40 p-px text-[7px] sm:text-[8px] leading-tight transition-colors',
-                    !busy && 'bg-emerald-500/15 hover:bg-emerald-500/25 cursor-pointer',
+                    !busy &&
+                      (bookDayCalendar
+                        ? 'bg-emerald-500/45 hover:bg-emerald-500/55 cursor-pointer border border-emerald-600/30'
+                        : 'bg-emerald-500/15 hover:bg-emerald-500/25 cursor-pointer'),
                     busy &&
                       !incident &&
-                      'bg-primary/25 text-foreground border border-primary/20',
-                    busy && incident && 'bg-amber-500/30 text-foreground border border-amber-600/35',
+                      (bookDayCalendar
+                        ? 'bg-red-500/50 text-white border border-red-600/55'
+                        : 'bg-primary/25 text-foreground border border-primary/20'),
+                    busy &&
+                      incident &&
+                      (bookDayCalendar
+                        ? 'bg-red-600/60 text-white border border-red-700/60'
+                        : 'bg-amber-500/30 text-foreground border border-amber-600/35'),
                   );
                   const inner =
                     busy && first ? (
@@ -1609,7 +1683,7 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
           defaultOpen
         >
           <summary className="cursor-pointer select-none px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50/80 list-none marker:content-none [&::-webkit-details-marker]:hidden">
-            {isMonitor ? 'ตารางเวลา · มุมมองรายวัน / รายชั่วโมง' : `การจองรายวัน · ${dayLabel}`}
+            {isMonitor ? 'ตารางเวลา · มุมมองรายวัน / รายชั่วโมง' : 'Daily calendar'}
           </summary>
           <div className="flex flex-col min-h-0 gap-2 p-2 sm:p-3 max-h-[min(70vh,52rem)] overflow-hidden border-t border-slate-100">
         {isMonitor ? (
@@ -1687,7 +1761,7 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
             <p className="text-[10px] text-muted-foreground leading-snug">
               {isMonitor
                 ? 'รายวัน: เลือกวันที่แล้วดูว่าใครมีจอง / ใครว่างทั้งวัน — ด้านล่างมีตารางรถ×ชั่วโมง'
-                : 'เลือกวันที่ → ดูรายการจองทั้งวัน (ผู้ขับ · ปลายทาง · เวลา) · จองเพิ่มจากปุ่มด้านบนหรือตารางว่างด้านล่าง'}
+                : 'Pick a date — green = available, red = in use (08.00–23.00). Sorted free → busy. Click a green slot to book.'}
             </p>
           ) : null}
           {(viewMode === 'day' || viewMode === 'hour') && (
@@ -1961,85 +2035,31 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
             </div>
           ) : null}
 
-          {viewMode === 'day' ? (
+          {viewMode === 'day' && !isMonitor ? (
+            <div className="flex-1 min-h-0 flex flex-col min-w-0 overflow-hidden">
+              <div className="shrink-0 px-2 py-2 border-b border-border bg-muted/25">
+                <p className="text-sm font-semibold text-foreground">
+                  {format(dayAnchor, 'EEEE', { locale: th })} {formatThaiDate(dayAnchor)}
+                </p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">
+                  {dayBookingsFiltered.length} booking(s) · {dayFreeEmployeesFiltered.length} free all day ·{' '}
+                  {dayBusyRowsFiltered.length} in use
+                </p>
+              </div>
+              <div className="flex-1 min-h-0 overflow-hidden flex flex-col p-2">{employeeHourPlannerEl}</div>
+            </div>
+          ) : viewMode === 'day' ? (
             <div className="flex-1 min-h-0 flex flex-col min-w-0 overflow-hidden">
               <div className="shrink-0 px-2 py-2 border-b border-border bg-muted/25">
                 <p className="text-sm font-semibold text-foreground">
                   วันที่ {format(dayAnchor, 'EEEE', { locale: th })} {formatThaiDate(dayAnchor)}
                 </p>
                 <p className="text-[10px] text-muted-foreground mt-0.5">
-                  {isMonitor ? (
-                    <>
-                      {dayBookingsList.length} การจอง · ผู้ขับที่มีจอง {dayBusyRows.length} คน · ว่างทั้งวัน{' '}
-                      {dayFreeEmployees.length} คน
-                    </>
-                  ) : (
-                    <>
-                      <span className="font-medium text-foreground">{dayBookingsFiltered.length} การจอง</span>
-                      {' · '}
-                      ผู้ขับว่าง {dayFreeEmployeesFiltered.length} คน · รถว่าง {dayFreeVehiclesFiltered.length} คัน
-                    </>
-                  )}
+                  {dayBookingsList.length} การจอง · ผู้ขับที่มีจอง {dayBusyRows.length} คน · ว่างทั้งวัน{' '}
+                  {dayFreeEmployees.length} คน
                 </p>
               </div>
               <div className="flex-1 min-h-0 overflow-y-auto p-2 flex flex-col gap-4">
-                {!isMonitor ? (
-                  <section className="min-h-0">
-                    <h3 className="text-xs font-semibold text-foreground mb-2">
-                      รายการจองในวันนี้ ({dayBookingsFiltered.length})
-                    </h3>
-                    {dayBookingsFiltered.length === 0 ? (
-                      <p className="text-xs text-muted-foreground rounded-lg border border-dashed border-border/80 bg-muted/15 px-3 py-4 text-center">
-                        ยังไม่มีการจองในวันนี้ — กด &quot;สร้างการจอง&quot; หรือเลือกช่องว่างในตารางด้านล่าง
-                      </p>
-                    ) : (
-                      <ul className="space-y-2">
-                        {dayBookingsFiltered.map((b) => {
-                          const dest = (b.destination || '').trim();
-                          const note = (b.notes || '').trim();
-                          const inProgress = isBookingInProgress(b);
-                          return (
-                            <li
-                              key={b.id}
-                              className="rounded-xl border border-primary/20 bg-primary/5 p-3 shadow-sm"
-                            >
-                              <div className="flex flex-wrap items-start justify-between gap-2">
-                                <p className="text-base font-bold tabular-nums text-foreground tracking-tight">
-                                  {formatThaiTimeRange(b.starts_at, bookingEffectiveEnd(b))}
-                                </p>
-                                <span
-                                  className={cn(
-                                    'text-[10px] font-semibold rounded-full px-2 py-0.5 ring-1',
-                                    inProgress
-                                      ? 'bg-blue-50 text-blue-700 ring-blue-200'
-                                      : 'bg-slate-100 text-slate-600 ring-slate-200',
-                                  )}
-                                >
-                                  {inProgress ? 'กำลังดำเนินการ' : 'เสร็จสิ้น'}
-                                </span>
-                              </div>
-                              <p className="mt-1.5 text-sm font-semibold text-foreground">{empLabel(b.employee_id)}</p>
-                              <p className="text-sm text-foreground/90 mt-0.5">
-                                <span className="text-muted-foreground">ไป </span>
-                                {dest || note || '— ไม่ระบุปลายทาง —'}
-                              </p>
-                              <p className="text-xs text-muted-foreground mt-1">
-                                รถ {vehLabel(b.vehicle_id)}
-                                {isIncidentBooking(b) ? (
-                                  <span className="ml-1.5 text-amber-700 dark:text-amber-400 font-medium">· อุบัติเหตุ</span>
-                                ) : null}
-                              </p>
-                              {canEdit ? (
-                                <div className="mt-2 pt-2 border-t border-border/50">{renderBookingActions(b)}</div>
-                              ) : null}
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    )}
-                  </section>
-                ) : null}
-                {isMonitor ? (
                 <section className="min-h-0">
                   <h3 className="text-[11px] font-semibold text-foreground mb-2">มีจอง / ถูกใช้งาน</h3>
                   {dayBusyRows.length === 0 ? (
@@ -2080,13 +2100,12 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                     </ul>
                   )}
                 </section>
-                ) : null}
                 <details
                   className="rounded-md border border-border/60 bg-card/30 overflow-hidden"
-                  open={isMonitor}
+                  open
                 >
                   <summary className="px-2 py-2 text-[11px] font-medium cursor-pointer select-none list-none marker:content-none [&::-webkit-details-marker]:hidden hover:bg-muted/30">
-                    {isMonitor ? 'ผู้ว่าง / สรุปรายชั่วโมง' : 'ว่างในวันนี้ · จองช่วงเวลา (ตาราง)'}
+                    ผู้ว่าง / สรุปรายชั่วโมง
                   </summary>
                   <div className="border-t border-border/50 p-2 flex flex-col gap-4">
                 <section>
@@ -2131,29 +2150,6 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                     </ul>
                   )}
                 </section>
-                {!isMonitor ? (
-                <section>
-                  <h3 className="text-[11px] font-semibold text-foreground mb-2">รถว่างทั้งวัน</h3>
-                  {dayFreeVehicles.length === 0 ? (
-                    <p className="text-xs text-muted-foreground">ไม่มีรถว่าง (ทุกคันถูกจองคร่อมวันนี้)</p>
-                  ) : dayFreeVehiclesFiltered.length === 0 ? (
-                    <p className="text-xs text-muted-foreground">ไม่มีรถว่างตรงตัวกรอง — ลองล้างช่องกรองรถ</p>
-                  ) : (
-                    <div className="flex flex-wrap gap-1.5">
-                      {dayFreeVehiclesFiltered.map((v) => (
-                        <span
-                          key={v.id}
-                          className="text-[11px] px-2 py-1 rounded-md bg-sky-500/15 text-sky-950 border border-sky-600/25"
-                        >
-                          {v.plate_no}
-                          {v.label?.trim() ? ` · ${v.label.trim()}` : ''}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </section>
-                ) : null}
-                {isMonitor ? (
                 <section>
                   <h3 className="text-[11px] font-semibold text-foreground mb-2">ประวัติการแก้ไข / ยกเลิก (วันนี้)</h3>
                   {dayAudit.length === 0 ? (
@@ -2182,12 +2178,9 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                     </ul>
                   )}
                 </section>
-                ) : null}
-                <details className="rounded-md border border-border/60 bg-card/20 overflow-hidden" open={isMonitor}>
+                <details className="rounded-md border border-border/60 bg-card/20 overflow-hidden" open>
                   <summary className="px-2 py-2 text-[11px] font-medium cursor-pointer select-none list-none marker:content-none [&::-webkit-details-marker]:hidden hover:bg-muted/30">
-                    {isMonitor
-                      ? 'สรุปรายชั่วโมง — ใครว่าง / รถไหนว่าง (ชม. 0–23)'
-                      : 'ใครว่างช่วงเวลาไหน (รายชั่วโมง 0–23)'}
+                    สรุปรายชั่วโมง — ใครว่าง / รถไหนว่าง (ชม. 0–23)
                   </summary>
                   <div className="border-t border-border/50 max-h-52 overflow-y-auto">
                     <table className="w-full text-[10px]">
@@ -2220,9 +2213,9 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                     </table>
                   </div>
                 </details>
-                <details className="rounded-md border border-border/60 bg-card/20 overflow-hidden" open={isMonitor}>
+                <details className="rounded-md border border-border/60 bg-card/20 overflow-hidden" open>
                   <summary className="px-2 py-2 text-[11px] font-medium cursor-pointer select-none list-none marker:content-none [&::-webkit-details-marker]:hidden hover:bg-muted/30">
-                    ตารางรถ × ชั่วโมง {isMonitor ? '(กดเพื่อดูรายละเอียดตามชั่วโมง)' : '(กดช่องว่างเพื่อจอง)'}
+                    ตารางรถ × ชั่วโมง (กดเพื่อดูรายละเอียดตามชั่วโมง)
                   </summary>
                   <div className="h-[min(38vh,22rem)] min-h-[168px] border-t border-border/50 overflow-hidden flex flex-col">
                     {vehicleHourGridEl}
