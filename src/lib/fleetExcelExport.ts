@@ -1,5 +1,6 @@
 import { format } from 'date-fns';
 import { downloadExcelFile } from '@/lib/exportExcel';
+import { exportFilenameDateSuffix, type ExportYmdRange } from '@/lib/exportDateRange';
 import {
   bookingEffectiveEnd,
   deriveBookingListStatus,
@@ -26,6 +27,10 @@ function stampFilename(prefix: string, dayYmd?: string): string {
   return `${prefix}-${d}`;
 }
 
+function stampFilenameRange(prefix: string, range: ExportYmdRange): string {
+  return `${prefix}-${exportFilenameDateSuffix(range.fromYmd, range.toYmd)}`;
+}
+
 export function exportDriversExcel(employees: Employee[], dayYmd?: string): void {
   const rows = employees.map((e) => ({
     รหัสพนักงาน: e.employee_code,
@@ -45,7 +50,7 @@ export function exportBookingsExcel(
   bookings: VehicleBooking[],
   empLabel: (id: string) => string,
   vehLabel: (id: string) => string,
-  dayYmd: string,
+  range: ExportYmdRange,
 ): void {
   const sorted = [...bookings].sort(
     (a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime(),
@@ -69,7 +74,7 @@ export function exportBookingsExcel(
       สถานะ_DB: b.status === 'cancelled' ? 'ยกเลิก' : 'ใช้งาน',
     };
   });
-  downloadExcelFile(stampFilename('bookings', dayYmd), [{ sheetName: 'Bookings', rows }]);
+  downloadExcelFile(stampFilenameRange('bookings', range), [{ sheetName: 'Bookings', rows }]);
 }
 
 export function exportDriverProfileExcel(
@@ -79,10 +84,11 @@ export function exportDriverProfileExcel(
   destinations: DriverDestinationStat[],
   earlyCount: number,
   lateCount: number,
+  range: ExportYmdRange,
 ): void {
-  const base = stampFilename(
+  const base = stampFilenameRange(
     `driver-${employee.employee_code || employee.id.slice(0, 8)}`,
-    format(new Date(), 'yyyy-MM-dd'),
+    range,
   );
 
   downloadExcelFile(base, [

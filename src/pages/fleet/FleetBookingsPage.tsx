@@ -22,7 +22,10 @@ import {
   isBookingInProgress,
 } from '@/lib/fleetBookingsDashboard';
 import { notifyFleetBookingsChanged } from '@/lib/bookingNotifications';
+import ExportExcelDateRangeDialog from '@/components/shared/ExportExcelDateRangeDialog';
 import { exportBookingsExcel } from '@/lib/fleetExcelExport';
+import { toYmdLocal } from '@/lib/dateTh';
+import { ymdRangeToFetchIsoBounds, type ExportYmdRange } from '@/lib/exportDateRange';
 import {
   addDestinationSuggestion,
   mergeDestinationsFromBookings,
@@ -442,6 +445,8 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
   const [plannerFilterVehId, setPlannerFilterVehId] = useState('');
   const [listQuery, setListQuery] = useState('');
   const [listStatusFilter, setListStatusFilter] = useState<BookingListStatus>('all');
+  const [exportDialogOpen, setExportDialogOpen] = useState(false);
+  const [exportingExcel, setExportingExcel] = useState(false);
   const bookingFormRef = useRef<HTMLFormElement>(null);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [metricDetailOpen, setMetricDetailOpen] = useState(false);
@@ -1428,23 +1433,54 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
     [dashboardRows, listQuery, listStatusFilter],
   );
 
-  const bookingsToExport = useMemo(() => {
-    const ids = new Set(filteredDashboardRows.map((r) => r.rawId));
-    return bookingsForTable.filter((b) => ids.has(b.id));
-  }, [filteredDashboardRows, bookingsForTable]);
+  const defaultExportRange = useMemo((): ExportYmdRange => {
+    if (!listRange) return { fromYmd: dayValue, toYmd: dayValue };
+    return { fromYmd: toYmdLocal(listRange.from), toYmd: toYmdLocal(listRange.to) };
+  }, [listRange, dayValue]);
 
   const handleExportBookingsExcel = useCallback(() => {
-    if (bookingsToExport.length === 0) {
-      toast.message('ไม่มีข้อมูลให้ส่งออก');
-      return;
-    }
-    try {
-      exportBookingsExcel(bookingsToExport, empLabel, vehLabel, dayValue);
-      toast.success(`ส่งออก Excel แล้ว (${bookingsToExport.length} รายการ)`);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'ส่งออก Excel ไม่สำเร็จ');
-    }
-  }, [bookingsToExport, empLabel, vehLabel, dayValue]);
+    setExportDialogOpen(true);
+  }, []);
+
+  const runExportBookingsExcel = useCallback(
+    async (range: ExportYmdRange) => {
+      const bounds = ymdRangeToFetchIsoBounds(range.fromYmd, range.toYmd);
+      if (!bounds) {
+        toast.error('ช่วงวันที่ไม่ถูกต้อง');
+        return;
+      }
+      setExportingExcel(true);
+      try {
+        const q = new URLSearchParams({ from: bounds.fromIso, to: bounds.toIso });
+        const r = await apiFetch(`/api/vehicle-bookings?${q}`);
+        if (!r.ok) {
+          const err = await parseApiError(r);
+          toast.error(`โหลดข้อมูลไม่สำเร็จ: ${err}`);
+          return;
+        }
+        const data = (await r.json()) as unknown;
+        const fetched: VehicleBooking[] = Array.isArray(data) ? data : [];
+        const rows = fetched.map((b) =>
+          bookingToDashboardRow(b, empLabel, vehLabel, empMap, vehMap),
+        );
+        const filtered = filterDashboardBookings(rows, listQuery, listStatusFilter);
+        const ids = new Set(filtered.map((row) => row.rawId));
+        const toExport = fetched.filter((b) => ids.has(b.id));
+        if (toExport.length === 0) {
+          toast.message('ไม่มีข้อมูลในช่วงวันที่เลือก');
+          return;
+        }
+        exportBookingsExcel(toExport, empLabel, vehLabel, range);
+        toast.success(`ส่งออก Excel แล้ว (${toExport.length} รายการ)`);
+        setExportDialogOpen(false);
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'ส่งออก Excel ไม่สำเร็จ');
+      } finally {
+        setExportingExcel(false);
+      }
+    },
+    [empLabel, vehLabel, empMap, vehMap, listQuery, listStatusFilter],
+  );
   const dashboardMetrics = useMemo(
     () => computeDashboardMetrics(selectedDayBookings, vehiclesList, selectedDay),
     [selectedDayBookings, vehiclesList, selectedDay],
@@ -1654,7 +1690,7 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
         }
         onCreateBooking={isMonitor ? undefined : () => setCreateDialogOpen(true)}
         onExportExcel={handleExportBookingsExcel}
-        exportExcelDisabled={loading || bookingsToExport.length === 0}
+        exportExcelDisabled={loading}
         onMetricClick={isMonitor ? handleMetricClick : undefined}
         bookingsScopeLabel={isMonitor ? `เฉพาะวันที่ ${dayLabel}` : undefined}
         renderBookingMenu={(id) => {
@@ -2255,6 +2291,17 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
         </div>
         </details>
       </FleetBookingsDashboard>
+
+      <ExportExcelDateRangeDialog
+        open={exportDialogOpen}
+        onOpenChange={setExportDialogOpen}
+        title="ส่งออกการจองเป็น Excel"
+        description="เลือกช่วงวันที่ของรายการจองที่ต้องการส่งออก (ใช้ตัวกรองค้นหา/สถานะปัจจุบันด้วย)"
+        defaultFromYmd={defaultExportRange.fromYmd}
+        defaultToYmd={defaultExportRange.toYmd}
+        exporting={exportingExcel}
+        onConfirm={runExportBookingsExcel}
+      />
 
       <Dialog
         open={metricDetailOpen}

@@ -12,8 +12,11 @@ import { parseWlEmployeeCandidateId, isWlStaffingTrack } from '@/lib/wlFromCandi
 import { getCandidates, hydrateCandidateStaffing } from '@/lib/demoStorage';
 import { mergeCandidateSources } from '@/lib/mergeCandidates';
 import { cn } from '@/lib/utils';
-import { subDays } from 'date-fns';
+import { format, subDays } from 'date-fns';
 import ExportExcelButton from '@/components/shared/ExportExcelButton';
+import ExportExcelDateRangeDialog from '@/components/shared/ExportExcelDateRangeDialog';
+import { toYmdLocal } from '@/lib/dateTh';
+import { ymdRangeToFetchIsoBounds, type ExportYmdRange } from '@/lib/exportDateRange';
 import {
   buildDriverBookingRows,
   buildDriverDestinationStats,
@@ -62,6 +65,8 @@ const EmployeeProfile: React.FC = () => {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [loading, setLoading] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [exportDialogOpen, setExportDialogOpen] = useState(false);
+  const [exportingExcel, setExportingExcel] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -214,22 +219,66 @@ const EmployeeProfile: React.FC = () => {
   );
   const destinations = useMemo(() => buildDriverDestinationStats(bookings), [bookings]);
 
+  const defaultExportRange = useMemo(
+    (): ExportYmdRange => ({
+      fromYmd: toYmdLocal(subDays(new Date(), 30)),
+      toYmd: format(new Date(), 'yyyy-MM-dd'),
+    }),
+    [],
+  );
+
   const handleExportProfileExcel = useCallback(() => {
-    if (!employee) return;
-    try {
-      exportDriverProfileExcel(
-        employee,
-        jobRows,
-        vehicleUsage,
-        destinations,
-        earlyCount,
-        lateCount,
-      );
-      toast.success('ส่งออก Excel แล้ว');
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'ส่งออก Excel ไม่สำเร็จ');
-    }
-  }, [employee, jobRows, vehicleUsage, destinations, earlyCount, lateCount]);
+    setExportDialogOpen(true);
+  }, []);
+
+  const runExportProfileExcel = useCallback(
+    async (range: ExportYmdRange) => {
+      if (!employee) return;
+      if (isDemoMode()) {
+        toast.message('โหมดสาธิตไม่มีประวัติการจองจาก API');
+        return;
+      }
+      const bounds = ymdRangeToFetchIsoBounds(range.fromYmd, range.toYmd);
+      if (!bounds) {
+        toast.error('ช่วงวันที่ไม่ถูกต้อง');
+        return;
+      }
+      setExportingExcel(true);
+      try {
+        const q = new URLSearchParams({ from: bounds.fromIso, to: bounds.toIso });
+        const [rB, rV] = await Promise.all([
+          apiFetch(`/api/vehicle-bookings?${q}`),
+          apiFetch('/api/vehicles'),
+        ]);
+        const allBookings = rB.ok ? ((await rB.json()) as VehicleBooking[]) : [];
+        const vehList = rV.ok ? ((await rV.json()) as Vehicle[]) : [];
+        const vehMapExport = new Map(
+          (Array.isArray(vehList) ? vehList : []).map((v) => [v.id, v]),
+        );
+        const vehLabelExport = (vid: string) => vehMapExport.get(vid)?.plate_no?.trim() || '—';
+        const empBookings = (Array.isArray(allBookings) ? allBookings : []).filter(
+          (b) => b.employee_id === employee.id,
+        );
+        if (empBookings.length === 0) {
+          toast.message('ไม่มีข้อมูลในช่วงวันที่เลือก');
+          return;
+        }
+        const rows = buildDriverBookingRows(empBookings, vehMapExport, vehLabelExport);
+        const usage = buildDriverVehicleUsage(empBookings, vehMapExport, vehLabelExport);
+        const dests = buildDriverDestinationStats(empBookings);
+        const early = countEarlyBookings(empBookings);
+        const late = countLateBookings(empBookings);
+        exportDriverProfileExcel(employee, rows, usage, dests, early, late, range);
+        toast.success(`ส่งออก Excel แล้ว (${rows.length} งาน)`);
+        setExportDialogOpen(false);
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'ส่งออก Excel ไม่สำเร็จ');
+      } finally {
+        setExportingExcel(false);
+      }
+    },
+    [employee],
+  );
 
   if (loading) {
     return (
@@ -281,9 +330,20 @@ const EmployeeProfile: React.FC = () => {
         actions={
           <ExportExcelButton
             onClick={handleExportProfileExcel}
-            disabled={historyLoading}
+            disabled={historyLoading || exportingExcel}
           />
         }
+      />
+
+      <ExportExcelDateRangeDialog
+        open={exportDialogOpen}
+        onOpenChange={setExportDialogOpen}
+        title="ส่งออกประวัติผู้ขับเป็น Excel"
+        description="เลือกช่วงวันที่ของประวัติการจองที่ต้องการส่งออก"
+        defaultFromYmd={defaultExportRange.fromYmd}
+        defaultToYmd={defaultExportRange.toYmd}
+        exporting={exportingExcel}
+        onConfirm={runExportProfileExcel}
       />
 
       <div className="rounded-2xl border border-border/80 bg-white/80 p-5 shadow-sm space-y-3">
