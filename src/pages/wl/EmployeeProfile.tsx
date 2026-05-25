@@ -264,12 +264,21 @@ const EmployeeProfile: React.FC = () => {
     <AppPage maxWidth="3xl" panel>
       <PageHeader title="Driver" backPath="/fleet/drivers" />
 
-      <div className="rounded-2xl border border-border/80 bg-white/80 p-5 shadow-sm space-y-1">
-        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">ชื่อ</p>
-        <p className="text-xl font-bold text-foreground">{employee.first_name}</p>
-        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 mt-3">นามสกุล</p>
-        <p className="text-xl font-bold text-foreground">{employee.last_name}</p>
-        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 mt-3">เบอร์โทร</p>
+      <div className="rounded-2xl border border-border/80 bg-white/80 p-5 shadow-sm space-y-3">
+        {employee.title_prefix?.trim() ? (
+          <p className="text-sm text-muted-foreground">{employee.title_prefix.trim()}</p>
+        ) : null}
+        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">ชื่อ</p>
+            <p className="text-xl font-bold text-foreground">{employee.first_name}</p>
+          </div>
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">นามสกุล</p>
+            <p className="text-xl font-bold text-foreground">{employee.last_name}</p>
+          </div>
+        </div>
+        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">เบอร์โทร</p>
         <p className="text-lg text-foreground tabular-nums">{employee.phone?.trim() || '—'}</p>
       </div>
 

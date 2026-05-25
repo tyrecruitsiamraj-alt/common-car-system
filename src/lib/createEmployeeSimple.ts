@@ -3,8 +3,10 @@ import { apiFetch } from '@/lib/apiFetch';
 import { toYmdLocal } from '@/lib/dateTh';
 import { createEmployee, getEmployees, updateEmployeeInDemo } from '@/lib/demoStorage';
 import { isDemoMode } from '@/lib/demoMode';
+import { normalizeTitlePrefix } from '@/lib/titlePrefixOptions';
 
 export type SimpleEmployeeInput = {
+  title_prefix?: string;
   first_name: string;
   last_name: string;
   phone: string;
@@ -22,6 +24,7 @@ function nextDemoEmployeeCode(): string {
 
 /** เพิ่มผู้ขับแบบสั้น — ชื่อ นามสกุล เบอร์โทร (ค่าอื่น API/demo เติมให้) */
 export async function createEmployeeSimple(input: SimpleEmployeeInput): Promise<Employee> {
+  const title_prefix = normalizeTitlePrefix(input.title_prefix);
   const first_name = input.first_name.trim();
   const last_name = input.last_name.trim();
   const phone = input.phone.trim();
@@ -33,6 +36,7 @@ export async function createEmployeeSimple(input: SimpleEmployeeInput): Promise<
   if (isDemoMode()) {
     return createEmployee({
       employee_code: nextDemoEmployeeCode(),
+      ...(title_prefix ? { title_prefix } : {}),
       first_name,
       last_name,
       phone,
@@ -45,7 +49,12 @@ export async function createEmployeeSimple(input: SimpleEmployeeInput): Promise<
   const r = await apiFetch('/api/employees', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ first_name, last_name, phone }),
+    body: JSON.stringify({
+      first_name,
+      last_name,
+      phone,
+      ...(title_prefix ? { title_prefix } : {}),
+    }),
   });
 
   if (!r.ok) {

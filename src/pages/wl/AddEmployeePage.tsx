@@ -4,13 +4,24 @@ import PageHeader from '@/components/shared/PageHeader';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { toast } from 'sonner';
 import { createEmployeeSimple } from '@/lib/createEmployeeSimple';
+import { TITLE_PREFIX_OPTIONS } from '@/lib/titlePrefixOptions';
+
+const TITLE_PREFIX_NONE = '__none__';
 
 const AddEmployeePage: React.FC = () => {
   const navigate = useNavigate();
 
   const [saving, setSaving] = useState(false);
+  const [titlePrefix, setTitlePrefix] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [phone, setPhone] = useState('');
@@ -22,6 +33,7 @@ const AddEmployeePage: React.FC = () => {
     setSaving(true);
     try {
       await createEmployeeSimple({
+        title_prefix: titlePrefix,
         first_name: firstName,
         last_name: lastName,
         phone,
@@ -37,33 +49,53 @@ const AddEmployeePage: React.FC = () => {
 
   return (
     <>
-      <PageHeader title="Add Driver" subtitle="กรอกชื่อ นามสกุล และเบอร์โทร" backPath="/fleet/drivers" />
+      <PageHeader title="Add Driver" subtitle="คำนำหน้า ชื่อ นามสกุล และเบอร์โทร" backPath="/fleet/drivers" />
       <div className="px-4 md:px-6">
         <form
           onSubmit={(e) => void handleSave(e)}
-          className="glass-card rounded-xl p-4 md:p-6 border border-border max-w-md space-y-4"
+          className="glass-card rounded-xl p-4 md:p-6 border border-border max-w-lg space-y-4"
         >
-          <div className="space-y-1.5">
-            <Label htmlFor="add-first">ชื่อ *</Label>
-            <Input
-              id="add-first"
-              value={firstName}
-              onChange={(e) => setFirstName(e.target.value)}
-              autoComplete="given-name"
-              className="min-h-[44px]"
-              required
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="add-last">นามสกุล *</Label>
-            <Input
-              id="add-last"
-              value={lastName}
-              onChange={(e) => setLastName(e.target.value)}
-              autoComplete="family-name"
-              className="min-h-[44px]"
-              required
-            />
+          <div className="grid grid-cols-1 sm:grid-cols-[7.5rem_1fr_1fr] gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="add-prefix">คำนำหน้า</Label>
+              <Select
+                value={titlePrefix || TITLE_PREFIX_NONE}
+                onValueChange={(v) => setTitlePrefix(v === TITLE_PREFIX_NONE ? '' : v)}
+              >
+                <SelectTrigger id="add-prefix" className="min-h-[44px]">
+                  <SelectValue placeholder="เลือก" />
+                </SelectTrigger>
+                <SelectContent>
+                  {TITLE_PREFIX_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.value || TITLE_PREFIX_NONE} value={opt.value || TITLE_PREFIX_NONE}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="add-first">ชื่อ *</Label>
+              <Input
+                id="add-first"
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                autoComplete="given-name"
+                className="min-h-[44px]"
+                required
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="add-last">นามสกุล *</Label>
+              <Input
+                id="add-last"
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                autoComplete="family-name"
+                className="min-h-[44px]"
+                required
+              />
+            </div>
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="add-phone">เบอร์โทร *</Label>

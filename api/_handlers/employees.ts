@@ -11,9 +11,18 @@ import { tableInAppSchema } from '../_lib/schema.js';
 
 const tblEmp = tableInAppSchema('employees');
 
+const ALLOWED_TITLE_PREFIXES = new Set(['นาย', 'นาง', 'นางสาว', 'เด็กชาย', 'เด็กหญิง']);
+
+function parseTitlePrefix(raw: unknown): string | null {
+  const t = getString(raw);
+  if (!t) return null;
+  return ALLOWED_TITLE_PREFIXES.has(t) ? t : null;
+}
+
 type EmployeeRow = {
   id: string;
   employee_code: string;
+  title_prefix: string | null;
   first_name: string;
   last_name: string;
   nickname: string | null;
@@ -69,6 +78,7 @@ function toEmployeeResponse(row: EmployeeRow) {
   return {
     id: row.id,
     employee_code: row.employee_code,
+    ...(row.title_prefix?.trim() ? { title_prefix: row.title_prefix.trim() } : {}),
     first_name: row.first_name,
     last_name: row.last_name,
     nickname: row.nickname || undefined,
@@ -162,6 +172,7 @@ async function employeesHandler(req: AuthedReq, res: ApiRes) {
       const raw = await readJsonBody(req);
       if (!isPlainObject(raw)) return sendError(res, 400, 'Bad request', 'Invalid JSON body');
 
+      const title_prefix = parseTitlePrefix(raw.title_prefix);
       const first_name = getString(raw.first_name);
       const last_name = getString(raw.last_name);
       const phone = getString(raw.phone);
@@ -200,7 +211,7 @@ async function employeesHandler(req: AuthedReq, res: ApiRes) {
       const { rows } = await dbQuery<EmployeeRow>(
         `
           insert into ${tblEmp} (
-            employee_code, first_name, last_name, nickname,
+            employee_code, title_prefix, first_name, last_name, nickname,
             phone, status, position, join_date,
             address, lat, lng,
             reliability_score, utilization_rate,
@@ -208,17 +219,17 @@ async function employeesHandler(req: AuthedReq, res: ApiRes) {
             avatar_url
           )
           values (
-            $1, $2, $3, $4,
-            $5, $6, $7, $8,
-            $9, $10, $11,
-            $12, $13,
-            $14, $15, $16, $17,
-            $18
+            $1, $2, $3, $4, $5,
+            $6, $7, $8, $9,
+            $10, $11, $12,
+            $13, $14,
+            $15, $16, $17, $18, $19
           )
           returning *
         `,
         [
           employee_code,
+          title_prefix,
           first_name,
           last_name,
           nickname,
@@ -262,6 +273,8 @@ async function employeesHandler(req: AuthedReq, res: ApiRes) {
 
       const employee_code =
         raw.employee_code !== undefined ? getString(raw.employee_code) : cur.employee_code;
+      const title_prefix =
+        raw.title_prefix !== undefined ? parseTitlePrefix(raw.title_prefix) : cur.title_prefix;
       const first_name = raw.first_name !== undefined ? getString(raw.first_name) : cur.first_name;
       const last_name = raw.last_name !== undefined ? getString(raw.last_name) : cur.last_name;
       const nickname = raw.nickname !== undefined ? getString(raw.nickname) : cur.nickname;
@@ -309,18 +322,19 @@ async function employeesHandler(req: AuthedReq, res: ApiRes) {
       const { rows } = await dbQuery<EmployeeRow>(
         `
         update ${tblEmp} set
-          employee_code = $2, first_name = $3, last_name = $4, nickname = $5,
-          phone = $6, status = $7, position = $8, join_date = $9::date,
-          address = $10, lat = $11, lng = $12,
-          reliability_score = $13, utilization_rate = $14,
-          total_days_worked = $15, total_income = $16, total_cost = $17, total_issues = $18,
-          avatar_url = $19
+          employee_code = $2, title_prefix = $3, first_name = $4, last_name = $5, nickname = $6,
+          phone = $7, status = $8, position = $9, join_date = $10::date,
+          address = $11, lat = $12, lng = $13,
+          reliability_score = $14, utilization_rate = $15,
+          total_days_worked = $16, total_income = $17, total_cost = $18, total_issues = $19,
+          avatar_url = $20
         where id = $1
         returning *
       `,
         [
           id,
           employee_code,
+          title_prefix,
           first_name,
           last_name,
           nickname,

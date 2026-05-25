@@ -18,6 +18,7 @@ export type EmployeeStatus = 'active' | 'inactive' | 'suspended';
 export interface Employee {
   id: string;
   employee_code: string;
+  title_prefix?: string;
   first_name: string;
   last_name: string;
   nickname?: string;

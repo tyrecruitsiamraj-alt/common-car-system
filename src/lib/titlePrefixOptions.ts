@@ -13,3 +13,12 @@ export function normalizeTitlePrefix(value: string | null | undefined): string {
   return TITLE_PREFIX_OPTIONS.some((opt) => opt.value === trimmed) ? trimmed : '';
 }
 
+export function formatEmployeeDisplayName(
+  e: { title_prefix?: string | null; first_name: string; last_name: string },
+): string {
+  const p = (e.title_prefix ?? '').trim();
+  const f = (e.first_name ?? '').trim();
+  const l = (e.last_name ?? '').trim();
+  return [p, f, l].filter(Boolean).join(' ');
+}
+
