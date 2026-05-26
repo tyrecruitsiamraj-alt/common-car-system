@@ -450,6 +450,7 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
   const [exportingExcel, setExportingExcel] = useState(false);
   const bookingFormRef = useRef<HTMLFormElement>(null);
+  const createVehiclePickerRef = useRef<HTMLInputElement>(null);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [metricDetailOpen, setMetricDetailOpen] = useState(false);
   const [metricDetailKind, setMetricDetailKind] = useState<DashboardMetricId | null>(null);
@@ -739,6 +740,10 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
     setBookStart(toDatetimeLocalValue(from));
     setBookEnd(toDatetimeLocalValue(to));
     setSelVeh(vehicleId);
+    setCreateDialogOpen(true);
+    window.setTimeout(() => {
+      createVehiclePickerRef.current?.focus();
+    }, 0);
   };
 
   const hourSlotLabel = (h: number) => {
@@ -790,6 +795,10 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
     setBookEnd(toDatetimeLocalValue(to));
     setSelEmp(employeeId);
     setSelVeh('');
+    setCreateDialogOpen(true);
+    window.setTimeout(() => {
+      createVehiclePickerRef.current?.focus();
+    }, 0);
   };
 
   const showVehicleHourGrid = isMonitor && viewMode === 'day' && listRange && bookingWindow;
@@ -2698,6 +2707,7 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                   placeholder="พิมพ์ทะเบียนรถ…"
                   emptyMessage="ไม่พบรถ"
                   disabled={loading}
+                  inputRef={createVehiclePickerRef}
                   aria-label="ทะเบียนรถ"
                 />
               </div>

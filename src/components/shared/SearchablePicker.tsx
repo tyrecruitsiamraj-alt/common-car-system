@@ -18,6 +18,8 @@ type Props = {
   disabled?: boolean;
   className?: string;
   inputClassName?: string;
+  inputRef?: React.Ref<HTMLInputElement>;
+  autoFocus?: boolean;
   'aria-label'?: string;
 };
 
@@ -36,6 +38,8 @@ export default function SearchablePicker({
   disabled,
   className,
   inputClassName,
+  inputRef,
+  autoFocus = false,
   'aria-label': ariaLabel,
 }: Props) {
   const listId = useId();
@@ -69,6 +73,8 @@ export default function SearchablePicker({
     <div className={cn('relative min-w-0', className)}>
       <Input
         type="search"
+        ref={inputRef}
+        autoFocus={autoFocus}
         autoComplete="off"
         role="combobox"
         aria-expanded={showList}
