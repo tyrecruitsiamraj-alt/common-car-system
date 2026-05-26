@@ -16,6 +16,8 @@ export type FleetFormLink = {
   linkGroup?: string;
   /** หมายเหตุว่าสติกเกอร์อยู่ที่ไหน (จากรูป QR ที่สแกน) */
   stickerNote?: string;
+  /** รูปสติกเกอร์ QR (ใน public/) */
+  stickerImageSrc?: string;
 };
 
 const URL_START_WORK =
@@ -24,48 +26,24 @@ const URL_START_WORK =
 const URL_FUEL =
   'https://forms.office.com/Pages/ResponsePage.aspx?id=XkjN2b05yUyVOYyXYx-7cVniQHtG9_xFuulQOMyLWTRUMTlDR0Y0MFlWREVINzEzMFNNNFZSWVBEQi4u';
 
-/** ชุดที่ 3 จาก env — ถ้ามี QR ลิงก์อื่นนอกจาก 2 ชุดด้านบน */
-function optionalThirdFromEnv(): FleetFormLink | null {
-  const url =
+const URL_DAILY_DRIVER_CHECK = 'https://forms.office.com/r/eM11rBeKc3';
+
+function dailyDriverCheckUrl(): string {
+  const fromEnv =
     typeof import.meta.env.VITE_FLEET_EXAM_3_URL === 'string'
       ? import.meta.env.VITE_FLEET_EXAM_3_URL.trim()
       : '';
-  if (!url) return null;
-  return {
-    key: 'custom_exam_3',
-    qrLabel:
-      typeof import.meta.env.VITE_FLEET_EXAM_3_QR_LABEL === 'string' &&
-      import.meta.env.VITE_FLEET_EXAM_3_QR_LABEL.trim()
-        ? import.meta.env.VITE_FLEET_EXAM_3_QR_LABEL.trim()
-        : 'สแกน QR ชุดที่ 3',
-    title:
-      typeof import.meta.env.VITE_FLEET_EXAM_3_TITLE === 'string' &&
-      import.meta.env.VITE_FLEET_EXAM_3_TITLE.trim()
-        ? import.meta.env.VITE_FLEET_EXAM_3_TITLE.trim()
-        : 'ข้อสอบ / แบบฟอร์มชุดที่ 3',
-    trainingTopic:
-      typeof import.meta.env.VITE_FLEET_EXAM_3_TOPIC === 'string' &&
-      import.meta.env.VITE_FLEET_EXAM_3_TOPIC.trim()
-        ? import.meta.env.VITE_FLEET_EXAM_3_TOPIC.trim()
-        : 'หัวข้อการอบรมตามฟอร์มชุดที่ 3',
-    whenToUse:
-      typeof import.meta.env.VITE_FLEET_EXAM_3_WHEN === 'string' &&
-      import.meta.env.VITE_FLEET_EXAM_3_WHEN.trim()
-        ? import.meta.env.VITE_FLEET_EXAM_3_WHEN.trim()
-        : 'ตามที่กำหนดในฟอร์ม',
-    url,
-  };
+  return fromEnv || URL_DAILY_DRIVER_CHECK;
 }
 
 /**
- * จากรูป QR ที่ส่งมา: สติกเกอร์ 3 แผ่น แต่ลิงก์ไม่ซ้ำกัน 2 ชุด
- * (สแกนเมื่อเริ่มงาน 2 แผ่น → ฟอร์มเดียวกัน)
+ * สติกเกอร์ 3 ชุด — ลิงก์คนละฟอร์ม
  */
 export const FLEET_FORM_LINKS: FleetFormLink[] = [
   {
     key: 'start_work_sticker_single',
     qrLabel: 'สแกนเมื่อเริ่มงาน',
-    stickerNote: 'สติกเกอร์แผ่นเดี่ยว',
+    stickerNote: 'สติกเกอร์ชุดที่ 1',
     title: 'บันทึกการตรวจสภาพรถ (ประจำตำแหน่ง)',
     trainingTopic:
       'การตรวจสภาพรถก่อนออกปฏิบัติงาน — ความปลอดภัย อุปกรณ์ ไฟ ยาง เบรก เอกสารรถ และการบันทึกเลขไมล์ก่อนใช้งาน',
@@ -76,7 +54,7 @@ export const FLEET_FORM_LINKS: FleetFormLink[] = [
   {
     key: 'fuel_refill',
     qrLabel: 'สแกนเมื่อเติมน้ำมัน',
-    stickerNote: 'สติกเกอร์แผ่นซ้าย (คู่กับเริ่มงาน)',
+    stickerNote: 'สติกเกอร์ชุดที่ 2',
     title: 'บันทึกการเติมน้ำมัน',
     trainingTopic:
       'การบันทึกการเติมน้ำมันอย่างถูกต้อง — เลขไมล์ สถานที่เติม ปริมาณลิตร ค่าใช้จ่าย และใบเสร็จ เพื่อควบคุมต้นทุนและตรวจสอบย้อนหลัง',
@@ -84,17 +62,16 @@ export const FLEET_FORM_LINKS: FleetFormLink[] = [
     url: URL_FUEL,
   },
   {
-    key: 'start_work_sticker_pair',
-    qrLabel: 'สแกนเมื่อเริ่มงาน',
-    stickerNote: 'สติกเกอร์แผ่นขวา (คู่กับเติมน้ำมัน)',
-    title: 'บันทึกการตรวจสภาพรถ (ประจำตำแหน่ง)',
+    key: 'daily_driver_check',
+    qrLabel: 'Daily Driver Check Sheet',
+    stickerNote: 'สติกเกอร์ชุดที่ 3',
+    stickerImageSrc: '/exams/daily-driver-check-sheet.png',
+    title: 'Daily Driver Check Sheet',
     trainingTopic:
-      'การตรวจสภาพรถก่อนออกปฏิบัติงาน — ความปลอดภัย อุปกรณ์ ไฟ ยาง เบรก เอกสารรถ และการบันทึกเลขไมล์ก่อนใช้งาน',
-    whenToUse: 'ทุกครั้งก่อนเริ่มงาน / ก่อนออกรถ',
-    url: URL_START_WORK,
-    linkGroup: 'start_work',
+      'รักษาสุขภาพร่างกายแข็งแรง เพื่อตนเองและครอบครัว พร้อมบริการให้ดีที่สุดในวันนี้ — ตรวจสุขภาพและความพร้อมก่อนปฏิบัติหน้าที่ขับรถ',
+    whenToUse: 'ทุกวันก่อนเริ่มงาน / ก่อนออกรถ',
+    url: dailyDriverCheckUrl(),
   },
-  ...(optionalThirdFromEnv() ? [optionalThirdFromEnv()!] : []),
 ];
 
 export function countUniqueFormUrls(links: FleetFormLink[] = FLEET_FORM_LINKS): number {

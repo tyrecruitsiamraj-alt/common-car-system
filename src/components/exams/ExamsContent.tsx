@@ -1,13 +1,12 @@
 import React from 'react';
-import { ClipboardCheck, ExternalLink, Fuel } from 'lucide-react';
+import { ClipboardCheck, ExternalLink, Fuel, HeartPulse } from 'lucide-react';
 import { FLEET_FORM_LINKS } from '@/lib/fleetFormsConfig';
 import { Button } from '@/components/ui/button';
 
 const ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   start_work_sticker_single: ClipboardCheck,
-  start_work_sticker_pair: ClipboardCheck,
   fuel_refill: Fuel,
-  custom_exam_3: ClipboardCheck,
+  daily_driver_check: HeartPulse,
 };
 
 const ExamsContent: React.FC = () => (
@@ -43,6 +42,16 @@ const ExamsContent: React.FC = () => (
               </p>
             </div>
           </div>
+
+          {item.stickerImageSrc ? (
+            <div className="mt-4 overflow-hidden rounded-2xl border border-border/70 bg-white">
+              <img
+                src={item.stickerImageSrc}
+                alt={`สติกเกอร์ QR — ${item.title}`}
+                className="w-full max-h-72 object-contain object-center"
+              />
+            </div>
+          ) : null}
 
           <div className="mt-4">
             <Button asChild className="rounded-2xl h-11 w-full sm:w-auto sm:min-w-[200px]">
