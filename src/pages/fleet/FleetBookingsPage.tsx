@@ -47,6 +47,8 @@ import {
 } from '@/components/ui/select';
 import { TimeHm24Select } from '@/components/shared/TimeHm24Select';
 import DateSelectDmyBe from '@/components/shared/DateSelectDmyBe';
+import SearchablePicker, { type SearchablePickerOption } from '@/components/shared/SearchablePicker';
+import { formatEmployeeDisplayName } from '@/lib/titlePrefixOptions';
 import {
   formatThaiDate,
   formatThaiDateTime,
@@ -1419,6 +1421,38 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
     return Array.from(vehMap.values()).filter((v) => v.is_active !== false);
   }, [displayAvailability, vehMap]);
 
+  const bookEmpPickerOptions = useMemo((): SearchablePickerOption[] => {
+    return bookEmpOptions.map((e) => ({
+      value: e.id,
+      label: formatEmployeeDisplayName(e),
+      keywords: [e.employee_code, e.phone, e.first_name, e.last_name].filter(Boolean).join(' '),
+    }));
+  }, [bookEmpOptions]);
+
+  const bookVehPickerOptions = useMemo((): SearchablePickerOption[] => {
+    return bookVehOptions.map((v) => ({
+      value: v.id,
+      label: v.label?.trim() ? `${v.plate_no} — ${v.label.trim()}` : v.plate_no,
+      keywords: [v.plate_no, v.label].filter(Boolean).join(' '),
+    }));
+  }, [bookVehOptions]);
+
+  const editEmpPickerOptions = useMemo((): SearchablePickerOption[] => {
+    return Array.from(empMap.values()).map((e) => ({
+      value: e.id,
+      label: formatEmployeeDisplayName(e),
+      keywords: [e.employee_code, e.phone, e.first_name, e.last_name].filter(Boolean).join(' '),
+    }));
+  }, [empMap]);
+
+  const editVehPickerOptions = useMemo((): SearchablePickerOption[] => {
+    return Array.from(vehMap.values()).map((v) => ({
+      value: v.id,
+      label: v.label?.trim() ? `${v.plate_no} — ${v.label.trim()}` : v.plate_no,
+      keywords: [v.plate_no, v.label].filter(Boolean).join(' '),
+    }));
+  }, [vehMap]);
+
   const vehiclesList = useMemo(() => Array.from(vehMap.values()), [vehMap]);
   const bookingsForTable = useMemo(
     () => (isMonitor ? selectedDayBookings : bookings),
@@ -2645,35 +2679,27 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <div className="space-y-0.5 min-w-0">
                 <Label className="text-[10px]">ผู้ขับ</Label>
-                <select
-                  className="w-full h-8 rounded-md border border-border bg-background px-2 text-xs min-w-0"
+                <SearchablePicker
                   value={selEmp}
-                  onChange={(e) => setSelEmp(e.target.value)}
-                  required
-                >
-                  <option value="">เลือก</option>
-                  {bookEmpOptions.map((e) => (
-                    <option key={e.id} value={e.id}>
-                      {e.first_name} {e.last_name}
-                    </option>
-                  ))}
-                </select>
+                  onValueChange={setSelEmp}
+                  options={bookEmpPickerOptions}
+                  placeholder="พิมพ์ชื่อหรือรหัสพนักงาน…"
+                  emptyMessage="ไม่พบผู้ขับ"
+                  disabled={loading}
+                  aria-label="ผู้ขับ"
+                />
               </div>
               <div className="space-y-0.5 min-w-0">
-                <Label className="text-[10px]">รถ</Label>
-                <select
-                  className="w-full h-8 rounded-md border border-border bg-background px-2 text-xs min-w-0"
+                <Label className="text-[10px]">รถ (ทะเบียน)</Label>
+                <SearchablePicker
                   value={selVeh}
-                  onChange={(e) => setSelVeh(e.target.value)}
-                  required
-                >
-                  <option value="">เลือก</option>
-                  {bookVehOptions.map((ve) => (
-                    <option key={ve.id} value={ve.id}>
-                      {ve.plate_no}
-                    </option>
-                  ))}
-                </select>
+                  onValueChange={setSelVeh}
+                  options={bookVehPickerOptions}
+                  placeholder="พิมพ์ทะเบียนรถ…"
+                  emptyMessage="ไม่พบรถ"
+                  disabled={loading}
+                  aria-label="ทะเบียนรถ"
+                />
               </div>
             </div>
             <DestinationField value={destination} onChange={setDestination} />
@@ -2764,33 +2790,27 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
               <div className="flex-1 min-h-0 overflow-y-auto px-6 space-y-3 pb-2">
               <div className="space-y-1">
                 <Label className="text-xs">ผู้ขับ</Label>
-                <select
+                <SearchablePicker
                   value={editEmp}
-                  onChange={(e) => setEditEmp(e.target.value)}
-                  className="w-full h-9 rounded-md border border-border bg-background px-2 text-sm"
-                  required
-                >
-                  {Array.from(empMap.values()).map((e) => (
-                    <option key={e.id} value={e.id}>
-                      {e.first_name} {e.last_name}
-                    </option>
-                  ))}
-                </select>
+                  onValueChange={setEditEmp}
+                  options={editEmpPickerOptions}
+                  placeholder="พิมพ์ชื่อหรือรหัสพนักงาน…"
+                  emptyMessage="ไม่พบผู้ขับ"
+                  inputClassName="h-9 text-sm"
+                  aria-label="ผู้ขับ"
+                />
               </div>
               <div className="space-y-1">
-                <Label className="text-xs">รถ</Label>
-                <select
+                <Label className="text-xs">รถ (ทะเบียน)</Label>
+                <SearchablePicker
                   value={editVeh}
-                  onChange={(e) => setEditVeh(e.target.value)}
-                  className="w-full h-9 rounded-md border border-border bg-background px-2 text-sm"
-                  required
-                >
-                  {Array.from(vehMap.values()).map((v) => (
-                    <option key={v.id} value={v.id}>
-                      {v.plate_no}
-                    </option>
-                  ))}
-                </select>
+                  onValueChange={setEditVeh}
+                  options={editVehPickerOptions}
+                  placeholder="พิมพ์ทะเบียนรถ…"
+                  emptyMessage="ไม่พบรถ"
+                  inputClassName="h-9 text-sm"
+                  aria-label="ทะเบียนรถ"
+                />
               </div>
               {editTimeBaseline ? (
                 <div className="rounded-lg border border-amber-200/80 bg-amber-50/60 px-3 py-2 text-xs space-y-1.5">
