@@ -43,16 +43,6 @@ const ExamsContent: React.FC = () => (
             </div>
           </div>
 
-          {item.stickerImageSrc ? (
-            <div className="mt-4 overflow-hidden rounded-2xl border border-border/70 bg-white">
-              <img
-                src={item.stickerImageSrc}
-                alt={`สติกเกอร์ QR — ${item.title}`}
-                className="w-full max-h-72 object-contain object-center"
-              />
-            </div>
-          ) : null}
-
           <div className="mt-4">
             <Button asChild className="rounded-2xl h-11 w-full sm:w-auto sm:min-w-[200px]">
               <a href={item.url} target="_blank" rel="noopener noreferrer">

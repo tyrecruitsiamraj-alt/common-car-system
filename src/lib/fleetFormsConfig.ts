@@ -16,8 +16,6 @@ export type FleetFormLink = {
   linkGroup?: string;
   /** หมายเหตุว่าสติกเกอร์อยู่ที่ไหน (จากรูป QR ที่สแกน) */
   stickerNote?: string;
-  /** รูปสติกเกอร์ QR (ใน public/) */
-  stickerImageSrc?: string;
 };
 
 const URL_START_WORK =
@@ -65,7 +63,6 @@ export const FLEET_FORM_LINKS: FleetFormLink[] = [
     key: 'daily_driver_check',
     qrLabel: 'Daily Driver Check Sheet',
     stickerNote: 'สติกเกอร์ชุดที่ 3',
-    stickerImageSrc: '/exams/daily-driver-check-sheet.png',
     title: 'Daily Driver Check Sheet',
     trainingTopic:
       'รักษาสุขภาพร่างกายแข็งแรง เพื่อตนเองและครอบครัว พร้อมบริการให้ดีที่สุดในวันนี้ — ตรวจสุขภาพและความพร้อมก่อนปฏิบัติหน้าที่ขับรถ',
