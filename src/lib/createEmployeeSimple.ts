@@ -1,7 +1,7 @@
 import type { Employee } from '@/types';
 import { apiFetch } from '@/lib/apiFetch';
 import { toYmdLocal } from '@/lib/dateTh';
-import { createEmployee, getEmployees, updateEmployeeInDemo } from '@/lib/demoStorage';
+import { createEmployee, deleteEmployeeInDemo, getEmployees, updateEmployeeInDemo } from '@/lib/demoStorage';
 import { isDemoMode } from '@/lib/demoMode';
 import { normalizeTitlePrefix } from '@/lib/titlePrefixOptions';
 
@@ -67,6 +67,7 @@ export async function createEmployeeSimple(input: SimpleEmployeeInput): Promise<
 
 export type UpdateEmployeeInput = {
   employee_code?: string;
+  title_prefix?: string;
   first_name?: string;
   last_name?: string;
   nickname?: string;
@@ -75,22 +76,31 @@ export type UpdateEmployeeInput = {
 
 /** แก้ไขข้อมูลผู้ขับ — ส่งเฉพาะฟิลด์ที่เปลี่ยน */
 export async function updateEmployee(id: string, input: UpdateEmployeeInput): Promise<Employee> {
+  const title_prefix =
+    input.title_prefix !== undefined ? normalizeTitlePrefix(input.title_prefix) : undefined;
+
   if (isDemoMode()) {
     const cur = getEmployees().find((e) => e.id === id);
     if (!cur) throw new Error('ไม่พบผู้ขับ');
-    return updateEmployeeInDemo(id, {
+    const updated = updateEmployeeInDemo(id, {
       employee_code: input.employee_code?.trim() ?? cur.employee_code,
       first_name: input.first_name?.trim() ?? cur.first_name,
       last_name: input.last_name?.trim() ?? cur.last_name,
       nickname: input.nickname !== undefined ? input.nickname.trim() || undefined : cur.nickname,
       phone: input.phone?.trim() ?? cur.phone,
+      ...(title_prefix !== undefined ? { title_prefix } : {}),
     });
+    return updated;
   }
 
   const r = await apiFetch('/api/employees', {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ id, ...input }),
+    body: JSON.stringify({
+      id,
+      ...input,
+      ...(title_prefix !== undefined ? { title_prefix: title_prefix || null } : {}),
+    }),
   });
 
   if (!r.ok) {
@@ -99,4 +109,18 @@ export async function updateEmployee(id: string, input: UpdateEmployeeInput): Pr
   }
 
   return (await r.json()) as Employee;
+}
+
+/** ลบผู้ขับออกจากระบบ */
+export async function deleteEmployee(id: string): Promise<void> {
+  if (isDemoMode()) {
+    deleteEmployeeInDemo(id);
+    return;
+  }
+
+  const r = await apiFetch(`/api/employees?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
+  if (!r.ok) {
+    const body = (await r.json().catch(() => null)) as { error?: string; message?: string } | null;
+    throw new Error(body?.message || body?.error || 'ลบไม่สำเร็จ');
+  }
 }

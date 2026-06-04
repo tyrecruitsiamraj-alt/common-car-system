@@ -3,18 +3,21 @@ import { useNavigate } from 'react-router-dom';
 import PageHeader from '@/components/shared/PageHeader';
 import AppPage from '@/components/layout/AppPage';
 import QuickAddDriverForm from '@/components/wl/QuickAddDriverForm';
+import DriverEditDialog from '@/components/wl/DriverEditDialog';
 import ExportExcelButton from '@/components/shared/ExportExcelButton';
 import { exportDriversExcel } from '@/lib/fleetExcelExport';
+import { deleteEmployee } from '@/lib/createEmployeeSimple';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import type { Candidate, Employee, EmployeeStatus } from '@/types';
-import { Search } from 'lucide-react';
+import { Pencil, Search, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { mockEmployees } from '@/data/mockData';
 import { DEMO_CANDIDATES_CHANGED_EVENT, getCandidates, getEmployees } from '@/lib/demoStorage';
 import { mergeCandidateSources } from '@/lib/mergeCandidates';
-import { candidateToWlEmployeeRow, isWlStaffingTrack } from '@/lib/wlFromCandidate';
+import { candidateToWlEmployeeRow, isWlStaffingTrack, WL_FROM_CANDIDATE_PREFIX } from '@/lib/wlFromCandidate';
+import { formatEmployeeDisplayName } from '@/lib/titlePrefixOptions';
 import { readJsonSafe } from '@/lib/api';
 import { isDemoMode } from '@/lib/demoMode';
 import { apiFetch } from '@/lib/apiFetch';
@@ -55,11 +58,20 @@ function combineWlEmployeeList(
   );
 }
 
+function isManageableDriver(emp: Employee): boolean {
+  return !emp.id.startsWith(WL_FROM_CANDIDATE_PREFIX);
+}
+
 const WLEmployees: React.FC = () => {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
+  const { hasPermission } = useAuth();
+  const canEdit = hasPermission('staff');
   const [filter, setFilter] = useState<EmployeeStatus | 'all'>('all');
   const [search, setSearch] = useState('');
+  const [editEmployee, setEditEmployee] = useState<Employee | null>(null);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const [employees, setEmployees] = useState<Employee[]>(() =>
     combineWlEmployeeList([], getEmployees(), mergeCandidateSources([], getCandidates())),
@@ -142,6 +154,64 @@ const WLEmployees: React.FC = () => {
     }
   }, [filtered]);
 
+  const openEditDriver = (emp: Employee) => {
+    setEditEmployee(emp);
+    setEditDialogOpen(true);
+  };
+
+  const handleDeleteDriver = async (emp: Employee) => {
+    if (!canEdit || !isManageableDriver(emp)) return;
+    const name = formatEmployeeDisplayName(emp);
+    if (
+      !window.confirm(
+        `ลบรายชื่อ ${name} ?\n\nการจองที่เกี่ยวข้องจะถูกลบด้วย — ไม่สามารถกู้คืนได้`,
+      )
+    ) {
+      return;
+    }
+    setDeletingId(emp.id);
+    try {
+      await deleteEmployee(emp.id);
+      toast.success(`ลบ ${name} แล้ว`);
+      if (editEmployee?.id === emp.id) {
+        setEditDialogOpen(false);
+        setEditEmployee(null);
+      }
+      await reloadEmployees();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'ลบไม่สำเร็จ');
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const renderDriverActions = (emp: Employee) => {
+    if (!canEdit || !isManageableDriver(emp)) return null;
+    const busy = deletingId === emp.id;
+    return (
+      <div className="inline-flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+        <button
+          type="button"
+          className="grid h-8 w-8 place-items-center rounded-lg text-muted-foreground hover:bg-secondary hover:text-foreground"
+          aria-label={`แก้ไข ${formatEmployeeDisplayName(emp)}`}
+          disabled={busy}
+          onClick={() => openEditDriver(emp)}
+        >
+          <Pencil className="h-4 w-4" />
+        </button>
+        <button
+          type="button"
+          className="grid h-8 w-8 place-items-center rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+          aria-label={`ลบ ${formatEmployeeDisplayName(emp)}`}
+          disabled={busy}
+          onClick={() => void handleDeleteDriver(emp)}
+        >
+          <Trash2 className="h-4 w-4" />
+        </button>
+      </div>
+    );
+  };
+
   return (
     <AppPage maxWidth="4xl" panel>
       <PageHeader
@@ -202,39 +272,50 @@ const WLEmployees: React.FC = () => {
 
         {isMobile ? (
           <div className="space-y-2">
-            {filtered.map((emp) => (
-              <button
+            {filtered.map((emp) => {
+              const actions = renderDriverActions(emp);
+              return (
+              <div
                 key={emp.id}
-                onClick={() => navigate(`/fleet/drivers/${emp.id}`)}
-                className="w-full glass-card rounded-xl p-4 border border-border text-left hover:border-primary/40 transition-all"
+                className="glass-card rounded-xl p-4 border border-border hover:border-primary/40 transition-all"
               >
-                <div className="flex items-center justify-between mb-2">
-                  <span className="font-semibold text-foreground text-sm">
-                    {emp.first_name} {emp.last_name}
-                  </span>
-                  <span
-                    className={cn(
-                      'text-xs px-2 py-0.5 rounded-full',
-                      emp.status === 'active'
-                        ? 'bg-success/15 text-success'
+                <button
+                  type="button"
+                  onClick={() => navigate(`/fleet/drivers/${emp.id}`)}
+                  className="w-full text-left"
+                >
+                  <div className="flex items-center justify-between mb-2 gap-2">
+                    <span className="font-semibold text-foreground text-sm">
+                      {formatEmployeeDisplayName(emp)}
+                    </span>
+                    <span
+                      className={cn(
+                        'text-xs px-2 py-0.5 rounded-full shrink-0',
+                        emp.status === 'active'
+                          ? 'bg-success/15 text-success'
+                          : emp.status === 'suspended'
+                            ? 'bg-destructive/15 text-destructive'
+                            : 'bg-muted text-muted-foreground',
+                      )}
+                    >
+                      {emp.status === 'active'
+                        ? 'ใช้งาน'
                         : emp.status === 'suspended'
-                          ? 'bg-destructive/15 text-destructive'
-                          : 'bg-muted text-muted-foreground',
-                    )}
-                  >
-                    {emp.status === 'active'
-                      ? 'ใช้งาน'
-                      : emp.status === 'suspended'
-                        ? 'ระงับ'
-                        : 'ไม่ใช้งาน'}
-                  </span>
-                </div>
+                          ? 'ระงับ'
+                          : 'ไม่ใช้งาน'}
+                    </span>
+                  </div>
 
-                <div className="text-xs text-muted-foreground">
-                  {emp.employee_code} • {emp.phone}
-                </div>
-              </button>
-            ))}
+                  <div className="text-xs text-muted-foreground">
+                    {emp.employee_code} • {emp.phone}
+                  </div>
+                </button>
+                {actions ? (
+                  <div className="mt-2 pt-2 border-t border-border/50 flex justify-end">{actions}</div>
+                ) : null}
+              </div>
+              );
+            })}
           </div>
         ) : (
           <div className="glass-card rounded-xl border border-border overflow-hidden">
@@ -246,6 +327,9 @@ const WLEmployees: React.FC = () => {
                   <th className="px-4 py-3 text-left text-muted-foreground font-medium">เบอร์โทร</th>
                   <th className="px-4 py-3 text-left text-muted-foreground font-medium">ตำแหน่ง</th>
                   <th className="px-4 py-3 text-center text-muted-foreground font-medium">สถานะ</th>
+                  {canEdit ? (
+                    <th className="px-4 py-3 text-center text-muted-foreground font-medium w-24">จัดการ</th>
+                  ) : null}
                 </tr>
               </thead>
 
@@ -258,7 +342,7 @@ const WLEmployees: React.FC = () => {
                   >
                     <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{emp.employee_code}</td>
                     <td className="px-4 py-3 font-medium text-foreground">
-                      {emp.first_name} {emp.last_name}
+                      {formatEmployeeDisplayName(emp)}
                     </td>
                     <td className="px-4 py-3 text-muted-foreground tabular-nums">{emp.phone}</td>
                     <td className="px-4 py-3 text-muted-foreground">{emp.position}</td>
@@ -280,6 +364,9 @@ const WLEmployees: React.FC = () => {
                             : 'ไม่ใช้งาน'}
                       </span>
                     </td>
+                    {canEdit ? (
+                      <td className="px-4 py-3 text-center">{renderDriverActions(emp)}</td>
+                    ) : null}
                   </tr>
                 ))}
               </tbody>
@@ -287,6 +374,16 @@ const WLEmployees: React.FC = () => {
           </div>
         )}
       </div>
+
+      <DriverEditDialog
+        employee={editEmployee}
+        open={editDialogOpen}
+        onOpenChange={(open) => {
+          setEditDialogOpen(open);
+          if (!open) setEditEmployee(null);
+        }}
+        onUpdated={() => void reloadEmployees()}
+      />
     </AppPage>
   );
 };

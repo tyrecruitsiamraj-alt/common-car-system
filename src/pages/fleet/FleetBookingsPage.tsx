@@ -72,6 +72,7 @@ import {
   setHours,
   setMinutes,
   eachDayOfInterval,
+  addDays,
   isSameMonth,
   isSameDay,
   isBefore,
@@ -92,7 +93,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Copy, MoreHorizontal } from 'lucide-react';
 
 type ViewMode = 'month' | 'week' | 'day' | 'hour';
 
@@ -382,6 +384,37 @@ function combineBookYmdHm(ymd: string, hm: string): string {
   return `${d}T${h}`;
 }
 
+const COPY_BOOKING_MAX_DAYS = 31;
+
+/** รายการ yyyy-MM-dd จาก–ถึง (รวมปลายทาง) */
+function buildYmdRange(fromYmd: string, toYmd: string): string[] {
+  const from = parse(fromYmd, 'yyyy-MM-dd', new Date());
+  const to = parse(toYmd, 'yyyy-MM-dd', new Date());
+  if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime()) || to < from) return [];
+  if (eachDayOfInterval({ start: from, end: to }).length > COPY_BOOKING_MAX_DAYS) return [];
+  return eachDayOfInterval({ start: from, end: to }).map((d) => format(d, 'yyyy-MM-dd'));
+}
+
+/** คัดลอกช่วงเวลาจากใบจองต้นฉบับไปยังวันเป้าหมาย */
+function bookingWindowForCopyDay(source: VehicleBooking, targetYmd: string): { from: Date; to: Date } | null {
+  const srcStart = parseISO(source.starts_at);
+  const srcEnd = parseISO(source.ends_at);
+  if (Number.isNaN(srcStart.getTime()) || Number.isNaN(srcEnd.getTime())) return null;
+  const startHm = format(srcStart, 'HH:mm');
+  const from = new Date(combineBookYmdHm(targetYmd, startHm));
+  if (Number.isNaN(from.getTime())) return null;
+  const srcStartDay = format(srcStart, 'yyyy-MM-dd');
+  const srcEndDay = format(srcEnd, 'yyyy-MM-dd');
+  let to: Date;
+  if (srcStartDay === srcEndDay) {
+    to = new Date(combineBookYmdHm(targetYmd, format(srcEnd, 'HH:mm')));
+    if (Number.isNaN(to.getTime()) || to <= from) to = addHours(from, 1);
+  } else {
+    to = new Date(from.getTime() + (srcEnd.getTime() - srcStart.getTime()));
+  }
+  return { from, to };
+}
+
 /** ชั่วโมงถัดไปเมื่อเวลาปัจจุบันไม่ตรงขอบชั่วโมง */
 function ceilToNextHour(d: Date): Date {
   const h = startOfHour(d);
@@ -474,6 +507,11 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
   const [editTimeBaseline, setEditTimeBaseline] = useState<{ starts: string; ends: string } | null>(null);
   /** แก้ไขทั่วไป หรือ เปิดจากปุ่มเสร็จสิ้น (ต้องปรับเวลาก่อนบันทึก) */
   const [editDialogMode, setEditDialogMode] = useState<'edit' | 'complete'>('edit');
+  const [copySource, setCopySource] = useState<VehicleBooking | null>(null);
+  const [copyDateFrom, setCopyDateFrom] = useState('');
+  const [copyDateTo, setCopyDateTo] = useState('');
+  const [copySelectedDays, setCopySelectedDays] = useState<Set<string>>(() => new Set());
+  const [copySaving, setCopySaving] = useState(false);
 
   useEffect(() => {
     if (mode === 'book' && viewMode !== 'day') {
@@ -1303,6 +1341,111 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
     openEditBooking(b, 'complete');
   };
 
+  const closeCopyDialog = () => {
+    setCopySource(null);
+    setCopyDateFrom('');
+    setCopyDateTo('');
+    setCopySelectedDays(new Set());
+  };
+
+  const openCopyBooking = (b: VehicleBooking) => {
+    if (!canEdit) return;
+    const srcDay = format(parseISO(b.starts_at), 'yyyy-MM-dd');
+    const srcDayDate = parse(srcDay, 'yyyy-MM-dd', new Date());
+    const rangeEnd = addDays(srcDayDate, 6);
+    const toYmd = format(rangeEnd, 'yyyy-MM-dd');
+    const days = buildYmdRange(srcDay, toYmd);
+    setCopySource(b);
+    setCopyDateFrom(srcDay);
+    setCopyDateTo(toYmd);
+    setCopySelectedDays(new Set(days));
+  };
+
+  const copyDaysInRange = useMemo(
+    () => (copyDateFrom && copyDateTo ? buildYmdRange(copyDateFrom, copyDateTo) : []),
+    [copyDateFrom, copyDateTo],
+  );
+
+  const applyCopyDateRange = (fromYmd: string, toYmd: string) => {
+    if (fromYmd > toYmd) {
+      toast.error('วันสิ้นสุดต้องไม่ก่อนวันเริ่ม');
+      return;
+    }
+    const days = buildYmdRange(fromYmd, toYmd);
+    if (days.length === 0) {
+      toast.error(`เลือกช่วงได้ไม่เกิน ${COPY_BOOKING_MAX_DAYS} วัน`);
+      return;
+    }
+    setCopyDateFrom(fromYmd);
+    setCopyDateTo(toYmd);
+    setCopySelectedDays(new Set(days));
+  };
+
+  const toggleCopyDay = (ymd: string, checked: boolean) => {
+    setCopySelectedDays((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(ymd);
+      else next.delete(ymd);
+      return next;
+    });
+  };
+
+  const submitCopyBooking = async () => {
+    if (!copySource || !canEdit) return;
+    const days = copyDaysInRange.filter((ymd) => copySelectedDays.has(ymd));
+    if (days.length === 0) {
+      toast.error('เลือกอย่างน้อย 1 วัน');
+      return;
+    }
+    setCopySaving(true);
+    let ok = 0;
+    const errors: string[] = [];
+    for (const ymd of days) {
+      const win = bookingWindowForCopyDay(copySource, ymd);
+      if (!win) {
+        errors.push(`${ymd}: ช่วงเวลาไม่ถูกต้อง`);
+        continue;
+      }
+      try {
+        const r = await apiFetch('/api/vehicle-bookings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            employee_id: copySource.employee_id,
+            vehicle_id: copySource.vehicle_id,
+            starts_at: win.from.toISOString(),
+            ends_at: win.to.toISOString(),
+            destination: copySource.destination?.trim() || undefined,
+            notes: copySource.notes?.trim() || undefined,
+          }),
+        });
+        if (!r.ok) throw new Error(await parseApiError(r));
+        ok += 1;
+      } catch (err) {
+        const label = format(parse(ymd, 'yyyy-MM-dd', new Date()), 'd/M', { locale: th });
+        errors.push(`${label}: ${err instanceof Error ? err.message : 'จองไม่สำเร็จ'}`);
+      }
+    }
+    if (copySource.destination?.trim()) addDestinationSuggestion(copySource.destination);
+    setCopySaving(false);
+    if (ok > 0) {
+      toast.success(`สร้างการจอง ${ok} รายการจากการคัดลอก`);
+      await refresh();
+    }
+    if (errors.length === 0 && ok > 0) {
+      closeCopyDialog();
+      return;
+    }
+    if (errors.length > 0) {
+      const preview = errors.slice(0, 4).join(' · ');
+      toast.error(
+        ok > 0
+          ? `สร้างได้ ${ok} รายการ · ไม่สำเร็จ ${errors.length} วัน: ${preview}${errors.length > 4 ? '…' : ''}`
+          : `คัดลอกไม่สำเร็จ: ${preview}${errors.length > 4 ? '…' : ''}`,
+      );
+    }
+  };
+
   const formatEditDt = (local: string) => {
     const d = new Date(local);
     return Number.isNaN(d.getTime()) ? local : formatThaiDateTime(d);
@@ -1392,6 +1535,11 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
         {canEdit ? (
           <button type="button" className="text-[10px] text-primary hover:underline" onClick={() => openEditBooking(b)}>
             แก้ไข
+          </button>
+        ) : null}
+        {canEdit && isBookingActive(b) ? (
+          <button type="button" className="text-[10px] text-primary hover:underline" onClick={() => openCopyBooking(b)}>
+            คัดลอก
           </button>
         ) : null}
         {canDelete ? (
@@ -1762,6 +1910,12 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                 ) : null}
                 {canEdit ? (
                   <DropdownMenuItem onClick={() => openEditBooking(b)}>แก้ไขการจอง</DropdownMenuItem>
+                ) : null}
+                {canEdit ? (
+                  <DropdownMenuItem onClick={() => openCopyBooking(b)}>
+                    <Copy className="mr-2 h-4 w-4" />
+                    คัดลอกไปวันอื่น
+                  </DropdownMenuItem>
                 ) : null}
                 {canDelete ? (
                   <DropdownMenuItem
@@ -2728,6 +2882,144 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
             </div>
           </form>
         ) : null}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={copySource !== null} onOpenChange={(open) => !open && closeCopyDialog()}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg rounded-[1.5rem]">
+          {copySource ? (
+            <>
+              <DialogHeader>
+                <DialogTitle>คัดลอกการจองไปวันอื่น</DialogTitle>
+                <DialogDescription>
+                  ใช้ผู้ขับ รถ เวลา สถานที่ และหมายเหตุเดิม — เลือกช่วงวันที่แล้วติ๊กเฉพาะวันที่ต้องการ (ยกเลิกวันที่ไม่ใช้ได้)
+                </DialogDescription>
+              </DialogHeader>
+              <div className="rounded-xl border border-border bg-muted/20 px-3 py-2.5 text-xs space-y-1">
+                <p>
+                  <span className="text-muted-foreground">ผู้ขับ: </span>
+                  <span className="font-medium text-foreground">{empLabel(copySource.employee_id)}</span>
+                </p>
+                <p>
+                  <span className="text-muted-foreground">รถ: </span>
+                  <span className="font-medium text-foreground">{vehLabel(copySource.vehicle_id)}</span>
+                </p>
+                <p className="tabular-nums">
+                  <span className="text-muted-foreground">เวลาเดิม: </span>
+                  <span className="font-medium text-foreground">
+                    {formatThaiTime(parseISO(copySource.starts_at))} – {formatThaiTime(parseISO(copySource.ends_at))}
+                  </span>
+                  <span className="text-muted-foreground"> (ใช้เวลานี้ทุกวันที่เลือก)</span>
+                </p>
+                {copySource.destination?.trim() ? (
+                  <p>
+                    <span className="text-muted-foreground">สถานที่: </span>
+                    {copySource.destination.trim()}
+                  </p>
+                ) : null}
+              </div>
+              <div className="space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <Label className="text-xs">จากวันที่</Label>
+                    <DateSelectDmyBe
+                      value={copyDateFrom}
+                      onChange={(ymd) => applyCopyDateRange(ymd, copyDateTo || ymd)}
+                      yearKind="ce"
+                      triggerClassName="h-9 rounded-md border border-input bg-background px-2 text-xs w-full"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">ถึงวันที่</Label>
+                    <DateSelectDmyBe
+                      value={copyDateTo}
+                      minYmd={copyDateFrom || undefined}
+                      onChange={(ymd) => applyCopyDateRange(copyDateFrom || ymd, ymd)}
+                      yearKind="ce"
+                      triggerClassName="h-9 rounded-md border border-input bg-background px-2 text-xs w-full"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <Label className="text-xs">
+                      เลือกวันที่จอง ({copySelectedDays.size}/{copyDaysInRange.length} วัน)
+                    </Label>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        className="text-[10px] text-primary hover:underline"
+                        onClick={() => setCopySelectedDays(new Set(copyDaysInRange))}
+                        disabled={copyDaysInRange.length === 0}
+                      >
+                        เลือกทั้งหมด
+                      </button>
+                      <button
+                        type="button"
+                        className="text-[10px] text-muted-foreground hover:underline"
+                        onClick={() => setCopySelectedDays(new Set())}
+                        disabled={copyDaysInRange.length === 0}
+                      >
+                        ยกเลิกทั้งหมด
+                      </button>
+                    </div>
+                  </div>
+                  {copyDaysInRange.length === 0 ? (
+                    <p className="text-xs text-destructive">ช่วงวันที่ไม่ถูกต้อง (สูงสุด {COPY_BOOKING_MAX_DAYS} วัน)</p>
+                  ) : (
+                    <ul className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-52 overflow-y-auto rounded-lg border border-border/70 p-2">
+                      {copyDaysInRange.map((ymd) => {
+                        const d = parse(ymd, 'yyyy-MM-dd', new Date());
+                        const checked = copySelectedDays.has(ymd);
+                        const srcDay = format(parseISO(copySource.starts_at), 'yyyy-MM-dd');
+                        const isSourceDay = ymd === srcDay;
+                        return (
+                          <li key={ymd}>
+                            <label
+                              className={cn(
+                                'flex items-center gap-2 rounded-md px-2 py-1.5 text-xs cursor-pointer hover:bg-muted/50',
+                                checked && 'bg-primary/5',
+                              )}
+                            >
+                              <Checkbox
+                                checked={checked}
+                                onCheckedChange={(v) => toggleCopyDay(ymd, v === true)}
+                                aria-label={`จองวันที่ ${ymd}`}
+                              />
+                              <span className="font-medium tabular-nums">
+                                {format(d, 'EEE d MMM yyyy', { locale: th })}
+                              </span>
+                              {isSourceDay ? (
+                                <span className="text-[10px] text-muted-foreground">(วันต้นฉบับ)</span>
+                              ) : null}
+                            </label>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                  <p className="text-[10px] text-muted-foreground leading-snug">
+                    ตัวอย่าง: เลือก 1–5 แล้วยกเลิกวันที่ 2 และ 4 จะสร้างจองเฉพาะวันที่ 1, 3, 5 — ถ้าวันใดชนกับจองเดิม ระบบจะแจ้งและข้ามวันนั้น
+                  </p>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2 justify-end pt-1">
+                <Button type="button" variant="outline" onClick={closeCopyDialog} disabled={copySaving}>
+                  ยกเลิก
+                </Button>
+                <Button
+                  type="button"
+                  disabled={copySaving || copySelectedDays.size === 0 || copyDaysInRange.length === 0}
+                  onClick={() => void submitCopyBooking()}
+                  className="rounded-2xl"
+                >
+                  {copySaving
+                    ? 'กำลังสร้าง…'
+                    : `สร้าง ${copySelectedDays.size} รายการ`}
+                </Button>
+              </div>
+            </>
+          ) : null}
         </DialogContent>
       </Dialog>
 

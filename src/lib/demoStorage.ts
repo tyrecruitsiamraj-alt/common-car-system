@@ -585,7 +585,10 @@ export function createEmployee(input: EmployeeInput): Employee {
 
 export function updateEmployeeInDemo(
   id: string,
-  patch: Pick<Employee, 'employee_code' | 'first_name' | 'last_name' | 'phone'> & { nickname?: string },
+  patch: Pick<Employee, 'employee_code' | 'first_name' | 'last_name' | 'phone'> & {
+    nickname?: string;
+    title_prefix?: string;
+  },
 ): Employee {
   const items = getEmployees();
   const idx = items.findIndex((e) => e.id === id);
@@ -598,9 +601,21 @@ export function updateEmployeeInDemo(
     last_name: patch.last_name,
     nickname: patch.nickname,
     phone: patch.phone,
+    ...(patch.title_prefix !== undefined
+      ? patch.title_prefix
+        ? { title_prefix: patch.title_prefix }
+        : { title_prefix: undefined }
+      : {}),
   };
   const next = [...items];
   next[idx] = updated;
   writeJsonArray(EMPLOYEES_KEY, sortNewestFirst(next));
   return updated;
+}
+
+export function deleteEmployeeInDemo(id: string): void {
+  const items = getEmployees();
+  const next = items.filter((e) => e.id !== id);
+  if (next.length === items.length) throw new Error('ไม่พบผู้ขับ');
+  writeJsonArray(EMPLOYEES_KEY, next);
 }

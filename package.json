@@ -17,6 +17,7 @@
     "db:migrate:replay": "node scripts/db-migrate-replay.mjs",
     "db:migrate:status": "node scripts/migrate.mjs --status",
     "db:inspect": "node scripts/db-inspect.mjs",
+    "db:ensure:title-prefix": "node scripts/ensure-employees-title-prefix.mjs",
     "db:seed": "node scripts/seed.mjs",
     "db:init": "npm run db:ping && npm run db:migrate && npm run db:seed",
     "db:seed:demo": "tsx scripts/seed-demo-data.ts",
