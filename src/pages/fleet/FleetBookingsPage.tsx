@@ -21,6 +21,7 @@ import {
   deriveBookingListStatus,
   isBookingInProgress,
 } from '@/lib/fleetBookingsDashboard';
+import { formatBookingWorkOrderNo } from '@/lib/bookingWorkOrder';
 import { notifyFleetBookingsChanged } from '@/lib/bookingNotifications';
 import ExportExcelDateRangeDialog from '@/components/shared/ExportExcelDateRangeDialog';
 import { exportBookingsExcel } from '@/lib/fleetExcelExport';
@@ -72,7 +73,6 @@ import {
   setHours,
   setMinutes,
   eachDayOfInterval,
-  addDays,
   isSameMonth,
   isSameDay,
   isBefore,
@@ -94,7 +94,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Copy, MoreHorizontal } from 'lucide-react';
+import { MoreHorizontal } from 'lucide-react';
 
 type ViewMode = 'month' | 'week' | 'day' | 'hour';
 
@@ -395,22 +395,26 @@ function buildYmdRange(fromYmd: string, toYmd: string): string[] {
   return eachDayOfInterval({ start: from, end: to }).map((d) => format(d, 'yyyy-MM-dd'));
 }
 
-/** คัดลอกช่วงเวลาจากใบจองต้นฉบับไปยังวันเป้าหมาย */
-function bookingWindowForCopyDay(source: VehicleBooking, targetYmd: string): { from: Date; to: Date } | null {
-  const srcStart = parseISO(source.starts_at);
-  const srcEnd = parseISO(source.ends_at);
-  if (Number.isNaN(srcStart.getTime()) || Number.isNaN(srcEnd.getTime())) return null;
-  const startHm = format(srcStart, 'HH:mm');
+/** ใช้เวลาเดิม (HH:mm) กับวันเป้าหมาย — สร้างจองหลายวัน */
+function bookingWindowForDay(
+  timeStartLocal: string,
+  timeEndLocal: string,
+  targetYmd: string,
+): { from: Date; to: Date } | null {
+  const origStart = new Date(timeStartLocal);
+  const origEnd = new Date(timeEndLocal);
+  if (Number.isNaN(origStart.getTime()) || Number.isNaN(origEnd.getTime())) return null;
+  const startHm = format(origStart, 'HH:mm');
   const from = new Date(combineBookYmdHm(targetYmd, startHm));
   if (Number.isNaN(from.getTime())) return null;
-  const srcStartDay = format(srcStart, 'yyyy-MM-dd');
-  const srcEndDay = format(srcEnd, 'yyyy-MM-dd');
+  const srcStartDay = format(origStart, 'yyyy-MM-dd');
+  const srcEndDay = format(origEnd, 'yyyy-MM-dd');
   let to: Date;
   if (srcStartDay === srcEndDay) {
-    to = new Date(combineBookYmdHm(targetYmd, format(srcEnd, 'HH:mm')));
+    to = new Date(combineBookYmdHm(targetYmd, format(origEnd, 'HH:mm')));
     if (Number.isNaN(to.getTime()) || to <= from) to = addHours(from, 1);
   } else {
-    to = new Date(from.getTime() + (srcEnd.getTime() - srcStart.getTime()));
+    to = new Date(from.getTime() + (origEnd.getTime() - origStart.getTime()));
   }
   return { from, to };
 }
@@ -507,11 +511,9 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
   const [editTimeBaseline, setEditTimeBaseline] = useState<{ starts: string; ends: string } | null>(null);
   /** แก้ไขทั่วไป หรือ เปิดจากปุ่มเสร็จสิ้น (ต้องปรับเวลาก่อนบันทึก) */
   const [editDialogMode, setEditDialogMode] = useState<'edit' | 'complete'>('edit');
-  const [copySource, setCopySource] = useState<VehicleBooking | null>(null);
-  const [copyDateFrom, setCopyDateFrom] = useState('');
-  const [copyDateTo, setCopyDateTo] = useState('');
-  const [copySelectedDays, setCopySelectedDays] = useState<Set<string>>(() => new Set());
-  const [copySaving, setCopySaving] = useState(false);
+  const [createDateFrom, setCreateDateFrom] = useState('');
+  const [createDateTo, setCreateDateTo] = useState('');
+  const [createSelectedDays, setCreateSelectedDays] = useState<Set<string>>(() => new Set());
 
   useEffect(() => {
     if (mode === 'book' && viewMode !== 'day') {
@@ -536,6 +538,14 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
       if (fixed !== bookEnd) setBookEnd(fixed);
     }
   }, [isMonitor, bookStart, bookEnd]);
+
+  useEffect(() => {
+    if (!createDialogOpen || isMonitor) return;
+    const ymd = ymdFromDatetimeLocalField(bookStart) ?? dayValue ?? format(new Date(), 'yyyy-MM-dd');
+    setCreateDateFrom(ymd);
+    setCreateDateTo(ymd);
+    setCreateSelectedDays(new Set([ymd]));
+  }, [createDialogOpen, isMonitor]);
 
   useEffect(() => {
     if (isMonitor) return;
@@ -1231,41 +1241,73 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
 
   const submitBooking = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!bookingWindow) {
-      toast.error('ช่วงเวลาจองไม่ถูกต้อง (สิ้นสุดต้องหลังเริ่ม)');
-      return;
-    }
     if (!selEmp || !selVeh) {
       toast.error('เลือกผู้ขับและรถ');
       return;
     }
+    const days = createDaysInRange.filter((ymd) => createSelectedDays.has(ymd));
+    if (days.length === 0) {
+      toast.error('เลือกอย่างน้อย 1 วัน');
+      return;
+    }
+    const refYmd = days[0];
+    const refStart = combineBookYmdHm(refYmd, hmFromBookField(bookStart));
+    const refEnd = combineBookYmdHm(refYmd, hmFromBookField(bookEnd));
+    const timeCheck = resolveBookingWindow(refStart, refEnd);
+    if (!timeCheck) {
+      toast.error('ช่วงเวลาจองไม่ถูกต้อง (สิ้นสุดต้องหลังเริ่ม)');
+      return;
+    }
     setSaving(true);
-    try {
-      const r = await apiFetch('/api/vehicle-bookings', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          employee_id: selEmp,
-          vehicle_id: selVeh,
-          starts_at: bookingWindow.from.toISOString(),
-          ends_at: bookingWindow.to.toISOString(),
-          destination: destination.trim() || undefined,
-          notes: notes.trim() || undefined,
-        }),
-      });
-      if (!r.ok) throw new Error(await parseApiError(r));
-      toast.success('บันทึกการจองแล้ว');
-      if (destination.trim()) addDestinationSuggestion(destination);
+    let ok = 0;
+    const errors: string[] = [];
+    for (const ymd of days) {
+      const win = bookingWindowForDay(bookStart, bookEnd, ymd);
+      if (!win) {
+        errors.push(`${ymd}: ช่วงเวลาไม่ถูกต้อง`);
+        continue;
+      }
+      try {
+        const r = await apiFetch('/api/vehicle-bookings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            employee_id: selEmp,
+            vehicle_id: selVeh,
+            starts_at: win.from.toISOString(),
+            ends_at: win.to.toISOString(),
+            destination: destination.trim() || undefined,
+            notes: notes.trim() || undefined,
+          }),
+        });
+        if (!r.ok) throw new Error(await parseApiError(r));
+        ok += 1;
+      } catch (err) {
+        const label = format(parse(ymd, 'yyyy-MM-dd', new Date()), 'd/M', { locale: th });
+        errors.push(`${label}: ${err instanceof Error ? err.message : 'จองไม่สำเร็จ'}`);
+      }
+    }
+    if (destination.trim()) addDestinationSuggestion(destination);
+    setSaving(false);
+    if (ok > 0) {
+      toast.success(ok === 1 ? 'บันทึกการจองแล้ว' : `สร้างการจอง ${ok} รายการแล้ว`);
       setDestination('');
       setNotes('');
       setCreateDialogOpen(false);
-      setDayValue(format(startOfDay(bookingWindow.from), 'yyyy-MM-dd'));
+      const firstDay = parse(days[0], 'yyyy-MM-dd', new Date());
+      if (!Number.isNaN(firstDay.getTime())) {
+        setDayValue(format(startOfDay(firstDay), 'yyyy-MM-dd'));
+      }
       setViewMode('day');
       await refresh();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'จองไม่สำเร็จ');
-    } finally {
-      setSaving(false);
+    }
+    if (errors.length > 0) {
+      const preview = errors.slice(0, 4).join(' · ');
+      toast.error(
+        ok > 0
+          ? `สร้างได้ ${ok} รายการ · ไม่สำเร็จ ${errors.length} วัน: ${preview}${errors.length > 4 ? '…' : ''}`
+          : `จองไม่สำเร็จ: ${preview}${errors.length > 4 ? '…' : ''}`,
+      );
     }
   };
 
@@ -1341,32 +1383,12 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
     openEditBooking(b, 'complete');
   };
 
-  const closeCopyDialog = () => {
-    setCopySource(null);
-    setCopyDateFrom('');
-    setCopyDateTo('');
-    setCopySelectedDays(new Set());
-  };
-
-  const openCopyBooking = (b: VehicleBooking) => {
-    if (!canEdit) return;
-    const srcDay = format(parseISO(b.starts_at), 'yyyy-MM-dd');
-    const srcDayDate = parse(srcDay, 'yyyy-MM-dd', new Date());
-    const rangeEnd = addDays(srcDayDate, 6);
-    const toYmd = format(rangeEnd, 'yyyy-MM-dd');
-    const days = buildYmdRange(srcDay, toYmd);
-    setCopySource(b);
-    setCopyDateFrom(srcDay);
-    setCopyDateTo(toYmd);
-    setCopySelectedDays(new Set(days));
-  };
-
-  const copyDaysInRange = useMemo(
-    () => (copyDateFrom && copyDateTo ? buildYmdRange(copyDateFrom, copyDateTo) : []),
-    [copyDateFrom, copyDateTo],
+  const createDaysInRange = useMemo(
+    () => (createDateFrom && createDateTo ? buildYmdRange(createDateFrom, createDateTo) : []),
+    [createDateFrom, createDateTo],
   );
 
-  const applyCopyDateRange = (fromYmd: string, toYmd: string) => {
+  const applyCreateDateRange = (fromYmd: string, toYmd: string) => {
     if (fromYmd > toYmd) {
       toast.error('วันสิ้นสุดต้องไม่ก่อนวันเริ่ม');
       return;
@@ -1376,74 +1398,18 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
       toast.error(`เลือกช่วงได้ไม่เกิน ${COPY_BOOKING_MAX_DAYS} วัน`);
       return;
     }
-    setCopyDateFrom(fromYmd);
-    setCopyDateTo(toYmd);
-    setCopySelectedDays(new Set(days));
+    setCreateDateFrom(fromYmd);
+    setCreateDateTo(toYmd);
+    setCreateSelectedDays(new Set(days));
   };
 
-  const toggleCopyDay = (ymd: string, checked: boolean) => {
-    setCopySelectedDays((prev) => {
+  const toggleCreateDay = (ymd: string, checked: boolean) => {
+    setCreateSelectedDays((prev) => {
       const next = new Set(prev);
       if (checked) next.add(ymd);
       else next.delete(ymd);
       return next;
     });
-  };
-
-  const submitCopyBooking = async () => {
-    if (!copySource || !canEdit) return;
-    const days = copyDaysInRange.filter((ymd) => copySelectedDays.has(ymd));
-    if (days.length === 0) {
-      toast.error('เลือกอย่างน้อย 1 วัน');
-      return;
-    }
-    setCopySaving(true);
-    let ok = 0;
-    const errors: string[] = [];
-    for (const ymd of days) {
-      const win = bookingWindowForCopyDay(copySource, ymd);
-      if (!win) {
-        errors.push(`${ymd}: ช่วงเวลาไม่ถูกต้อง`);
-        continue;
-      }
-      try {
-        const r = await apiFetch('/api/vehicle-bookings', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            employee_id: copySource.employee_id,
-            vehicle_id: copySource.vehicle_id,
-            starts_at: win.from.toISOString(),
-            ends_at: win.to.toISOString(),
-            destination: copySource.destination?.trim() || undefined,
-            notes: copySource.notes?.trim() || undefined,
-          }),
-        });
-        if (!r.ok) throw new Error(await parseApiError(r));
-        ok += 1;
-      } catch (err) {
-        const label = format(parse(ymd, 'yyyy-MM-dd', new Date()), 'd/M', { locale: th });
-        errors.push(`${label}: ${err instanceof Error ? err.message : 'จองไม่สำเร็จ'}`);
-      }
-    }
-    if (copySource.destination?.trim()) addDestinationSuggestion(copySource.destination);
-    setCopySaving(false);
-    if (ok > 0) {
-      toast.success(`สร้างการจอง ${ok} รายการจากการคัดลอก`);
-      await refresh();
-    }
-    if (errors.length === 0 && ok > 0) {
-      closeCopyDialog();
-      return;
-    }
-    if (errors.length > 0) {
-      const preview = errors.slice(0, 4).join(' · ');
-      toast.error(
-        ok > 0
-          ? `สร้างได้ ${ok} รายการ · ไม่สำเร็จ ${errors.length} วัน: ${preview}${errors.length > 4 ? '…' : ''}`
-          : `คัดลอกไม่สำเร็จ: ${preview}${errors.length > 4 ? '…' : ''}`,
-      );
-    }
   };
 
   const formatEditDt = (local: string) => {
@@ -1535,11 +1501,6 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
         {canEdit ? (
           <button type="button" className="text-[10px] text-primary hover:underline" onClick={() => openEditBooking(b)}>
             แก้ไข
-          </button>
-        ) : null}
-        {canEdit && isBookingActive(b) ? (
-          <button type="button" className="text-[10px] text-primary hover:underline" onClick={() => openCopyBooking(b)}>
-            คัดลอก
           </button>
         ) : null}
         {canDelete ? (
@@ -1910,12 +1871,6 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                 ) : null}
                 {canEdit ? (
                   <DropdownMenuItem onClick={() => openEditBooking(b)}>แก้ไขการจอง</DropdownMenuItem>
-                ) : null}
-                {canEdit ? (
-                  <DropdownMenuItem onClick={() => openCopyBooking(b)}>
-                    <Copy className="mr-2 h-4 w-4" />
-                    คัดลอกไปวันอื่น
-                  </DropdownMenuItem>
                 ) : null}
                 {canDelete ? (
                   <DropdownMenuItem
@@ -2552,6 +2507,7 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div>
+                        <p className="font-mono text-xs font-semibold text-primary">{row.workOrderNo}</p>
                         <p className="font-bold text-slate-950">{row.driverName}</p>
                         <p className="text-sm text-slate-600 mt-0.5">
                           รถ: <span className="font-semibold">{row.plate}</span>
@@ -2721,7 +2677,9 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg rounded-[1.5rem]">
           <DialogHeader>
             <DialogTitle>สร้างการจองใหม่</DialogTitle>
-            <DialogDescription>เลือกช่วงเวลา ผู้ขับ รถ และสถานที่ที่ไป</DialogDescription>
+            <DialogDescription>
+              ตั้งเวลา ผู้ขับ รถ — เลือกช่วงวันที่ (เช่น 1–30) แล้วติ๊กวันที่ต้องการ ระบบสร้างใบจองทีละวันให้อัตโนมัติ
+            </DialogDescription>
           </DialogHeader>
         {!isMonitor && listRange ? (
           <form
@@ -2731,112 +2689,137 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
             className="space-y-3"
           >
             <div className="space-y-1">
-              <p className="text-xs font-medium text-foreground">เวลาจอง</p>
-              <p className="text-[10px] text-muted-foreground">กดปฏิทินเลือกวัน (แสดง วัน/เดือน/ปี) · เวลา 24 ชม. (… น.) — นาทีทุก 10 นาที</p>
+              <p className="text-xs font-medium text-foreground">เวลา (ใช้ทุกวันที่เลือก)</p>
+              <p className="text-[10px] text-muted-foreground">เวลา 24 ชม. (… น.) — นาทีทุก 10 นาที</p>
               <div className="space-y-3 max-w-lg">
                 <div className="space-y-1.5">
                   <Label className="text-[10px]">เริ่ม</Label>
-                  <div className="flex flex-wrap gap-2 items-end">
-                    <DateSelectDmyBe
-                      className="flex-1 min-w-[10rem]"
-                      yearKind="ce"
-                      triggerClassName="h-8 rounded-md border border-input bg-background px-2 text-xs"
-                      value={ymdFromDatetimeLocalField(bookStart) ?? todayYmd}
-                      onChange={(ymd) => {
-                        const next = combineBookYmdHm(ymd, hmFromBookField(bookStart));
-                        const t = new Date(next);
-                        if (Number.isNaN(t.getTime())) return;
-                        setBookStart(next);
-                        setDayValue((prev) => (prev !== ymd ? ymd : prev));
-                        const ne = new Date(bookEnd);
-                        if (!Number.isNaN(ne.getTime()) && ne <= t) {
-                          setBookEnd(toDatetimeLocalValue(addHours(t, 1)));
-                        }
-                      }}
-                    />
-                    <TimeHm24Select
-                      className="flex flex-wrap gap-1.5 items-end shrink-0"
-                      selectClassName="h-8 rounded-md border border-input bg-background px-1.5 text-xs text-foreground min-w-[3.75rem]"
-                      minuteStep={BOOK_MINUTE_STEP}
-                      value={hmFromBookField(bookStart)}
-                      onChange={(hm) => {
-                        if (!hm) return;
-                        const ymd = ymdFromDatetimeLocalField(bookStart) ?? todayYmd;
-                        const next = combineBookYmdHm(ymd, hm);
-                        const t = new Date(next);
-                        if (Number.isNaN(t.getTime())) return;
-                        setBookStart(next);
-                        const ymd2 = ymdFromDatetimeLocalField(next);
-                        if (ymd2) setDayValue((prev) => (prev !== ymd2 ? ymd2 : prev));
-                        const ne = new Date(bookEnd);
-                        if (!Number.isNaN(ne.getTime()) && ne <= t) {
-                          setBookEnd(toDatetimeLocalValue(addHours(t, 1)));
-                        }
-                      }}
-                      aria-label="เวลาเริ่ม"
-                    />
-                  </div>
+                  <TimeHm24Select
+                    className="flex flex-wrap gap-1.5 items-end"
+                    selectClassName="h-8 rounded-md border border-input bg-background px-1.5 text-xs text-foreground min-w-[3.75rem]"
+                    minuteStep={BOOK_MINUTE_STEP}
+                    value={hmFromBookField(bookStart)}
+                    onChange={(hm) => {
+                      if (!hm) return;
+                      const ymd =
+                        (createDateFrom || ymdFromDatetimeLocalField(bookStart)) ?? todayYmd;
+                      const next = combineBookYmdHm(ymd, hm);
+                      const t = new Date(next);
+                      if (Number.isNaN(t.getTime())) return;
+                      setBookStart(next);
+                      const ne = new Date(bookEnd);
+                      if (!Number.isNaN(ne.getTime()) && ne <= t) {
+                        setBookEnd(toDatetimeLocalValue(addHours(t, 1)));
+                      }
+                    }}
+                    aria-label="เวลาเริ่ม"
+                  />
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-[10px]">สิ้นสุด</Label>
-                  <div className="flex flex-wrap gap-2 items-end">
-                    <DateSelectDmyBe
-                      className="flex-1 min-w-[10rem]"
-                      yearKind="ce"
-                      triggerClassName="h-8 rounded-md border border-input bg-background px-2 text-xs"
-                      minYmd={ymdFromDatetimeLocalField(bookStart) ?? undefined}
-                      value={ymdFromDatetimeLocalField(bookEnd) ?? ymdFromDatetimeLocalField(bookStart) ?? todayYmd}
-                      onChange={(ymd) => {
-                        const startY = ymdFromDatetimeLocalField(bookStart) ?? todayYmd;
-                        if (ymd < startY) {
-                          toast.error('วันสิ้นสุดต้องไม่ก่อนวันเริ่ม');
-                          return;
-                        }
-                        const next = combineBookYmdHm(ymd, hmFromBookField(bookEnd));
-                        const b = new Date(next);
-                        const a = new Date(bookStart);
-                        if (!Number.isNaN(a.getTime()) && !Number.isNaN(b.getTime()) && b <= a) {
-                          setBookEnd(toDatetimeLocalValue(addHours(a, 1)));
-                          return;
-                        }
-                        setBookEnd(next);
-                        const ymd2 = ymdFromDatetimeLocalField(next);
-                        if (ymd2) setDayValue((prev) => (prev !== ymd2 ? ymd2 : prev));
-                      }}
-                    />
-                    <TimeHm24Select
-                      className="flex flex-wrap gap-1.5 items-end shrink-0"
-                      selectClassName="h-8 rounded-md border border-input bg-background px-1.5 text-xs text-foreground min-w-[3.75rem]"
-                      minuteStep={BOOK_MINUTE_STEP}
-                      minHm={
-                        (ymdFromDatetimeLocalField(bookEnd) ?? '') === (ymdFromDatetimeLocalField(bookStart) ?? '')
-                          ? hmFromBookField(bookStart)
-                          : undefined
+                  <TimeHm24Select
+                    className="flex flex-wrap gap-1.5 items-end"
+                    selectClassName="h-8 rounded-md border border-input bg-background px-1.5 text-xs text-foreground min-w-[3.75rem]"
+                    minuteStep={BOOK_MINUTE_STEP}
+                    minHm={hmFromBookField(bookStart)}
+                    value={hmFromBookField(bookEnd)}
+                    onChange={(hm) => {
+                      if (!hm) return;
+                      const ymd =
+                        (createDateFrom || ymdFromDatetimeLocalField(bookStart)) ?? todayYmd;
+                      const next = combineBookYmdHm(ymd, hm);
+                      const b = new Date(next);
+                      const a = new Date(bookStart);
+                      if (!Number.isNaN(a.getTime()) && !Number.isNaN(b.getTime()) && b <= a) {
+                        setBookEnd(toDatetimeLocalValue(addHours(a, 1)));
+                        return;
                       }
-                      value={hmFromBookField(bookEnd)}
-                      onChange={(hm) => {
-                        if (!hm) return;
-                        const ymd =
-                          ymdFromDatetimeLocalField(bookEnd) ?? ymdFromDatetimeLocalField(bookStart) ?? todayYmd;
-                        const next = combineBookYmdHm(ymd, hm);
-                        const b = new Date(next);
-                        const a = new Date(bookStart);
-                        if (!Number.isNaN(a.getTime()) && !Number.isNaN(b.getTime()) && b <= a) {
-                          setBookEnd(toDatetimeLocalValue(addHours(a, 1)));
-                          return;
-                        }
-                        setBookEnd(next);
-                        const ymd2 = ymdFromDatetimeLocalField(next);
-                        if (ymd2) setDayValue((prev) => (prev !== ymd2 ? ymd2 : prev));
-                      }}
-                      aria-label="เวลาสิ้นสุด"
-                    />
-                  </div>
+                      setBookEnd(next);
+                    }}
+                    aria-label="เวลาสิ้นสุด"
+                  />
                 </div>
               </div>
-              {!bookingWindow ? (
-                <p className="text-[10px] text-muted-foreground pt-0.5">เลือกวัน–เวลาเริ่มให้ครบ — ถ้าสิ้นสุดชนกับเริ่ม ระบบจะตั้งสิ้นสุดเป็น +1 ชม. ให้อัตโนมัติ</p>
-              ) : null}
+            </div>
+
+            <div className="space-y-2 rounded-lg border border-border/70 bg-muted/10 p-2.5">
+              <p className="text-xs font-semibold text-foreground">เลือกวันที่จอง</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <Label className="text-[10px]">จากวันที่</Label>
+                  <DateSelectDmyBe
+                    value={createDateFrom}
+                    onChange={(ymd) => applyCreateDateRange(ymd, createDateTo || ymd)}
+                    yearKind="ce"
+                    triggerClassName="h-8 rounded-md border border-input bg-background px-2 text-xs w-full"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[10px]">ถึงวันที่</Label>
+                  <DateSelectDmyBe
+                    value={createDateTo}
+                    minYmd={createDateFrom || undefined}
+                    onChange={(ymd) => applyCreateDateRange(createDateFrom || ymd, ymd)}
+                    yearKind="ce"
+                    triggerClassName="h-8 rounded-md border border-input bg-background px-2 text-xs w-full"
+                  />
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <Label className="text-[10px]">
+                  วันที่เลือก ({createSelectedDays.size}/{createDaysInRange.length} วัน)
+                </Label>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    className="text-[10px] text-primary hover:underline"
+                    onClick={() => setCreateSelectedDays(new Set(createDaysInRange))}
+                    disabled={createDaysInRange.length === 0}
+                  >
+                    เลือกทั้งหมด
+                  </button>
+                  <button
+                    type="button"
+                    className="text-[10px] text-muted-foreground hover:underline"
+                    onClick={() => setCreateSelectedDays(new Set())}
+                    disabled={createDaysInRange.length === 0}
+                  >
+                    ยกเลิกทั้งหมด
+                  </button>
+                </div>
+              </div>
+              {createDaysInRange.length === 0 ? (
+                <p className="text-[10px] text-destructive">ช่วงวันที่ไม่ถูกต้อง (สูงสุด {COPY_BOOKING_MAX_DAYS} วัน)</p>
+              ) : (
+                <ul className="grid grid-cols-1 sm:grid-cols-2 gap-1 max-h-40 overflow-y-auto rounded-md border border-border/60 p-1.5">
+                  {createDaysInRange.map((ymd) => {
+                    const d = parse(ymd, 'yyyy-MM-dd', new Date());
+                    const checked = createSelectedDays.has(ymd);
+                    return (
+                      <li key={ymd}>
+                        <label
+                          className={cn(
+                            'flex items-center gap-2 rounded-md px-2 py-1 text-[11px] cursor-pointer hover:bg-muted/50',
+                            checked && 'bg-primary/5',
+                          )}
+                        >
+                          <Checkbox
+                            checked={checked}
+                            onCheckedChange={(v) => toggleCreateDay(ymd, v === true)}
+                            aria-label={`จองวันที่ ${ymd}`}
+                          />
+                          <span className="font-medium tabular-nums">
+                            {format(d, 'EEE d MMM yyyy', { locale: th })}
+                          </span>
+                        </label>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+              <p className="text-[10px] text-muted-foreground leading-snug">
+                เลือก 1–30 แล้วติ๊กทั้งหมด = สร้าง 30 ใบจอง — ยกเลิกวันที่ไม่ใช้ได้ (เช่น ไม่เอา 2 กับ 4)
+              </p>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -2874,152 +2857,25 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
               </div>
               <Button
                 type="submit"
-                disabled={saving || loading || !selEmp || !selVeh || !bookingWindow}
+                disabled={
+                  saving ||
+                  loading ||
+                  !selEmp ||
+                  !selVeh ||
+                  createSelectedDays.size === 0 ||
+                  createDaysInRange.length === 0
+                }
                 className="h-10 rounded-2xl px-5 shrink-0"
               >
-                {saving ? 'กำลังบันทึก…' : 'บันทึกการจอง'}
+                {saving
+                  ? 'กำลังบันทึก…'
+                  : createSelectedDays.size > 1
+                    ? `สร้าง ${createSelectedDays.size} รายการ`
+                    : 'บันทึกการจอง'}
               </Button>
             </div>
           </form>
         ) : null}
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={copySource !== null} onOpenChange={(open) => !open && closeCopyDialog()}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg rounded-[1.5rem]">
-          {copySource ? (
-            <>
-              <DialogHeader>
-                <DialogTitle>คัดลอกการจองไปวันอื่น</DialogTitle>
-                <DialogDescription>
-                  ใช้ผู้ขับ รถ เวลา สถานที่ และหมายเหตุเดิม — เลือกช่วงวันที่แล้วติ๊กเฉพาะวันที่ต้องการ (ยกเลิกวันที่ไม่ใช้ได้)
-                </DialogDescription>
-              </DialogHeader>
-              <div className="rounded-xl border border-border bg-muted/20 px-3 py-2.5 text-xs space-y-1">
-                <p>
-                  <span className="text-muted-foreground">ผู้ขับ: </span>
-                  <span className="font-medium text-foreground">{empLabel(copySource.employee_id)}</span>
-                </p>
-                <p>
-                  <span className="text-muted-foreground">รถ: </span>
-                  <span className="font-medium text-foreground">{vehLabel(copySource.vehicle_id)}</span>
-                </p>
-                <p className="tabular-nums">
-                  <span className="text-muted-foreground">เวลาเดิม: </span>
-                  <span className="font-medium text-foreground">
-                    {formatThaiTime(parseISO(copySource.starts_at))} – {formatThaiTime(parseISO(copySource.ends_at))}
-                  </span>
-                  <span className="text-muted-foreground"> (ใช้เวลานี้ทุกวันที่เลือก)</span>
-                </p>
-                {copySource.destination?.trim() ? (
-                  <p>
-                    <span className="text-muted-foreground">สถานที่: </span>
-                    {copySource.destination.trim()}
-                  </p>
-                ) : null}
-              </div>
-              <div className="space-y-3">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  <div className="space-y-1">
-                    <Label className="text-xs">จากวันที่</Label>
-                    <DateSelectDmyBe
-                      value={copyDateFrom}
-                      onChange={(ymd) => applyCopyDateRange(ymd, copyDateTo || ymd)}
-                      yearKind="ce"
-                      triggerClassName="h-9 rounded-md border border-input bg-background px-2 text-xs w-full"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">ถึงวันที่</Label>
-                    <DateSelectDmyBe
-                      value={copyDateTo}
-                      minYmd={copyDateFrom || undefined}
-                      onChange={(ymd) => applyCopyDateRange(copyDateFrom || ymd, ymd)}
-                      yearKind="ce"
-                      triggerClassName="h-9 rounded-md border border-input bg-background px-2 text-xs w-full"
-                    />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <Label className="text-xs">
-                      เลือกวันที่จอง ({copySelectedDays.size}/{copyDaysInRange.length} วัน)
-                    </Label>
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        className="text-[10px] text-primary hover:underline"
-                        onClick={() => setCopySelectedDays(new Set(copyDaysInRange))}
-                        disabled={copyDaysInRange.length === 0}
-                      >
-                        เลือกทั้งหมด
-                      </button>
-                      <button
-                        type="button"
-                        className="text-[10px] text-muted-foreground hover:underline"
-                        onClick={() => setCopySelectedDays(new Set())}
-                        disabled={copyDaysInRange.length === 0}
-                      >
-                        ยกเลิกทั้งหมด
-                      </button>
-                    </div>
-                  </div>
-                  {copyDaysInRange.length === 0 ? (
-                    <p className="text-xs text-destructive">ช่วงวันที่ไม่ถูกต้อง (สูงสุด {COPY_BOOKING_MAX_DAYS} วัน)</p>
-                  ) : (
-                    <ul className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-52 overflow-y-auto rounded-lg border border-border/70 p-2">
-                      {copyDaysInRange.map((ymd) => {
-                        const d = parse(ymd, 'yyyy-MM-dd', new Date());
-                        const checked = copySelectedDays.has(ymd);
-                        const srcDay = format(parseISO(copySource.starts_at), 'yyyy-MM-dd');
-                        const isSourceDay = ymd === srcDay;
-                        return (
-                          <li key={ymd}>
-                            <label
-                              className={cn(
-                                'flex items-center gap-2 rounded-md px-2 py-1.5 text-xs cursor-pointer hover:bg-muted/50',
-                                checked && 'bg-primary/5',
-                              )}
-                            >
-                              <Checkbox
-                                checked={checked}
-                                onCheckedChange={(v) => toggleCopyDay(ymd, v === true)}
-                                aria-label={`จองวันที่ ${ymd}`}
-                              />
-                              <span className="font-medium tabular-nums">
-                                {format(d, 'EEE d MMM yyyy', { locale: th })}
-                              </span>
-                              {isSourceDay ? (
-                                <span className="text-[10px] text-muted-foreground">(วันต้นฉบับ)</span>
-                              ) : null}
-                            </label>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  )}
-                  <p className="text-[10px] text-muted-foreground leading-snug">
-                    ตัวอย่าง: เลือก 1–5 แล้วยกเลิกวันที่ 2 และ 4 จะสร้างจองเฉพาะวันที่ 1, 3, 5 — ถ้าวันใดชนกับจองเดิม ระบบจะแจ้งและข้ามวันนั้น
-                  </p>
-                </div>
-              </div>
-              <div className="flex flex-wrap gap-2 justify-end pt-1">
-                <Button type="button" variant="outline" onClick={closeCopyDialog} disabled={copySaving}>
-                  ยกเลิก
-                </Button>
-                <Button
-                  type="button"
-                  disabled={copySaving || copySelectedDays.size === 0 || copyDaysInRange.length === 0}
-                  onClick={() => void submitCopyBooking()}
-                  className="rounded-2xl"
-                >
-                  {copySaving
-                    ? 'กำลังสร้าง…'
-                    : `สร้าง ${copySelectedDays.size} รายการ`}
-                </Button>
-              </div>
-            </>
-          ) : null}
         </DialogContent>
       </Dialog>
 
@@ -3048,7 +2904,12 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                   <ul className="space-y-2">
                     {empDayDialog.rows.map((b) => (
                       <li key={b.id} className="rounded-lg border border-border bg-muted/30 p-3 space-y-1">
-                        <div className="font-medium text-foreground">{vehLabel(b.vehicle_id)}</div>
+                        <div className="flex flex-wrap items-baseline justify-between gap-2">
+                          <span className="font-mono text-xs font-semibold text-primary">
+                            {formatBookingWorkOrderNo(b)}
+                          </span>
+                          <span className="font-medium text-foreground">{vehLabel(b.vehicle_id)}</span>
+                        </div>
                         <div className="text-xs tabular-nums text-muted-foreground">
                           {format(parseISO(b.starts_at), 'dd/MM/yyyy HH:mm')} — {format(parseISO(b.ends_at), 'HH:mm')}
                         </div>
@@ -3090,6 +2951,12 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
           {editBooking ? (
             <form onSubmit={(e) => void saveEditBooking(e)} className="flex flex-col flex-1 min-h-0">
               <div className="flex-1 min-h-0 overflow-y-auto px-6 space-y-3 pb-2">
+              <div className="rounded-lg border border-border/70 bg-muted/20 px-3 py-2 text-xs">
+                <span className="text-muted-foreground">เลขใบงาน: </span>
+                <span className="font-mono font-semibold text-foreground">
+                  {formatBookingWorkOrderNo(editBooking)}
+                </span>
+              </div>
               <div className="space-y-1">
                 <Label className="text-xs">ผู้ขับ</Label>
                 <SearchablePicker

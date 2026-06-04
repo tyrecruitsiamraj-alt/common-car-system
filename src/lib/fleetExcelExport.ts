@@ -6,6 +6,7 @@ import {
   deriveBookingListStatus,
 } from '@/lib/fleetBookingsDashboard';
 import { BOOKING_STATUS_META } from '@/components/fleet/FleetBookingsDashboard';
+import { formatBookingWorkOrderNo } from '@/lib/bookingWorkOrder';
 import { formatEmployeeDisplayName } from '@/lib/titlePrefixOptions';
 import { formatThaiDate, formatThaiTimeRange } from '@/lib/thaiDateTimeFormat';
 import type { Employee, VehicleBooking } from '@/types';
@@ -60,7 +61,8 @@ export function exportBookingsExcel(
     const dest = (b.destination || '').trim();
     const note = (b.notes || '').trim();
     return {
-      รหัสจอง: b.id,
+      เลขใบงาน: formatBookingWorkOrderNo(b),
+      รหัสระบบ: b.id,
       ผู้ขับ: empLabel(b.employee_id),
       ทะเบียนรถ: vehLabel(b.vehicle_id),
       วันที่: formatThaiDate(b.starts_at),
@@ -114,7 +116,8 @@ export function exportDriverProfileExcel(
         รถ: vehicleLabel,
         สถานที่: destinationLabel,
         สถานะเวลา: DRIVER_BOOKING_TIMING_LABEL[timing],
-        รหัสจอง: booking.id,
+        เลขใบงาน: formatBookingWorkOrderNo(booking),
+        รหัสระบบ: booking.id,
       })),
     },
     {

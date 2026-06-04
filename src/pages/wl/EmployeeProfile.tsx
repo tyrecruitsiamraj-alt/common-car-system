@@ -29,6 +29,7 @@ import {
 import { exportDriverProfileExcel } from '@/lib/fleetExcelExport';
 import { toast } from 'sonner';
 import { bookingEffectiveEnd } from '@/lib/fleetBookingsDashboard';
+import { formatBookingWorkOrderNo } from '@/lib/bookingWorkOrder';
 
 const HISTORY_DAYS = 365;
 
@@ -432,10 +433,15 @@ const EmployeeProfile: React.FC = () => {
                 className="rounded-xl border border-border/60 bg-slate-50/80 px-3 py-2.5 space-y-1"
               >
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span className="text-sm font-semibold tabular-nums text-foreground">
-                    {formatThaiDate(booking.starts_at)} ·{' '}
-                    {formatThaiTimeRange(booking.starts_at, bookingEffectiveEnd(booking))}
-                  </span>
+                  <div>
+                    <p className="font-mono text-xs font-semibold text-primary">
+                      {formatBookingWorkOrderNo(booking)}
+                    </p>
+                    <span className="text-sm font-semibold tabular-nums text-foreground">
+                      {formatThaiDate(booking.starts_at)} ·{' '}
+                      {formatThaiTimeRange(booking.starts_at, bookingEffectiveEnd(booking))}
+                    </span>
+                  </div>
                   <span
                     className={cn(
                       'text-[10px] font-semibold rounded-full px-2 py-0.5 ring-1',

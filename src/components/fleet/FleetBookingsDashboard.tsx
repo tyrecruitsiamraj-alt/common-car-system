@@ -473,7 +473,7 @@ export default function FleetBookingsDashboard({
               <table className="min-w-[980px] w-full text-left">
                 <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-400">
                   <tr>
-                    <th className="px-5 py-3 font-bold">Booking</th>
+                    <th className="px-5 py-3 font-bold">เลขใบงาน</th>
                     <th className="px-5 py-3 font-bold">Requester</th>
                     <th className="px-5 py-3 font-bold">Route</th>
                     <th className="px-5 py-3 font-bold">Vehicle</th>

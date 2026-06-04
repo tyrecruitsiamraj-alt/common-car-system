@@ -63,6 +63,8 @@ export interface Vehicle {
 
 export interface VehicleBooking {
   id: string;
+  /** เลขใบงาน — เช่น BK-000042 */
+  work_order_no?: string;
   employee_id: string;
   vehicle_id: string;
   starts_at: string;

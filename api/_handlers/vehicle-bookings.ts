@@ -7,6 +7,7 @@ import {
   type AuthedReq,
 } from '../_lib/http.js';
 import { readJsonBody, getString } from '../_lib/body.js';
+import { getPgSchema } from '../_lib/env.js';
 import { tableInAppSchema } from '../_lib/schema.js';
 import {
   insertBookingAudit,
@@ -27,6 +28,7 @@ const tblE = tableInAppSchema('employees');
 
 type BookingRow = {
   id: string;
+  work_order_no: string | null;
   employee_id: string;
   vehicle_id: string;
   starts_at: string | Date;
@@ -38,6 +40,19 @@ type BookingRow = {
   created_at: string | Date;
   updated_at: string | Date;
 };
+
+async function nextWorkOrderNo(): Promise<string> {
+  const schema = getPgSchema().replace(/"/g, '');
+  if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(schema)) {
+    throw new Error('Invalid database schema for work order sequence');
+  }
+  const { rows } = await dbQuery<{ n: string }>(
+    `select 'BK-' || lpad(nextval('${schema}.vehicle_bookings_work_order_seq'::regclass)::text, 6, '0') as n`,
+  );
+  const n = rows[0]?.n?.trim();
+  if (!n) throw new Error('Failed to allocate work order number');
+  return n;
+}
 
 function auditUserName(req: AuthedReq): string {
   return req.user.email?.trim() || 'user';
@@ -57,6 +72,7 @@ function toIso(value: string | Date): string {
 function bookingSnapshot(row: BookingRow) {
   return {
     id: row.id,
+    ...(row.work_order_no?.trim() ? { work_order_no: row.work_order_no.trim() } : {}),
     employee_id: row.employee_id,
     vehicle_id: row.vehicle_id,
     starts_at: toIso(row.starts_at),
@@ -75,6 +91,7 @@ function optionalText(v: unknown): string | null {
 function toBooking(row: BookingRow) {
   return {
     id: row.id,
+    ...(row.work_order_no?.trim() ? { work_order_no: row.work_order_no.trim() } : {}),
     employee_id: row.employee_id,
     vehicle_id: row.vehicle_id,
     starts_at: toIso(row.starts_at),
@@ -303,13 +320,24 @@ async function handler(req: AuthedReq, res: ApiRes): Promise<void> {
         return sendError(res, 409, 'Conflict', 'ผู้ขับคนนี้มีการจองทับช่วงเวลานี้แล้ว');
       }
 
+      const work_order_no = await nextWorkOrderNo();
       const { rows } = await dbQuery<BookingRow>(
         `
-        insert into ${tbl} (employee_id, vehicle_id, starts_at, ends_at, destination, notes, status, updated_at)
-        values ($1::uuid, $2::uuid, $3::timestamptz, $4::timestamptz, $5, $6, 'active', now())
+        insert into ${tbl} (
+          employee_id, vehicle_id, starts_at, ends_at, destination, notes, status, work_order_no, updated_at
+        )
+        values ($1::uuid, $2::uuid, $3::timestamptz, $4::timestamptz, $5, $6, 'active', $7, now())
         returning *
       `,
-        [employee_id, vehicle_id, starts.toISOString(), ends.toISOString(), destination, notes],
+        [
+          employee_id,
+          vehicle_id,
+          starts.toISOString(),
+          ends.toISOString(),
+          destination,
+          notes,
+          work_order_no,
+        ],
       );
       const row = rows[0];
       if (!row) return sendError(res, 500, 'Failed to create booking');

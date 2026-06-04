@@ -6,6 +6,7 @@ import type {
   DashboardBookingRow,
   DashboardMetric,
 } from '@/components/fleet/FleetBookingsDashboard';
+import { formatBookingWorkOrderNo } from '@/lib/bookingWorkOrder';
 import type { Employee, Vehicle, VehicleBooking } from '@/types';
 import { Ban, CalendarDays, CheckCircle2, Clock3, Wrench } from 'lucide-react';
 
@@ -17,6 +18,7 @@ export function isBookingActive(b: VehicleBooking): boolean {
 
 export type TodayBookingDetail = {
   id: string;
+  workOrderNo: string;
   driverName: string;
   plate: string;
   vehicleLabel: string;
@@ -69,7 +71,6 @@ export function bookingToDashboardRow(
 ): DashboardBookingRow {
   const emp = empMap.get(b.employee_id);
   const v = vehMap.get(b.vehicle_id);
-  const shortId = b.id.slice(0, 8).toUpperCase();
   const dest = (b.destination || '').trim();
   const note = (b.notes || '').trim();
   const route = dest || note || '—';
@@ -81,7 +82,7 @@ export function bookingToDashboardRow(
   else if (/อุบัติ|accident/i.test(note)) subtitleParts.push('ด่วน');
 
   return {
-    id: `BK-${shortId}`,
+    id: formatBookingWorkOrderNo(b),
     rawId: b.id,
     requester: empLabel(b.employee_id),
     department: emp?.position?.trim() || 'ผู้ขับ',
@@ -116,6 +117,7 @@ function bookingToDetailRow(
   const note = (b.notes || '').trim();
   return {
     id: b.id,
+    workOrderNo: formatBookingWorkOrderNo(b),
     driverName: empLabel(b.employee_id),
     plate: v?.plate_no ?? '—',
     vehicleLabel: v?.label?.trim() || '—',
