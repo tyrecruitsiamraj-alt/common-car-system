@@ -1,10 +1,11 @@
+import { normalizeDestinationPart, splitDestinations } from '@/lib/bookingDestinations';
 import type { VehicleBooking } from '@/types';
 
 const STORAGE_KEY = 'fleet_booking_destinations_v1';
 const MAX_ITEMS = 40;
 
 function normalize(dest: string): string {
-  return dest.trim().replace(/\s+/g, ' ');
+  return normalizeDestinationPart(dest);
 }
 
 export function loadDestinationSuggestions(): string[] {
@@ -35,9 +36,11 @@ export function addDestinationSuggestion(dest: string): void {
 }
 
 export function mergeDestinationsFromBookings(bookings: VehicleBooking[]): void {
-  const fromDb = bookings
-    .map((b) => normalize(b.destination || ''))
-    .filter(Boolean);
+  const fromDb = bookings.flatMap((b) =>
+    splitDestinations(b.destination || '')
+      .map((p) => normalize(p))
+      .filter(Boolean),
+  );
   if (fromDb.length === 0) return;
   const cur = loadDestinationSuggestions();
   const seen = new Set(cur.map((x) => x.toLowerCase()));

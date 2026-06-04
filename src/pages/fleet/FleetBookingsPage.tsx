@@ -27,6 +27,7 @@ import ExportExcelDateRangeDialog from '@/components/shared/ExportExcelDateRange
 import { exportBookingsExcel } from '@/lib/fleetExcelExport';
 import { toYmdLocal } from '@/lib/dateTh';
 import { ymdRangeToFetchIsoBounds, type ExportYmdRange } from '@/lib/exportDateRange';
+import { addDestinationSuggestionsFromJoined } from '@/lib/bookingDestinations';
 import {
   addDestinationSuggestion,
   mergeDestinationsFromBookings,
@@ -1287,7 +1288,7 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
         errors.push(`${label}: ${err instanceof Error ? err.message : 'จองไม่สำเร็จ'}`);
       }
     }
-    if (destination.trim()) addDestinationSuggestion(destination);
+    addDestinationSuggestionsFromJoined(destination, addDestinationSuggestion);
     setSaving(false);
     if (ok > 0) {
       toast.success(ok === 1 ? 'บันทึกการจองแล้ว' : `สร้างการจอง ${ok} รายการแล้ว`);
@@ -1473,7 +1474,7 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
         return;
       }
       toast.success(completing ? 'บันทึกเวลาและเสร็จสิ้นแล้ว' : 'บันทึกการแก้ไขแล้ว');
-      if (editDestination.trim()) addDestinationSuggestion(editDestination);
+      addDestinationSuggestionsFromJoined(editDestination, addDestinationSuggestion);
       closeEditDialog();
       setEmpDayDialog(null);
       await refresh();
