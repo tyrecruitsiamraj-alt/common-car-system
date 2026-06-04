@@ -7,7 +7,6 @@ import {
   type AuthedReq,
 } from '../_lib/http.js';
 import { readJsonBody, getString } from '../_lib/body.js';
-import { getPgSchema } from '../_lib/env.js';
 import { tableInAppSchema } from '../_lib/schema.js';
 import {
   insertBookingAudit,
@@ -15,6 +14,7 @@ import {
   listBookingAuditForBooking,
 } from '../_lib/bookingAudit.js';
 import {
+  allocateVehicleBookingWorkOrderNo,
   bookingEffectiveEndSql,
   bookingEffectiveEndSqlQualified,
   ensureVehicleBookingCompletedAt,
@@ -40,19 +40,6 @@ type BookingRow = {
   created_at: string | Date;
   updated_at: string | Date;
 };
-
-async function nextWorkOrderNo(): Promise<string> {
-  const schema = getPgSchema().replace(/"/g, '');
-  if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(schema)) {
-    throw new Error('Invalid database schema for work order sequence');
-  }
-  const { rows } = await dbQuery<{ n: string }>(
-    `select 'BK-' || lpad(nextval('${schema}.vehicle_bookings_work_order_seq'::regclass)::text, 6, '0') as n`,
-  );
-  const n = rows[0]?.n?.trim();
-  if (!n) throw new Error('Failed to allocate work order number');
-  return n;
-}
 
 function auditUserName(req: AuthedReq): string {
   return req.user.email?.trim() || 'user';
@@ -320,7 +307,7 @@ async function handler(req: AuthedReq, res: ApiRes): Promise<void> {
         return sendError(res, 409, 'Conflict', 'ผู้ขับคนนี้มีการจองทับช่วงเวลานี้แล้ว');
       }
 
-      const work_order_no = await nextWorkOrderNo();
+      const work_order_no = await allocateVehicleBookingWorkOrderNo();
       const { rows } = await dbQuery<BookingRow>(
         `
         insert into ${tbl} (

@@ -1,7 +1,16 @@
+import { getPgSchema } from './env.js';
 import { dbQuery } from './postgres.js';
 import { tableInAppSchema } from './schema.js';
 
 let completedAtColumnExists: boolean | null = null;
+let workOrderInfrastructureReady: boolean | null = null;
+
+function vehicleBookingsSchemaTable(): { schema: string; table: string; qualified: string } {
+  const qualified = tableInAppSchema('vehicle_bookings');
+  const m = /^"([^"]+)"\.([a-zA-Z_][a-zA-Z0-9_]*)$/.exec(qualified);
+  if (m) return { schema: m[1], table: m[2], qualified };
+  return { schema: 'public', table: qualified.replace(/"/g, ''), qualified };
+}
 
 export function resetVehicleBookingCompletedAtCache(): void {
   completedAtColumnExists = null;
@@ -53,4 +62,90 @@ export function bookingEffectiveEndSql(useCompletedAt: boolean): string {
 export function bookingEffectiveEndSqlQualified(tableAlias: string, useCompletedAt: boolean): string {
   const a = tableAlias.replace(/\./g, '');
   return useCompletedAt ? `coalesce(${a}.completed_at, ${a}.ends_at)` : `${a}.ends_at`;
+}
+
+/** สร้าง sequence + คอลัมน์ work_order_no ถ้ายังไม่มี (migration 029 ยังไม่รันบน schema นี้) */
+export async function ensureVehicleBookingWorkOrderNo(): Promise<boolean> {
+  if (workOrderInfrastructureReady) return true;
+  const { schema, qualified } = vehicleBookingsSchemaTable();
+  if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(schema)) return false;
+  const seq = `"${schema}".vehicle_bookings_work_order_seq`;
+  try {
+    await dbQuery(`create sequence if not exists ${seq} start 1`);
+    await dbQuery(`alter table ${qualified} add column if not exists work_order_no text null`);
+    await dbQuery(
+      `
+      select setval(
+        '${schema}.vehicle_bookings_work_order_seq'::regclass,
+        coalesce(
+          (
+            select max(cast(substring(work_order_no from 4) as integer))
+            from ${qualified}
+            where work_order_no ~ '^BK-[0-9]+$'
+          ),
+          0
+        ) + 1,
+        false
+      )
+    `,
+    );
+    await dbQuery(
+      `
+      create unique index if not exists vehicle_bookings_work_order_no_uidx
+      on ${qualified} (work_order_no)
+      where work_order_no is not null
+    `,
+    ).catch(() => undefined);
+    workOrderInfrastructureReady = true;
+    return true;
+  } catch {
+    workOrderInfrastructureReady = false;
+    return false;
+  }
+}
+
+/** เลขใบงานถัดไป — ใช้ sequence; ถ้าไม่มีจะพยายาม ensure แล้ว fallback เป็น max+1 */
+export async function allocateVehicleBookingWorkOrderNo(): Promise<string> {
+  const { qualified } = vehicleBookingsSchemaTable();
+  const schema = getPgSchema().replace(/"/g, '');
+  if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(schema)) {
+    throw new Error('Invalid database schema for work order sequence');
+  }
+
+  const tryNextval = async (): Promise<string | null> => {
+    try {
+      const { rows } = await dbQuery<{ n: string }>(
+        `select 'BK-' || lpad(nextval('${schema}.vehicle_bookings_work_order_seq'::regclass)::text, 6, '0') as n`,
+      );
+      const n = rows[0]?.n?.trim();
+      return n || null;
+    } catch {
+      return null;
+    }
+  };
+
+  let n = await tryNextval();
+  if (n) return n;
+
+  await ensureVehicleBookingWorkOrderNo();
+  n = await tryNextval();
+  if (n) return n;
+
+  const { rows } = await dbQuery<{ n: number }>(
+    `
+    select coalesce(
+      max(
+        case
+          when work_order_no ~ '^BK-[0-9]+$'
+          then cast(substring(work_order_no from 4) as integer)
+          else 0
+        end
+      ),
+      0
+    ) + 1 as n
+    from ${qualified}
+  `,
+  );
+  const next = rows[0]?.n ?? 1;
+  return `BK-${String(next).padStart(6, '0')}`;
 }
