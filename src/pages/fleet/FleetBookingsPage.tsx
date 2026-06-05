@@ -19,6 +19,8 @@ import {
   bookingEffectiveEnd,
   bookingsOnDay,
   deriveBookingListStatus,
+  isBookingCancellable,
+  isBookingEditable,
   isBookingInProgress,
 } from '@/lib/fleetBookingsDashboard';
 import { formatBookingWorkOrderNo } from '@/lib/bookingWorkOrder';
@@ -1342,6 +1344,11 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
 
   const cancelBooking = async (id: string) => {
     if (!canDelete) return;
+    const b = bookings.find((x) => x.id === id);
+    if (b && !isBookingCancellable(b)) {
+      toast.message('การจองที่เสร็จสิ้นแล้วยกเลิกไม่ได้');
+      return;
+    }
     if (!window.confirm('ยกเลิกการจองนี้? ช่วงเวลานี้จะว่าง — สามารถจองหรือแก้ไขตารางวันนี้ได้')) return;
     try {
       const r = await apiFetch(`/api/vehicle-bookings?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
@@ -1442,6 +1449,11 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
   const saveEditBooking = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editBooking || !canEdit) return;
+    if (!isBookingEditable(editBooking)) {
+      toast.error('การจองที่เสร็จสิ้นแล้วแก้ไขไม่ได้');
+      closeEditDialog();
+      return;
+    }
     const win = resolveBookingWindow(editStart, editEnd);
     if (!win) {
       toast.error('ช่วงเวลาไม่ถูกต้อง');
@@ -1499,12 +1511,12 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
             เสร็จสิ้น
           </button>
         ) : null}
-        {canEdit ? (
+        {canEdit && isBookingEditable(b) ? (
           <button type="button" className="text-[10px] text-primary hover:underline" onClick={() => openEditBooking(b)}>
             แก้ไข
           </button>
         ) : null}
-        {canDelete ? (
+        {canDelete && isBookingCancellable(b) ? (
           <button type="button" className="text-[10px] text-destructive hover:underline" onClick={() => void cancelBooking(b.id)}>
             ยกเลิก
           </button>
@@ -1851,7 +1863,10 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
           if (!b) return null;
           if (!isBookingActive(b)) return null;
           const inProgress = isBookingInProgress(b);
-          if (!canEdit && !canDelete) return null;
+          const showComplete = canEdit && inProgress;
+          const showEdit = canEdit && isBookingEditable(b);
+          const showCancel = canDelete && isBookingCancellable(b);
+          if (!showComplete && !showEdit && !showCancel) return null;
           return (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -1865,15 +1880,15 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="rounded-xl">
-                {canEdit && inProgress ? (
+                {showComplete ? (
                   <DropdownMenuItem onClick={() => openCompleteBooking(b)}>
                     {isMonitor ? 'เสร็จสิ้น (ปรับเวลาก่อน)' : 'เสร็จสิ้น'}
                   </DropdownMenuItem>
                 ) : null}
-                {canEdit ? (
+                {showEdit ? (
                   <DropdownMenuItem onClick={() => openEditBooking(b)}>แก้ไขการจอง</DropdownMenuItem>
                 ) : null}
-                {canDelete ? (
+                {showCancel ? (
                   <DropdownMenuItem
                     className="text-destructive focus:text-destructive"
                     onClick={() => void cancelBooking(b.id)}
@@ -3071,7 +3086,7 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
               </details>
               </div>
               <div className="shrink-0 border-t border-border bg-background px-6 py-3 flex flex-wrap gap-2 justify-between shadow-[0_-4px_12px_rgba(0,0,0,0.06)]">
-                {editDialogMode === 'complete' && canDelete ? (
+                {editDialogMode === 'complete' && canDelete && isBookingCancellable(editBooking) ? (
                   <Button
                     type="button"
                     variant="destructive"

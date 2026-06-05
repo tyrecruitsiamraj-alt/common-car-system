@@ -46,6 +46,16 @@ export function isBookingInProgress(b: VehicleBooking): boolean {
   return isBookingActive(b) && deriveBookingListStatus(b) === 'inProgress';
 }
 
+/** แก้ไขได้เฉพาะจองที่ยังไม่เสร็จสิ้นและไม่ถูกยกเลิก */
+export function isBookingEditable(b: VehicleBooking): boolean {
+  return isBookingInProgress(b);
+}
+
+/** ยกเลิกได้เฉพาะจองที่ยังกำลังดำเนินการ */
+export function isBookingCancellable(b: VehicleBooking): boolean {
+  return isBookingInProgress(b);
+}
+
 /** เลยเวลาสิ้นสุดที่จองไว้แล้ว แต่ยังไม่กดเสร็จสิ้น — ใช้แจ้งเตือน */
 export function isBookingOverdueNotCompleted(b: VehicleBooking, now = new Date()): boolean {
   if (b.status === 'cancelled' || b.completed_at) return false;

@@ -361,6 +361,9 @@ async function handler(req: AuthedReq, res: ApiRes): Promise<void> {
       if (cur.status === 'cancelled') {
         return sendError(res, 409, 'Conflict', 'การจองนี้ถูกยกเลิกแล้ว — สร้างรายการจองใหม่แทน');
       }
+      if (cur.completed_at) {
+        return sendError(res, 409, 'Conflict', 'การจองนี้เสร็จสิ้นแล้ว — แก้ไขไม่ได้');
+      }
 
       const markCompleted = b.mark_completed === true;
       let supportsCompletedAt = useCompletedAt;
@@ -494,6 +497,9 @@ async function handler(req: AuthedReq, res: ApiRes): Promise<void> {
       if (!cur) return sendError(res, 404, 'Not found');
       if (cur.status === 'cancelled') {
         return res.status(200).json({ ok: true, id, already_cancelled: true });
+      }
+      if (cur.completed_at) {
+        return sendError(res, 409, 'Conflict', 'การจองนี้เสร็จสิ้นแล้ว — ยกเลิกไม่ได้');
       }
 
       const { rows } = await dbQuery<BookingRow>(
