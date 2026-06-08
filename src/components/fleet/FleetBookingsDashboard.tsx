@@ -128,6 +128,7 @@ type Props = {
   onExportExcel?: () => void;
   exportExcelDisabled?: boolean;
   onMetricClick?: (id: DashboardMetricId) => void;
+  onBookingRowClick?: (bookingId: string) => void;
   renderBookingMenu?: (bookingId: string) => React.ReactNode;
   /** คำอธิบายใต้หัวข้อตาราง Booking Requests */
   bookingsScopeLabel?: string;
@@ -354,6 +355,7 @@ export default function FleetBookingsDashboard({
   onExportExcel,
   exportExcelDisabled,
   onMetricClick,
+  onBookingRowClick,
   renderBookingMenu,
   bookingsScopeLabel,
   children,
@@ -491,7 +493,30 @@ export default function FleetBookingsDashboard({
                     </tr>
                   ) : (
                     bookings.map((booking) => (
-                      <tr key={booking.rawId} className="transition hover:bg-slate-50/80">
+                      <tr
+                        key={booking.rawId}
+                        className={cn(
+                          'transition hover:bg-slate-50/80',
+                          onBookingRowClick && 'cursor-pointer',
+                        )}
+                        onClick={
+                          onBookingRowClick
+                            ? () => onBookingRowClick(booking.rawId)
+                            : undefined
+                        }
+                        onKeyDown={
+                          onBookingRowClick
+                            ? (e) => {
+                                if (e.key === 'Enter' || e.key === ' ') {
+                                  e.preventDefault();
+                                  onBookingRowClick(booking.rawId);
+                                }
+                              }
+                            : undefined
+                        }
+                        tabIndex={onBookingRowClick ? 0 : undefined}
+                        role={onBookingRowClick ? 'button' : undefined}
+                      >
                         <td className="px-5 py-4">
                           <p className="font-bold text-slate-950">{booking.id}</p>
                           <p className="mt-1 text-xs text-slate-400">{booking.subtitle}</p>
@@ -519,7 +544,9 @@ export default function FleetBookingsDashboard({
                           <div className="flex items-center justify-end gap-2">
                             <StatusPill status={booking.status} />
                             {renderBookingMenu ? (
-                              renderBookingMenu(booking.rawId)
+                              <span onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+                                {renderBookingMenu(booking.rawId)}
+                              </span>
                             ) : (
                               <button
                                 type="button"

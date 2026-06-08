@@ -35,6 +35,7 @@ import {
   mergeDestinationsFromBookings,
 } from '@/lib/bookingDestinationStorage';
 import DestinationField from '@/components/fleet/DestinationField';
+import BookingDetailDialog from '@/components/fleet/BookingDetailDialog';
 import { BOOKING_ROW_STATUS_META } from '@/components/fleet/FleetBookingsDashboard';
 import { apiFetch } from '@/lib/apiFetch';
 import { useAuth } from '@/contexts/AuthContext';
@@ -502,6 +503,10 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
     day: Date;
     rows: VehicleBooking[];
   } | null>(null);
+  const [bookingDetail, setBookingDetail] = useState<VehicleBooking | null>(null);
+  const openBookingDetail = useCallback((b: VehicleBooking) => {
+    setBookingDetail(b);
+  }, []);
   const [dayAudit, setDayAudit] = useState<VehicleBookingAudit[]>([]);
   const [editBooking, setEditBooking] = useState<VehicleBooking | null>(null);
   const [editEmp, setEditEmp] = useState('');
@@ -1072,15 +1077,20 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                         'absolute top-0.5 bottom-0.5 rounded-sm bg-primary/90 text-primary-foreground text-[8px] sm:text-[9px] leading-none px-0.5 flex flex-col justify-center overflow-hidden border border-primary/30 z-[1]';
                       if (isMonitor) {
                         return (
-                          <div
+                          <button
                             key={b.id}
+                            type="button"
                             title={title}
-                            className={barClass}
+                            className={cn(barClass, 'cursor-pointer hover:bg-primary')}
                             style={{ left: `${left}%`, width: `${Math.max(width, 2)}%` }}
+                            onClick={(ev) => {
+                              ev.stopPropagation();
+                              openBookingDetail(b);
+                            }}
                           >
                             <span className="truncate w-full text-left font-medium">{driverShort(b.employee_id, empMap)}</span>
                             <span className="truncate w-full text-left opacity-90 hidden sm:block">{plateShort(b.vehicle_id, vehMap)}</span>
-                          </div>
+                          </button>
                         );
                       }
                       return (
@@ -1221,6 +1231,28 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                       <span className="sr-only">ว่าง</span>
                     );
                   if (busy) {
+                    if (isMonitor) {
+                      const openBusy = () => {
+                        if (slotBs.length === 1) openBookingDetail(slotBs[0]!);
+                        else
+                          setEmpDayDialog({
+                            employee: emp,
+                            day: timelineDay,
+                            rows: slotBs,
+                          });
+                      };
+                      return (
+                        <button
+                          key={h}
+                          type="button"
+                          title={title}
+                          className={cn(cellClass, 'flex items-center cursor-pointer hover:ring-2 hover:ring-primary/40')}
+                          onClick={openBusy}
+                        >
+                          {inner}
+                        </button>
+                      );
+                    }
                     return (
                       <div key={h} title={title} className={cn(cellClass, 'flex items-center')}>
                         {inner}
@@ -1811,6 +1843,14 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
     setViewMode('day');
   };
 
+  const openBookingDetailById = useCallback(
+    (id: string) => {
+      const b = bookings.find((x) => x.id === id);
+      if (b) openBookingDetail(b);
+    },
+    [bookings, openBookingDetail],
+  );
+
   return (
     <>
       <FleetBookingsDashboard
@@ -1857,6 +1897,7 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
         onExportExcel={handleExportBookingsExcel}
         exportExcelDisabled={loading}
         onMetricClick={isMonitor ? handleMetricClick : undefined}
+        onBookingRowClick={isMonitor ? openBookingDetailById : undefined}
         bookingsScopeLabel={isMonitor ? `เฉพาะวันที่ ${dayLabel}` : undefined}
         renderBookingMenu={(id) => {
           const b = bookings.find((x) => x.id === id);
@@ -2074,15 +2115,20 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                       </span>
                       <div className="flex-1 min-h-0 flex flex-col gap-0.5 overflow-hidden">
                         {shown.map((b) => (
-                          <div
+                          <button
                             key={b.id}
-                            className="rounded-sm px-0.5 py-px bg-primary/20 border border-primary/25 text-[8px] sm:text-[9px] leading-tight text-foreground"
+                            type="button"
+                            className="rounded-sm px-0.5 py-px bg-primary/20 border border-primary/25 text-[8px] sm:text-[9px] leading-tight text-foreground text-left w-full cursor-pointer hover:bg-primary/30"
                             title={`${driverShort(b.employee_id, empMap)} · ${plateShort(b.vehicle_id, vehMap)} · ${format(parseISO(b.starts_at), 'HH:mm')}–${format(parseISO(b.ends_at), 'HH:mm')}${bookingDetailSuffix(b)}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openBookingDetail(b);
+                            }}
                           >
                             <div className="truncate font-medium">
                               {driverShort(b.employee_id, empMap)} · {plateShort(b.vehicle_id, vehMap)}
                             </div>
-                          </div>
+                          </button>
                         ))}
                         {more > 0 ? (
                           <span className="text-[8px] text-muted-foreground font-medium shrink-0">+{more}</span>
@@ -2244,10 +2290,12 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                     </button>
                     <div className="flex-1 min-h-0 overflow-y-auto p-1 space-y-1">
                       {shown.map((b) => (
-                        <div
+                        <button
                           key={b.id}
-                          className="rounded-md px-1 py-1 bg-primary/15 border border-primary/25 text-[9px] leading-tight"
+                          type="button"
+                          className="rounded-md px-1 py-1 bg-primary/15 border border-primary/25 text-[9px] leading-tight text-left w-full cursor-pointer hover:bg-primary/25"
                           title={`${driverShort(b.employee_id, empMap)} · ${plateShort(b.vehicle_id, vehMap)} · ${format(parseISO(b.starts_at), 'HH:mm')}–${format(parseISO(b.ends_at), 'HH:mm')}${bookingDetailSuffix(b)}`}
+                          onClick={() => openBookingDetail(b)}
                         >
                           <div className="font-medium text-foreground truncate">
                             {driverShort(b.employee_id, empMap)}
@@ -2256,7 +2304,7 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                           <div className="text-[8px] opacity-80 tabular-nums">
                             {format(parseISO(b.starts_at), 'HH:mm')}–{format(parseISO(b.ends_at), 'HH:mm')}
                           </div>
-                        </div>
+                        </button>
                       ))}
                       {more > 0 ? <div className="text-[9px] text-muted-foreground font-medium">+{more} รายการ</div> : null}
                       {list.length === 0 ? <div className="text-[9px] text-muted-foreground/70 text-center py-2">—</div> : null}
@@ -2309,19 +2357,25 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                           </div>
                           <ul className="mt-1.5 space-y-1 pl-0 list-none">
                             {bs.map((b) => (
-                              <li key={b.id} className="text-[11px] text-muted-foreground flex flex-wrap items-baseline gap-x-1.5 gap-y-1">
-                                <span className="tabular-nums shrink-0">
-                                  {format(parseISO(b.starts_at), 'HH:mm')}–{format(parseISO(b.ends_at), 'HH:mm')}
-                                </span>
-                                <span className="text-foreground/90">· {plateShort(b.vehicle_id, vehMap)}</span>
-                                {b.destination?.trim() ? (
-                                  <span className="text-foreground/80 truncate max-w-full" title={b.destination.trim()}>
-                                    · {b.destination.trim()}
+                              <li key={b.id}>
+                                <button
+                                  type="button"
+                                  className="text-[11px] text-muted-foreground flex flex-wrap items-baseline gap-x-1.5 gap-y-1 text-left w-full rounded-md px-1.5 py-1 -mx-1.5 hover:bg-muted/50 cursor-pointer"
+                                  onClick={() => openBookingDetail(b)}
+                                >
+                                  <span className="tabular-nums shrink-0">
+                                    {format(parseISO(b.starts_at), 'HH:mm')}–{format(parseISO(b.ends_at), 'HH:mm')}
                                   </span>
-                                ) : null}
-                                {isIncidentBooking(b) ? (
-                                  <span className="text-[10px] text-amber-700 dark:text-amber-400 font-medium">อุบัติเหตุ</span>
-                                ) : null}
+                                  <span className="text-foreground/90">· {plateShort(b.vehicle_id, vehMap)}</span>
+                                  {b.destination?.trim() ? (
+                                    <span className="text-foreground/80 truncate max-w-full" title={b.destination.trim()}>
+                                      · {b.destination.trim()}
+                                    </span>
+                                  ) : null}
+                                  {isIncidentBooking(b) ? (
+                                    <span className="text-[10px] text-amber-700 dark:text-amber-400 font-medium">อุบัติเหตุ</span>
+                                  ) : null}
+                                </button>
                                 {renderBookingActions(b)}
                               </li>
                             ))}
@@ -2467,6 +2521,19 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
         </details>
       </FleetBookingsDashboard>
 
+      <BookingDetailDialog
+        booking={bookingDetail}
+        open={bookingDetail !== null}
+        onOpenChange={(open) => {
+          if (!open) setBookingDetail(null);
+        }}
+        empMap={empMap}
+        vehMap={vehMap}
+        empLabel={empLabel}
+        vehLabel={vehLabel}
+        footer={bookingDetail ? renderBookingActions(bookingDetail) : undefined}
+      />
+
       <ExportExcelDateRangeDialog
         open={exportDialogOpen}
         onOpenChange={setExportDialogOpen}
@@ -2519,7 +2586,23 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                 return (
                   <li
                     key={row.id}
-                    className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4 space-y-2"
+                    className={cn(
+                      'rounded-2xl border border-slate-200 bg-slate-50/80 p-4 space-y-2',
+                      isMonitor && 'cursor-pointer transition hover:border-slate-300 hover:bg-white',
+                    )}
+                    onClick={isMonitor ? () => openBookingDetailById(row.id) : undefined}
+                    onKeyDown={
+                      isMonitor
+                        ? (e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              openBookingDetailById(row.id);
+                            }
+                          }
+                        : undefined
+                    }
+                    role={isMonitor ? 'button' : undefined}
+                    tabIndex={isMonitor ? 0 : undefined}
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div>
@@ -2608,10 +2691,15 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                         {emp.first_name} {emp.last_name}
                       </p>
                       {bs.map((b) => (
-                        <p key={b.id} className="text-xs text-muted-foreground tabular-nums">
+                        <button
+                          key={b.id}
+                          type="button"
+                          className="block text-left text-xs text-muted-foreground tabular-nums hover:text-foreground w-full"
+                          onClick={() => openBookingDetail(b)}
+                        >
                           {formatThaiTimeRange(b.starts_at, bookingEffectiveEnd(b))}
                           {(b.destination || '').trim() ? ` · ${b.destination?.trim()}` : ''}
-                        </p>
+                        </button>
                       ))}
                     </li>
                   ))}
@@ -2919,29 +3007,38 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                 ) : (
                   <ul className="space-y-2">
                     {empDayDialog.rows.map((b) => (
-                      <li key={b.id} className="rounded-lg border border-border bg-muted/30 p-3 space-y-1">
-                        <div className="flex flex-wrap items-baseline justify-between gap-2">
-                          <span className="font-mono text-xs font-semibold text-primary">
-                            {formatBookingWorkOrderNo(b)}
-                          </span>
-                          <span className="font-medium text-foreground">{vehLabel(b.vehicle_id)}</span>
-                        </div>
-                        <div className="text-xs tabular-nums text-muted-foreground">
-                          {format(parseISO(b.starts_at), 'dd/MM/yyyy HH:mm')} — {format(parseISO(b.ends_at), 'HH:mm')}
-                        </div>
-                        {b.destination?.trim() ? (
-                          <div className="text-xs text-foreground/90">
-                            <span className="text-muted-foreground">สถานที่ที่ไป: </span>
-                            {b.destination.trim()}
+                      <li key={b.id}>
+                        <button
+                          type="button"
+                          className="w-full rounded-lg border border-border bg-muted/30 p-3 space-y-1 text-left cursor-pointer hover:bg-muted/50 transition-colors"
+                          onClick={() => {
+                            setEmpDayDialog(null);
+                            openBookingDetail(b);
+                          }}
+                        >
+                          <div className="flex flex-wrap items-baseline justify-between gap-2">
+                            <span className="font-mono text-xs font-semibold text-primary">
+                              {formatBookingWorkOrderNo(b)}
+                            </span>
+                            <span className="font-medium text-foreground">{vehLabel(b.vehicle_id)}</span>
                           </div>
-                        ) : null}
-                        {b.notes?.trim() ? (
-                          <div className="text-xs text-foreground/90 pt-1 border-t border-border/60">
-                            <span className="text-muted-foreground">หมายเหตุ: </span>
-                            {b.notes.trim()}
+                          <div className="text-xs tabular-nums text-muted-foreground">
+                            {format(parseISO(b.starts_at), 'dd/MM/yyyy HH:mm')} — {format(parseISO(b.ends_at), 'HH:mm')}
                           </div>
-                        ) : null}
-                        <div className="pt-1">{renderBookingActions(b)}</div>
+                          {b.destination?.trim() ? (
+                            <div className="text-xs text-foreground/90">
+                              <span className="text-muted-foreground">สถานที่ที่ไป: </span>
+                              {b.destination.trim()}
+                            </div>
+                          ) : null}
+                          {b.notes?.trim() ? (
+                            <div className="text-xs text-foreground/90 pt-1 border-t border-border/60">
+                              <span className="text-muted-foreground">หมายเหตุ: </span>
+                              {b.notes.trim()}
+                            </div>
+                          ) : null}
+                        </button>
+                        <div className="pt-1 px-1">{renderBookingActions(b)}</div>
                       </li>
                     ))}
                   </ul>
