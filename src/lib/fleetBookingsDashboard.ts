@@ -7,6 +7,7 @@ import type {
   DashboardMetric,
 } from '@/components/fleet/FleetBookingsDashboard';
 import { formatBookingWorkOrderNo } from '@/lib/bookingWorkOrder';
+import { roundDateToMinuteStep } from '@/lib/bookingMinuteStep';
 import type { Employee, Vehicle, VehicleBooking } from '@/types';
 import { Ban, CalendarDays, CheckCircle2, Clock3, Wrench } from 'lucide-react';
 
@@ -298,8 +299,10 @@ export function filterDashboardBookings(
 /** คำนวณ ends_at หลังกดเสร็จสิ้น */
 export function endsAtForMarkComplete(b: VehicleBooking, now = new Date()): string {
   const start = parseISO(b.starts_at);
-  let end = now > start ? now : addMinutes(start, 1);
-  const planned = parseISO(b.ends_at);
+  const tick = roundDateToMinuteStep(now);
+  let end = tick > start ? tick : roundDateToMinuteStep(addMinutes(start, 1));
+  const planned = roundDateToMinuteStep(parseISO(b.ends_at));
   if (planned < end) end = planned;
+  if (end <= start) end = roundDateToMinuteStep(addMinutes(start, 1));
   return end.toISOString();
 }

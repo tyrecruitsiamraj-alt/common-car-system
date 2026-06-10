@@ -20,6 +20,7 @@ import {
   ensureVehicleBookingCompletedAt,
   hasVehicleBookingCompletedAt,
 } from '../_lib/vehicleBookingsSchema.js';
+import { roundDateToMinuteStep } from '../_lib/bookingMinuteStep.js';
 
 const tbl = tableInAppSchema('vehicle_bookings');
 const ACTIVE_ONLY = `coalesce(status, 'active') = 'active'`;
@@ -99,6 +100,11 @@ function parseIso(v: unknown): Date | null {
   if (!s) return null;
   const d = new Date(s);
   return Number.isNaN(d.getTime()) ? null : d;
+}
+
+function bookingTimeFromIso(v: unknown): Date | null {
+  const d = parseIso(v);
+  return d ? roundDateToMinuteStep(d) : null;
 }
 
 async function overlapVehicle(
@@ -309,8 +315,8 @@ async function handler(req: AuthedReq, res: ApiRes): Promise<void> {
       const b = raw as Record<string, unknown>;
       const employee_id = getString(b.employee_id);
       const vehicle_id = getString(b.vehicle_id);
-      const starts = parseIso(b.starts_at);
-      const ends = parseIso(b.ends_at);
+      const starts = bookingTimeFromIso(b.starts_at);
+      const ends = bookingTimeFromIso(b.ends_at);
       const destination = optionalText(b.destination);
       const notes = optionalText(b.notes);
       if (!employee_id || !vehicle_id || !starts || !ends) {
@@ -403,27 +409,33 @@ async function handler(req: AuthedReq, res: ApiRes): Promise<void> {
 
       const employee_id = b.employee_id !== undefined ? getString(b.employee_id) : cur.employee_id;
       const vehicle_id = b.vehicle_id !== undefined ? getString(b.vehicle_id) : cur.vehicle_id;
-      let starts = b.starts_at !== undefined ? parseIso(b.starts_at) : new Date(cur.starts_at);
-      let ends = b.ends_at !== undefined ? parseIso(b.ends_at) : new Date(cur.ends_at);
+      let starts =
+        b.starts_at !== undefined ? bookingTimeFromIso(b.starts_at) : roundDateToMinuteStep(new Date(cur.starts_at));
+      let ends =
+        b.ends_at !== undefined ? bookingTimeFromIso(b.ends_at) : roundDateToMinuteStep(new Date(cur.ends_at));
       const notes = b.notes !== undefined ? optionalText(b.notes) : cur.notes;
       const destination = b.destination !== undefined ? optionalText(b.destination) : cur.destination;
       let completedAt: Date | null = cur.completed_at ? new Date(cur.completed_at) : null;
 
       if (markCompleted) {
-        const now = new Date();
+        const now = roundDateToMinuteStep(new Date());
         completedAt = now;
         const userSetEnds = b.ends_at !== undefined;
         const userSetStarts = b.starts_at !== undefined;
-        if (!userSetStarts && !starts) starts = new Date(cur.starts_at);
+        if (!userSetStarts && !starts) starts = roundDateToMinuteStep(new Date(cur.starts_at));
         if (!userSetEnds) {
-          if (!ends) ends = new Date(cur.ends_at);
+          if (!ends) ends = roundDateToMinuteStep(new Date(cur.ends_at));
           if (now > starts) ends = now;
-          else ends = new Date(starts.getTime() + 60_000);
-          const plannedEnd = new Date(cur.ends_at);
+          else ends = roundDateToMinuteStep(new Date(starts.getTime() + 60_000));
+          const plannedEnd = roundDateToMinuteStep(new Date(cur.ends_at));
           if (plannedEnd < ends) ends = plannedEnd;
-          if (ends <= starts) ends = new Date(starts.getTime() + 60_000);
+          if (ends <= starts) ends = roundDateToMinuteStep(new Date(starts.getTime() + 60_000));
         }
       }
+
+      if (starts) starts = roundDateToMinuteStep(starts);
+      if (ends) ends = roundDateToMinuteStep(ends);
+      if (completedAt) completedAt = roundDateToMinuteStep(completedAt);
 
       if (!employee_id || !vehicle_id || !starts || !ends) {
         return sendError(res, 400, 'Bad request', 'Invalid field values');

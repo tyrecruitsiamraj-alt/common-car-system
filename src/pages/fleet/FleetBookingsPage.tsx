@@ -24,6 +24,7 @@ import {
   isBookingInProgress,
 } from '@/lib/fleetBookingsDashboard';
 import { formatBookingWorkOrderNo } from '@/lib/bookingWorkOrder';
+import { BOOKING_MINUTE_STEP, roundDateToMinuteStep } from '@/lib/bookingMinuteStep';
 import { notifyFleetBookingsChanged } from '@/lib/bookingNotifications';
 import ExportExcelDateRangeDialog from '@/components/shared/ExportExcelDateRangeDialog';
 import { exportBookingsExcel } from '@/lib/fleetExcelExport';
@@ -367,9 +368,6 @@ function ymdFromDatetimeLocalField(v: string): string | null {
   const dPart = (v.split('T')[0] ?? '').trim();
   return /^\d{4}-\d{2}-\d{2}$/.test(dPart) ? dPart : null;
 }
-
-/** ขั้นนาทีในตัวเลือกเวลา — ทุก 10 นาที */
-const BOOK_MINUTE_STEP = 10;
 
 /** ดึง HH:mm จาก yyyy-MM-ddTHH:mm */
 function hmFromBookField(v: string): string {
@@ -1401,8 +1399,8 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
   };
 
   const openEditBooking = (b: VehicleBooking, mode: 'edit' | 'complete' = 'edit') => {
-    const startLocal = toDatetimeLocalValue(parseISO(b.starts_at));
-    const endLocal = toDatetimeLocalValue(parseISO(b.ends_at));
+    const startLocal = toDatetimeLocalValue(roundDateToMinuteStep(parseISO(b.starts_at)));
+    const endLocal = toDatetimeLocalValue(roundDateToMinuteStep(parseISO(b.ends_at)));
     setEditDialogMode(mode);
     setEditBooking(b);
     setEditEmp(b.employee_id);
@@ -2801,7 +2799,7 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                   <TimeHm24Select
                     className="flex flex-wrap gap-1.5 items-end"
                     selectClassName="h-8 rounded-md border border-input bg-background px-1.5 text-xs text-foreground min-w-[3.75rem]"
-                    minuteStep={BOOK_MINUTE_STEP}
+                    minuteStep={BOOKING_MINUTE_STEP}
                     value={hmFromBookField(bookStart)}
                     onChange={(hm) => {
                       if (!hm) return;
@@ -2824,7 +2822,7 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                   <TimeHm24Select
                     className="flex flex-wrap gap-1.5 items-end"
                     selectClassName="h-8 rounded-md border border-input bg-background px-1.5 text-xs text-foreground min-w-[3.75rem]"
-                    minuteStep={BOOK_MINUTE_STEP}
+                    minuteStep={BOOKING_MINUTE_STEP}
                     minHm={hmFromBookField(bookStart)}
                     value={hmFromBookField(bookEnd)}
                     onChange={(hm) => {
@@ -3122,7 +3120,7 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                       onChange={(ymd) => patchEditStart(ymd, hmFromBookField(editStart))}
                     />
                     <TimeHm24Select
-                      minuteStep={BOOK_MINUTE_STEP}
+                      minuteStep={BOOKING_MINUTE_STEP}
                       value={hmFromBookField(editStart)}
                       onChange={(hm) => {
                         const ymd = ymdFromDatetimeLocalField(editStart) ?? todayYmd;
@@ -3145,7 +3143,7 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                       onChange={(ymd) => patchEditEnd(ymd, hmFromBookField(editEnd))}
                     />
                     <TimeHm24Select
-                      minuteStep={BOOK_MINUTE_STEP}
+                      minuteStep={BOOKING_MINUTE_STEP}
                       minHm={
                         (ymdFromDatetimeLocalField(editEnd) ?? '') === (ymdFromDatetimeLocalField(editStart) ?? '')
                           ? hmFromBookField(editStart)
