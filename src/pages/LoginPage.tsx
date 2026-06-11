@@ -67,7 +67,7 @@ const LoginPage: React.FC = () => {
           className="flex w-full min-h-[48px] items-center justify-center gap-2 rounded-xl border-2 border-primary/30 bg-primary/5 px-4 py-3 text-sm font-semibold text-primary transition hover:border-primary hover:bg-primary/10 touch-manipulation"
         >
           <ClipboardList className="h-5 w-5 shrink-0" />
-          Exams
+          ข้อสอบระบบ
         </Link>
 
         <div className="rounded-lg border border-border/70 bg-muted/30 px-3 py-2.5 space-y-1">

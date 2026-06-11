@@ -1,6 +1,7 @@
 import React from 'react';
-import { ClipboardCheck, ExternalLink, Fuel, HeartPulse } from 'lucide-react';
-import { FLEET_FORM_LINKS } from '@/lib/fleetFormsConfig';
+import { Link } from 'react-router-dom';
+import { ClipboardCheck, ChevronRight, Fuel, HeartPulse } from 'lucide-react';
+import { FLEET_EXAMS } from '@/lib/fleetExamsConfig';
 import { Button } from '@/components/ui/button';
 
 const ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -11,7 +12,7 @@ const ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
 
 const ExamsContent: React.FC = () => (
   <div className="grid gap-4">
-    {FLEET_FORM_LINKS.map((item) => {
+    {FLEET_EXAMS.map((item) => {
       const Icon = ICONS[item.key] ?? ClipboardCheck;
 
       return (
@@ -40,15 +41,18 @@ const ExamsContent: React.FC = () => (
               <p className="mt-1.5 text-xs text-muted-foreground">
                 <span className="font-medium text-foreground">เมื่อไหร่ทำ:</span> {item.whenToUse}
               </p>
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                {item.questions.length} ข้อ · ทำในระบบนี้
+              </p>
             </div>
           </div>
 
           <div className="mt-4">
             <Button asChild className="rounded-2xl h-11 w-full sm:w-auto sm:min-w-[200px]">
-              <a href={item.url} target="_blank" rel="noopener noreferrer">
-                <ExternalLink className="h-4 w-4 mr-2" />
-                Open exam
-              </a>
+              <Link to={`/exams/${item.key}`}>
+                ทำข้อสอบ
+                <ChevronRight className="h-4 w-4 ml-1" />
+              </Link>
             </Button>
           </div>
         </article>

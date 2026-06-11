@@ -39,10 +39,10 @@ const ExamsPage: React.FC = () => {
           </Link>
           <div className="flex items-center justify-center gap-2 text-foreground">
             <ClipboardList className="h-5 w-5 text-primary" />
-            <h1 className="text-xl font-bold">Exams</h1>
+            <h1 className="text-xl font-bold">ข้อสอบระบบ</h1>
           </div>
           <p className="text-sm text-muted-foreground">
-            Read training topics, then open the exam form
+            อ่านหัวข้อการอบรม แล้วกดทำข้อสอบในระบบ — ไม่ต้องเปิด Microsoft Forms
           </p>
         </div>
 

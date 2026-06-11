@@ -17,6 +17,7 @@ import changePasswordHandler from './auth/change-password.js';
 import brandingHandler from './branding.js';
 import vehiclesHandler from './vehicles.js';
 import vehicleBookingsHandler from './vehicle-bookings.js';
+import fleetExamSubmissionsHandler from './fleet-exam-submissions.js';
 export type ApiHandler = (req: ApiReq, res: ApiRes) => Promise<void>;
 
 /** Route table — Login + WL + Dashboard; clients/jobs ใช้ภายใน WL (มอบหมายงาน) */
@@ -30,6 +31,7 @@ export const apiRoutes: Record<string, ApiHandler> = {
   '/api/employees': employeesHandler as ApiHandler,
   '/api/vehicles': vehiclesHandler as ApiHandler,
   '/api/vehicle-bookings': vehicleBookingsHandler as ApiHandler,
+  '/api/fleet-exam-submissions': fleetExamSubmissionsHandler as ApiHandler,
   '/api/geocode': geocodeHandler as ApiHandler,
   '/api/branding': brandingHandler as ApiHandler,
   '/api/auth/login': loginHandler as ApiHandler,

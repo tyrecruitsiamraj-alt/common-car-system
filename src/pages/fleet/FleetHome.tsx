@@ -8,8 +8,8 @@ import { motion } from 'framer-motion';
 const items = [
   {
     path: '/exams',
-    label: 'Exams',
-    desc: 'QR links — read training topics, then open Microsoft Forms',
+    label: 'ข้อสอบ',
+    desc: 'ทำแบบทดสอบและบันทึกในระบบ — สแกน QR แล้วทำข้อสอบได้เลย',
     icon: ClipboardList,
   },
   {
