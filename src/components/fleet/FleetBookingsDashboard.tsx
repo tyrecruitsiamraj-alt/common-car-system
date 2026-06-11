@@ -65,6 +65,7 @@ export const BOOKING_ROW_STATUS_META: Record<
 
 export type DashboardBookingRow = {
   id: string;
+  documentNo?: string;
   requester: string;
   department: string;
   route: string;
@@ -476,6 +477,7 @@ export default function FleetBookingsDashboard({
                 <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-400">
                   <tr>
                     <th className="px-5 py-3 font-bold">เลขใบงาน</th>
+                    <th className="px-5 py-3 font-bold">เลขที่เอกสาร</th>
                     <th className="px-5 py-3 font-bold">Requester</th>
                     <th className="px-5 py-3 font-bold">Route</th>
                     <th className="px-5 py-3 font-bold">Vehicle</th>
@@ -487,7 +489,7 @@ export default function FleetBookingsDashboard({
                 <tbody className="divide-y divide-slate-100">
                   {bookings.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="px-5 py-10 text-center text-sm text-slate-500">
+                      <td colSpan={8} className="px-5 py-10 text-center text-sm text-slate-500">
                         ไม่มีรายการจองในช่วงที่เลือก
                       </td>
                     </tr>
@@ -520,6 +522,9 @@ export default function FleetBookingsDashboard({
                         <td className="px-5 py-4">
                           <p className="font-bold text-slate-950">{booking.id}</p>
                           <p className="mt-1 text-xs text-slate-400">{booking.subtitle}</p>
+                        </td>
+                        <td className="px-5 py-4">
+                          <p className="font-medium text-slate-800">{booking.documentNo || '—'}</p>
                         </td>
                         <td className="px-5 py-4">
                           <p className="font-semibold text-slate-800">{booking.requester}</p>

@@ -81,6 +81,13 @@ export default function BookingDetailDialog({
                 ) : null}
               </div>
 
+              {booking.document_no?.trim() ? (
+                <div>
+                  <p className="text-xs text-muted-foreground">เลขที่เอกสาร</p>
+                  <p className="font-medium text-foreground">{booking.document_no.trim()}</p>
+                </div>
+              ) : null}
+
               <div>
                 <p className="text-xs text-muted-foreground">รถ</p>
                 <p className="font-semibold text-foreground">{veh?.plate_no ?? vehLabel(booking.vehicle_id)}</p>

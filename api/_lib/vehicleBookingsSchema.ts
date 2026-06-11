@@ -4,6 +4,7 @@ import { tableInAppSchema } from './schema.js';
 
 let completedAtColumnExists: boolean | null = null;
 let workOrderInfrastructureReady: boolean | null = null;
+let documentNoColumnReady: boolean | null = null;
 
 function vehicleBookingsSchemaTable(): { schema: string; table: string; qualified: string } {
   const qualified = tableInAppSchema('vehicle_bookings');
@@ -62,6 +63,20 @@ export function bookingEffectiveEndSql(useCompletedAt: boolean): string {
 export function bookingEffectiveEndSqlQualified(tableAlias: string, useCompletedAt: boolean): string {
   const a = tableAlias.replace(/\./g, '');
   return useCompletedAt ? `coalesce(${a}.completed_at, ${a}.ends_at)` : `${a}.ends_at`;
+}
+
+/** สร้างคอลัมน์ document_no ถ้ายังไม่มี (migration 030) */
+export async function ensureVehicleBookingDocumentNo(): Promise<boolean> {
+  if (documentNoColumnReady) return true;
+  try {
+    const tbl = tableInAppSchema('vehicle_bookings');
+    await dbQuery(`alter table ${tbl} add column if not exists document_no text null`);
+    documentNoColumnReady = true;
+    return true;
+  } catch {
+    documentNoColumnReady = false;
+    return false;
+  }
 }
 
 /** สร้าง sequence + คอลัมน์ work_order_no ถ้ายังไม่มี (migration 029 ยังไม่รันบน schema นี้) */

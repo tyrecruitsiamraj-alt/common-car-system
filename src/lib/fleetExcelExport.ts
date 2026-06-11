@@ -62,6 +62,7 @@ export function exportBookingsExcel(
     const note = (b.notes || '').trim();
     return {
       เลขใบงาน: formatBookingWorkOrderNo(b),
+      เลขที่เอกสาร: (b.document_no || '').trim() || '',
       รหัสระบบ: b.id,
       ผู้ขับ: empLabel(b.employee_id),
       ทะเบียนรถ: vehLabel(b.vehicle_id),

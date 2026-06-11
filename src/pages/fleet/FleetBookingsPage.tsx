@@ -479,6 +479,7 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
   const [selEmp, setSelEmp] = useState('');
   const [selVeh, setSelVeh] = useState('');
   const [destination, setDestination] = useState('');
+  const [documentNo, setDocumentNo] = useState('');
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
   /** กรองพนักงาน/รถจาก dropdown — ใช้กับตารางรายวัน/รายชั่วโมงและสรุปด้านล่าง */
@@ -512,6 +513,7 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
   const [editStart, setEditStart] = useState('');
   const [editEnd, setEditEnd] = useState('');
   const [editDestination, setEditDestination] = useState('');
+  const [editDocumentNo, setEditDocumentNo] = useState('');
   const [editNotes, setEditNotes] = useState('');
   /** ช่วงเวลาเดิมตอนเปิดแก้ไข — แสดงเทียบกับค่าที่กำลังแก้ */
   const [editTimeBaseline, setEditTimeBaseline] = useState<{ starts: string; ends: string } | null>(null);
@@ -1310,6 +1312,7 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
             starts_at: win.from.toISOString(),
             ends_at: win.to.toISOString(),
             destination: destination.trim() || undefined,
+            document_no: documentNo.trim() || undefined,
             notes: notes.trim() || undefined,
           }),
         });
@@ -1325,6 +1328,7 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
     if (ok > 0) {
       toast.success(ok === 1 ? 'บันทึกการจองแล้ว' : `สร้างการจอง ${ok} รายการแล้ว`);
       setDestination('');
+      setDocumentNo('');
       setNotes('');
       setCreateDialogOpen(false);
       const firstDay = parse(days[0], 'yyyy-MM-dd', new Date());
@@ -1409,6 +1413,7 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
     setEditEnd(endLocal);
     setEditTimeBaseline({ starts: startLocal, ends: endLocal });
     setEditDestination(b.destination ?? '');
+    setEditDocumentNo(b.document_no ?? '');
     setEditNotes(b.notes ?? '');
   };
 
@@ -1503,6 +1508,7 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
           starts_at: win.from.toISOString(),
           ends_at: win.to.toISOString(),
           destination: editDestination.trim() || undefined,
+          document_no: editDocumentNo.trim() || undefined,
           notes: editNotes.trim() || undefined,
           ...(completing ? { mark_completed: true } : {}),
         }),
@@ -2605,6 +2611,9 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                     <div className="flex items-start justify-between gap-2">
                       <div>
                         <p className="font-mono text-xs font-semibold text-primary">{row.workOrderNo}</p>
+                        {row.documentNo !== '—' ? (
+                          <p className="text-xs text-slate-500 mt-0.5">เลขที่เอกสาร: {row.documentNo}</p>
+                        ) : null}
                         <p className="font-bold text-slate-950">{row.driverName}</p>
                         <p className="text-sm text-slate-600 mt-0.5">
                           รถ: <span className="font-semibold">{row.plate}</span>
@@ -2952,6 +2961,15 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
               </div>
             </div>
             <DestinationField value={destination} onChange={setDestination} />
+            <div className="space-y-0.5">
+              <Label className="text-[10px]">เลขที่เอกสาร</Label>
+              <Input
+                value={documentNo}
+                onChange={(e) => setDocumentNo(e.target.value)}
+                className="h-8 text-xs"
+                placeholder="ทางเลือก — เลขที่ใบขอใช้รถ / เอกสารอ้างอิง"
+              />
+            </div>
             <div className="flex flex-wrap items-end gap-2">
               <div className="flex-1 min-w-[8rem] space-y-0.5">
                 <Label className="text-[10px]">หมายเหตุ</Label>
@@ -3023,6 +3041,12 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                           <div className="text-xs tabular-nums text-muted-foreground">
                             {format(parseISO(b.starts_at), 'dd/MM/yyyy HH:mm')} — {format(parseISO(b.ends_at), 'HH:mm')}
                           </div>
+                          {b.document_no?.trim() ? (
+                            <div className="text-xs text-foreground/90">
+                              <span className="text-muted-foreground">เลขที่เอกสาร: </span>
+                              {b.document_no.trim()}
+                            </div>
+                          ) : null}
                           {b.destination?.trim() ? (
                             <div className="text-xs text-foreground/90">
                               <span className="text-muted-foreground">สถานที่ที่ไป: </span>
@@ -3167,6 +3191,15 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                 className="h-9 text-xs"
                 labelClassName="text-xs"
               />
+              <div className="space-y-1">
+                <Label className="text-xs">เลขที่เอกสาร</Label>
+                <Input
+                  value={editDocumentNo}
+                  onChange={(e) => setEditDocumentNo(e.target.value)}
+                  className="h-9 text-xs"
+                  placeholder="ทางเลือก"
+                />
+              </div>
               <div className="space-y-1">
                 <Label className="text-xs">หมายเหตุ</Label>
                 <Input value={editNotes} onChange={(e) => setEditNotes(e.target.value)} className="h-9 text-xs" />

@@ -18,6 +18,7 @@ import {
   bookingEffectiveEndSql,
   bookingEffectiveEndSqlQualified,
   ensureVehicleBookingCompletedAt,
+  ensureVehicleBookingDocumentNo,
   hasVehicleBookingCompletedAt,
 } from '../_lib/vehicleBookingsSchema.js';
 import { roundDateToMinuteStep } from '../_lib/bookingMinuteStep.js';
@@ -36,6 +37,7 @@ type BookingRow = {
   ends_at: string | Date;
   notes: string | null;
   destination: string | null;
+  document_no: string | null;
   status: string;
   completed_at: string | Date | null;
   created_at: string | Date;
@@ -67,6 +69,7 @@ function bookingSnapshot(row: BookingRow) {
     ends_at: toIso(row.ends_at),
     notes: row.notes || undefined,
     destination: row.destination || undefined,
+    document_no: row.document_no?.trim() || undefined,
     status: row.status || 'active',
     completed_at: row.completed_at ? toIso(row.completed_at) : undefined,
   };
@@ -85,6 +88,7 @@ function toBooking(row: BookingRow) {
     starts_at: toIso(row.starts_at),
     ends_at: toIso(row.ends_at),
     destination: row.destination || undefined,
+    document_no: row.document_no?.trim() || undefined,
     notes: row.notes || undefined,
     status: row.status === 'cancelled' ? 'cancelled' : 'active',
     completed_at: row.completed_at ? toIso(row.completed_at) : undefined,
@@ -318,6 +322,7 @@ async function handler(req: AuthedReq, res: ApiRes): Promise<void> {
       const starts = bookingTimeFromIso(b.starts_at);
       const ends = bookingTimeFromIso(b.ends_at);
       const destination = optionalText(b.destination);
+      const document_no = optionalText(b.document_no);
       const notes = optionalText(b.notes);
       if (!employee_id || !vehicle_id || !starts || !ends) {
         return sendError(res, 400, 'Bad request', 'employee_id, vehicle_id, starts_at, ends_at (ISO) required');
@@ -331,13 +336,14 @@ async function handler(req: AuthedReq, res: ApiRes): Promise<void> {
         return sendError(res, 409, 'Conflict', 'ผู้ขับคนนี้มีการจองทับช่วงเวลานี้แล้ว');
       }
 
+      await ensureVehicleBookingDocumentNo();
       const work_order_no = await allocateVehicleBookingWorkOrderNo();
       const { rows } = await dbQuery<BookingRow>(
         `
         insert into ${tbl} (
-          employee_id, vehicle_id, starts_at, ends_at, destination, notes, status, work_order_no, updated_at
+          employee_id, vehicle_id, starts_at, ends_at, destination, document_no, notes, status, work_order_no, updated_at
         )
-        values ($1::uuid, $2::uuid, $3::timestamptz, $4::timestamptz, $5, $6, 'active', $7, now())
+        values ($1::uuid, $2::uuid, $3::timestamptz, $4::timestamptz, $5, $6, $7, 'active', $8, now())
         returning *
       `,
         [
@@ -346,6 +352,7 @@ async function handler(req: AuthedReq, res: ApiRes): Promise<void> {
           starts.toISOString(),
           ends.toISOString(),
           destination,
+          document_no,
           notes,
           work_order_no,
         ],
@@ -415,6 +422,8 @@ async function handler(req: AuthedReq, res: ApiRes): Promise<void> {
         b.ends_at !== undefined ? bookingTimeFromIso(b.ends_at) : roundDateToMinuteStep(new Date(cur.ends_at));
       const notes = b.notes !== undefined ? optionalText(b.notes) : cur.notes;
       const destination = b.destination !== undefined ? optionalText(b.destination) : cur.destination;
+      const document_no =
+        b.document_no !== undefined ? optionalText(b.document_no) : cur.document_no?.trim() || null;
       let completedAt: Date | null = cur.completed_at ? new Date(cur.completed_at) : null;
 
       if (markCompleted) {
@@ -453,6 +462,7 @@ async function handler(req: AuthedReq, res: ApiRes): Promise<void> {
         }
       }
 
+      await ensureVehicleBookingDocumentNo();
       const { rows } = supportsCompletedAt
         ? await dbQuery<BookingRow>(
             `
@@ -462,8 +472,9 @@ async function handler(req: AuthedReq, res: ApiRes): Promise<void> {
           starts_at = $4::timestamptz,
           ends_at = $5::timestamptz,
           destination = $6,
-          notes = $7,
-          completed_at = $8::timestamptz,
+          document_no = $7,
+          notes = $8,
+          completed_at = $9::timestamptz,
           updated_at = now()
         where id = $1::uuid and ${ACTIVE_ONLY}
         returning *
@@ -475,6 +486,7 @@ async function handler(req: AuthedReq, res: ApiRes): Promise<void> {
               starts.toISOString(),
               ends.toISOString(),
               destination,
+              document_no,
               notes,
               completedAt ? completedAt.toISOString() : null,
             ],
@@ -487,7 +499,8 @@ async function handler(req: AuthedReq, res: ApiRes): Promise<void> {
           starts_at = $4::timestamptz,
           ends_at = $5::timestamptz,
           destination = $6,
-          notes = $7,
+          document_no = $7,
+          notes = $8,
           updated_at = now()
         where id = $1::uuid and ${ACTIVE_ONLY}
         returning *
@@ -499,6 +512,7 @@ async function handler(req: AuthedReq, res: ApiRes): Promise<void> {
               starts.toISOString(),
               ends.toISOString(),
               destination,
+              document_no,
               notes,
             ],
           );

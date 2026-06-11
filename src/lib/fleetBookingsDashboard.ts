@@ -20,6 +20,7 @@ export function isBookingActive(b: VehicleBooking): boolean {
 export type TodayBookingDetail = {
   id: string;
   workOrderNo: string;
+  documentNo: string;
   driverName: string;
   plate: string;
   vehicleLabel: string;
@@ -92,9 +93,11 @@ export function bookingToDashboardRow(
   else if (/vip/i.test(note)) subtitleParts.push('VIP');
   else if (/อุบัติ|accident/i.test(note)) subtitleParts.push('ด่วน');
 
+  const docNo = (b.document_no || '').trim();
   return {
     id: formatBookingWorkOrderNo(b),
     rawId: b.id,
+    documentNo: docNo,
     requester: empLabel(b.employee_id),
     department: emp?.position?.trim() || 'ผู้ขับ',
     route,
@@ -104,7 +107,7 @@ export function bookingToDashboardRow(
     date: formatBookingDateLabel(b.starts_at),
     time: formatThaiTimeRange(b.starts_at, bookingEffectiveEnd(b)),
     status: deriveBookingListStatus(b),
-    subtitle: subtitleParts.join(' · ') || route,
+    subtitle: subtitleParts.join(' · ') || docNo || route,
   };
 }
 
@@ -129,6 +132,7 @@ function bookingToDetailRow(
   return {
     id: b.id,
     workOrderNo: formatBookingWorkOrderNo(b),
+    documentNo: (b.document_no || '').trim() || '—',
     driverName: empLabel(b.employee_id),
     plate: v?.plate_no ?? '—',
     vehicleLabel: v?.label?.trim() || '—',
@@ -291,7 +295,7 @@ export function filterDashboardBookings(
     if (!matchesStatus) return false;
     if (!q) return true;
     const text =
-      `${row.id} ${row.requester} ${row.department} ${row.route} ${row.vehicleName} ${row.plate} ${row.driver}`.toLowerCase();
+      `${row.id} ${row.documentNo ?? ''} ${row.requester} ${row.department} ${row.route} ${row.vehicleName} ${row.plate} ${row.driver}`.toLowerCase();
     return text.includes(q);
   });
 }

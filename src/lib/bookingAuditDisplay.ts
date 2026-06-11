@@ -8,6 +8,7 @@ const FIELD_LABELS: Record<string, string> = {
   starts_at: 'เริ่ม',
   ends_at: 'สิ้นสุด',
   destination: 'สถานที่ที่ไป',
+  document_no: 'เลขที่เอกสาร',
   notes: 'หมายเหตุ',
   status: 'สถานะ',
 };

@@ -71,6 +71,8 @@ export interface VehicleBooking {
   ends_at: string;
   /** สถานที่ที่ไป / ปลายทาง */
   destination?: string;
+  /** เลขที่เอกสารอ้างอิง (ใบขอใช้รถ ฯลฯ) */
+  document_no?: string;
   notes?: string;
   status?: 'active' | 'cancelled';
   /** บันทึกเมื่อกดเสร็จสิ้น — ปิดงานก่อน ends_at ได้ */
