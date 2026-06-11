@@ -476,8 +476,8 @@ export default function FleetBookingsDashboard({
               <table className="min-w-[980px] w-full text-left">
                 <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-400">
                   <tr>
-                    <th className="px-5 py-3 font-bold">เลขใบงาน</th>
                     <th className="px-5 py-3 font-bold">เลขที่เอกสาร</th>
+                    <th className="px-5 py-3 font-bold">เลขใบงาน</th>
                     <th className="px-5 py-3 font-bold">Requester</th>
                     <th className="px-5 py-3 font-bold">Route</th>
                     <th className="px-5 py-3 font-bold">Vehicle</th>
@@ -520,11 +520,11 @@ export default function FleetBookingsDashboard({
                         role={onBookingRowClick ? 'button' : undefined}
                       >
                         <td className="px-5 py-4">
-                          <p className="font-bold text-slate-950">{booking.id}</p>
-                          <p className="mt-1 text-xs text-slate-400">{booking.subtitle}</p>
+                          <p className="font-medium text-slate-800">{booking.documentNo || '—'}</p>
                         </td>
                         <td className="px-5 py-4">
-                          <p className="font-medium text-slate-800">{booking.documentNo || '—'}</p>
+                          <p className="font-bold text-slate-950">{booking.id}</p>
+                          <p className="mt-1 text-xs text-slate-400">{booking.subtitle}</p>
                         </td>
                         <td className="px-5 py-4">
                           <p className="font-semibold text-slate-800">{booking.requester}</p>

@@ -2610,10 +2610,10 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div>
-                        <p className="font-mono text-xs font-semibold text-primary">{row.workOrderNo}</p>
                         {row.documentNo !== '—' ? (
-                          <p className="text-xs text-slate-500 mt-0.5">เลขที่เอกสาร: {row.documentNo}</p>
+                          <p className="text-xs font-semibold text-slate-700">{row.documentNo}</p>
                         ) : null}
+                        <p className="font-mono text-xs font-semibold text-primary">{row.workOrderNo}</p>
                         <p className="font-bold text-slate-950">{row.driverName}</p>
                         <p className="text-sm text-slate-600 mt-0.5">
                           รถ: <span className="font-semibold">{row.plate}</span>
@@ -2799,6 +2799,15 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
             onSubmit={submitBooking}
             className="space-y-3"
           >
+            <div className="space-y-0.5">
+              <Label className="text-[10px]">เลขที่เอกสาร</Label>
+              <Input
+                value={documentNo}
+                onChange={(e) => setDocumentNo(e.target.value)}
+                className="h-8 text-xs"
+                placeholder="ทางเลือก — เลขที่ใบขอใช้รถ / เอกสารอ้างอิง"
+              />
+            </div>
             <div className="space-y-1">
               <p className="text-xs font-medium text-foreground">เวลา (ใช้ทุกวันที่เลือก)</p>
               <p className="text-[10px] text-muted-foreground">เวลา 24 ชม. (… น.) — นาทีทุก 10 นาที</p>
@@ -2961,15 +2970,6 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
               </div>
             </div>
             <DestinationField value={destination} onChange={setDestination} />
-            <div className="space-y-0.5">
-              <Label className="text-[10px]">เลขที่เอกสาร</Label>
-              <Input
-                value={documentNo}
-                onChange={(e) => setDocumentNo(e.target.value)}
-                className="h-8 text-xs"
-                placeholder="ทางเลือก — เลขที่ใบขอใช้รถ / เอกสารอ้างอิง"
-              />
-            </div>
             <div className="flex flex-wrap items-end gap-2">
               <div className="flex-1 min-w-[8rem] space-y-0.5">
                 <Label className="text-[10px]">หมายเหตุ</Label>
@@ -3086,6 +3086,15 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
           {editBooking ? (
             <form onSubmit={(e) => void saveEditBooking(e)} className="flex flex-col flex-1 min-h-0">
               <div className="flex-1 min-h-0 overflow-y-auto px-6 space-y-3 pb-2">
+              <div className="space-y-1">
+                <Label className="text-xs">เลขที่เอกสาร</Label>
+                <Input
+                  value={editDocumentNo}
+                  onChange={(e) => setEditDocumentNo(e.target.value)}
+                  className="h-9 text-xs"
+                  placeholder="ทางเลือก"
+                />
+              </div>
               <div className="rounded-lg border border-border/70 bg-muted/20 px-3 py-2 text-xs">
                 <span className="text-muted-foreground">เลขใบงาน: </span>
                 <span className="font-mono font-semibold text-foreground">
@@ -3191,15 +3200,6 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                 className="h-9 text-xs"
                 labelClassName="text-xs"
               />
-              <div className="space-y-1">
-                <Label className="text-xs">เลขที่เอกสาร</Label>
-                <Input
-                  value={editDocumentNo}
-                  onChange={(e) => setEditDocumentNo(e.target.value)}
-                  className="h-9 text-xs"
-                  placeholder="ทางเลือก"
-                />
-              </div>
               <div className="space-y-1">
                 <Label className="text-xs">หมายเหตุ</Label>
                 <Input value={editNotes} onChange={(e) => setEditNotes(e.target.value)} className="h-9 text-xs" />

@@ -58,6 +58,12 @@ export default function BookingDetailDialog({
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 text-sm">
+              {booking.document_no?.trim() ? (
+                <div>
+                  <p className="text-xs text-muted-foreground">เลขที่เอกสาร</p>
+                  <p className="font-medium text-foreground">{booking.document_no.trim()}</p>
+                </div>
+              ) : null}
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="text-xs text-muted-foreground">ผู้ขับ</p>
@@ -80,13 +86,6 @@ export default function BookingDetailDialog({
                   </span>
                 ) : null}
               </div>
-
-              {booking.document_no?.trim() ? (
-                <div>
-                  <p className="text-xs text-muted-foreground">เลขที่เอกสาร</p>
-                  <p className="font-medium text-foreground">{booking.document_no.trim()}</p>
-                </div>
-              ) : null}
 
               <div>
                 <p className="text-xs text-muted-foreground">รถ</p>
