@@ -2,8 +2,7 @@
 
 type Question =
   | { id: string; type: 'yes_no'; label: string }
-  | { id: string; type: 'single'; label: string; options: string[] }
-  | { id: string; type: string; label: string };
+  | { id: string; type: 'single'; label: string; options: string[] };
 
 const EXAM_QUESTIONS: Record<string, Question[]> = {
   start_work_sticker_single: [
