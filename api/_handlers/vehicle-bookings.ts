@@ -22,6 +22,7 @@ import {
   hasVehicleBookingCompletedAt,
 } from '../_lib/vehicleBookingsSchema.js';
 import { roundDateToMinuteStep } from '../_lib/bookingMinuteStep.js';
+import { needsBookingOverlapCheck } from '../_lib/bookingOverlap.js';
 
 const tbl = tableInAppSchema('vehicle_bookings');
 const ACTIVE_ONLY = `coalesce(status, 'active') = 'active'`;
@@ -133,24 +134,6 @@ async function overlapVehicle(
   sql += ' limit 1';
   const { rows } = await dbQuery<{ ok: number }>(sql, params);
   return rows.length > 0;
-}
-
-/** กดเสร็จสิ้นโดยไม่ขยายช่วงเวลา/เปลี่ยนรถหรือคนขับ — ไม่ต้องเช็คทับซ้อน (จองช่วงนี้อยู่แล้ว) */
-function bookingScheduleExpandedForPatch(
-  cur: BookingRow,
-  patch: Record<string, unknown>,
-  employeeId: string,
-  vehicleId: string,
-  starts: Date,
-  ends: Date,
-): boolean {
-  if (patch.vehicle_id !== undefined && vehicleId !== cur.vehicle_id) return true;
-  if (patch.employee_id !== undefined && employeeId !== cur.employee_id) return true;
-  const curStarts = new Date(cur.starts_at).getTime();
-  const curEnds = new Date(cur.ends_at).getTime();
-  if (patch.starts_at !== undefined && starts.getTime() < curStarts) return true;
-  if (patch.ends_at !== undefined && ends.getTime() > curEnds) return true;
-  return false;
 }
 
 async function overlapEmployee(
@@ -451,8 +434,14 @@ async function handler(req: AuthedReq, res: ApiRes): Promise<void> {
       }
       if (starts >= ends) return sendError(res, 400, 'Bad request', 'ends_at must be after starts_at');
 
-      const needsOverlapCheck =
-        !markCompleted || bookingScheduleExpandedForPatch(cur, b, employee_id, vehicle_id, starts, ends);
+      const needsOverlapCheck = needsBookingOverlapCheck(
+        cur,
+        b,
+        employee_id,
+        vehicle_id,
+        starts,
+        ends,
+      );
       if (needsOverlapCheck) {
         if (await overlapVehicle(vehicle_id, starts, ends, id, patchEffectiveEnd)) {
           return sendError(res, 409, 'Conflict', 'รถคันนี้ถูกจองในช่วงเวลานี้แล้ว');
