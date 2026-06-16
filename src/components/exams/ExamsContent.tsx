@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ClipboardCheck, ChevronRight, Fuel, HeartPulse } from 'lucide-react';
+import { BarChart3, ClipboardCheck, ChevronRight, Fuel, HeartPulse } from 'lucide-react';
+import ExamScoresDialog from '@/components/exams/ExamScoresDialog';
 import { FLEET_EXAMS } from '@/lib/fleetExamsConfig';
 import { Button } from '@/components/ui/button';
 
@@ -10,8 +11,24 @@ const ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   daily_driver_check: HeartPulse,
 };
 
-const ExamsContent: React.FC = () => (
-  <div className="grid gap-4">
+const ExamsContent: React.FC = () => {
+  const [scoresOpen, setScoresOpen] = useState(false);
+
+  return (
+  <div className="space-y-4">
+    <div className="flex justify-end">
+      <Button
+        type="button"
+        variant="outline"
+        className="rounded-2xl h-10"
+        onClick={() => setScoresOpen(true)}
+      >
+        <BarChart3 className="h-4 w-4 mr-2" />
+        ดูคะแนน
+      </Button>
+    </div>
+    <ExamScoresDialog open={scoresOpen} onOpenChange={setScoresOpen} />
+    <div className="grid gap-4">
     {FLEET_EXAMS.map((item) => {
       const Icon = ICONS[item.key] ?? ClipboardCheck;
 
@@ -58,7 +75,9 @@ const ExamsContent: React.FC = () => (
         </article>
       );
     })}
+    </div>
   </div>
-);
+  );
+};
 
 export default ExamsContent;

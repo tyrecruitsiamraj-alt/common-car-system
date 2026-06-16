@@ -2,7 +2,10 @@ import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { CheckCircle2, Loader2 } from 'lucide-react';
 import type { ExamQuestion, FleetExam } from '@/lib/fleetExamsConfig';
+import { submissionToScoreResult, type ExamSubmissionPayload } from '@/lib/fleetExamScoring';
 import { apiFetch } from '@/lib/apiFetch';
+import ExamScoreResultDialog from '@/components/exams/ExamScoreResultDialog';
+import type { ExamScoreRow } from '@/components/exams/ExamScorePanel';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -28,6 +31,8 @@ const ExamForm: React.FC<Props> = ({ exam }) => {
   const [answers, setAnswers] = useState(() => initialAnswers(exam.questions));
   const [saving, setSaving] = useState(false);
   const [done, setDone] = useState(false);
+  const [scoreRow, setScoreRow] = useState<ExamScoreRow | null>(null);
+  const [scoreOpen, setScoreOpen] = useState(false);
 
   const setAnswer = (id: string, value: string) => {
     setAnswers((prev) => ({ ...prev, [id]: value }));
@@ -63,6 +68,22 @@ const ExamForm: React.FC<Props> = ({ exam }) => {
         const j = (await r.json().catch(() => ({}))) as { message?: string };
         throw new Error(j.message || `HTTP ${r.status}`);
       }
+      const payload = (await r.json()) as ExamSubmissionPayload;
+      const scored = submissionToScoreResult(payload);
+      setScoreRow({
+        id: payload.id,
+        exam_key: payload.exam_key,
+        exam_title: payload.exam_title,
+        submitter_name: payload.submitter_name,
+        vehicle_plate: payload.vehicle_plate,
+        score_correct: scored.correct,
+        score_total: scored.total,
+        score_percent: scored.percent,
+        passed: scored.passed,
+        created_at: payload.created_at,
+        details: scored.details,
+      });
+      setScoreOpen(true);
       setDone(true);
       toast.success('บันทึกข้อสอบแล้ว');
     } catch (err) {
@@ -74,28 +95,38 @@ const ExamForm: React.FC<Props> = ({ exam }) => {
 
   if (done) {
     return (
-      <div className="rounded-3xl border border-emerald-200 bg-emerald-50/80 p-6 text-center space-y-4">
-        <CheckCircle2 className="h-12 w-12 text-emerald-600 mx-auto" />
-        <div>
-          <h2 className="text-lg font-bold text-foreground">ส่งข้อสอบเรียบร้อย</h2>
-          <p className="text-sm text-muted-foreground mt-1">ระบบบันทึกคำตอบของคุณแล้ว</p>
+      <>
+        <div className="rounded-3xl border border-emerald-200 bg-emerald-50/80 p-6 text-center space-y-4">
+          <CheckCircle2 className="h-12 w-12 text-emerald-600 mx-auto" />
+          <div>
+            <h2 className="text-lg font-bold text-foreground">ส่งข้อสอบเรียบร้อย</h2>
+            <p className="text-sm text-muted-foreground mt-1">ระบบบันทึกคำตอบของคุณแล้ว</p>
+          </div>
+          <div className="flex flex-wrap justify-center gap-2">
+            {scoreRow ? (
+              <Button type="button" variant="secondary" className="rounded-2xl" onClick={() => setScoreOpen(true)}>
+                ดูคะแนนอีกครั้ง
+              </Button>
+            ) : null}
+            <Button asChild variant="outline" className="rounded-2xl">
+              <Link to="/exams">กลับรายการข้อสอบ</Link>
+            </Button>
+            <Button
+              type="button"
+              className="rounded-2xl"
+              onClick={() => {
+                setAnswers(initialAnswers(exam.questions));
+                setDone(false);
+                setScoreRow(null);
+                setScoreOpen(false);
+              }}
+            >
+              ทำอีกครั้ง
+            </Button>
+          </div>
         </div>
-        <div className="flex flex-wrap justify-center gap-2">
-          <Button asChild variant="outline" className="rounded-2xl">
-            <Link to="/exams">กลับรายการข้อสอบ</Link>
-          </Button>
-          <Button
-            type="button"
-            className="rounded-2xl"
-            onClick={() => {
-              setAnswers(initialAnswers(exam.questions));
-              setDone(false);
-            }}
-          >
-            ทำอีกครั้ง
-          </Button>
-        </div>
-      </div>
+        <ExamScoreResultDialog open={scoreOpen} onOpenChange={setScoreOpen} row={scoreRow} />
+      </>
     );
   }
 

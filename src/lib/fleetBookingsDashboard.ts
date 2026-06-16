@@ -29,10 +29,19 @@ export type TodayBookingDetail = {
   status: Exclude<BookingListStatus, 'all'>;
 };
 
-/** เวลาสิ้นสุดจริงของการจอง (กดเสร็จสิ้นแล้ว หรือตาม ends_at) */
+/** เวลาสิ้นสุดจริงของการจอง (กดเสร็จสิ้นแล้ว หรือตาม ends_at) — ใช้แสดงเวลา/ตรวจช่วงทับซ้อน */
 export function bookingEffectiveEnd(b: VehicleBooking): Date {
   if (b.completed_at) return parseISO(b.completed_at);
   return parseISO(b.ends_at);
+}
+
+/** วันงานของใบจอง — นับตามวันเริ่มงาน ไม่ใช่วันกดปิด */
+export function bookingWorkDay(b: VehicleBooking): Date {
+  return startOfDay(parseISO(b.starts_at));
+}
+
+export function isBookingOnWorkDay(b: VehicleBooking, day: Date): boolean {
+  return isSameDay(parseISO(b.starts_at), day);
 }
 
 /** สถานะจอง: เสร็จสิ้นเมื่อกดเสร็จสิ้นเท่านั้น — ยังไม่กดจะค้างกำลังดำเนินการ */
@@ -112,13 +121,7 @@ export function bookingToDashboardRow(
 }
 
 export function bookingsOnDay(bookings: VehicleBooking[], day: Date): VehicleBooking[] {
-  const d0 = startOfDay(day);
-  const d1 = addDays(d0, 1);
-  return bookings.filter((b) => {
-    const s = parseISO(b.starts_at);
-    const e = bookingEffectiveEnd(b);
-    return s < d1 && e > d0;
-  });
+  return bookings.filter((b) => isBookingOnWorkDay(b, day));
 }
 
 function bookingToDetailRow(
