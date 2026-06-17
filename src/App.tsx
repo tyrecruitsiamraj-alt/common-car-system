@@ -22,7 +22,7 @@ import AddEmployeePage from "@/pages/wl/AddEmployeePage";
 import SupervisorDashboard from "@/pages/dashboard/SupervisorDashboard";
 import ChangePasswordPage from "@/pages/ChangePasswordPage";
 import AppearanceSettingsPage from "@/pages/settings/AppearanceSettingsPage";
-import FleetBookingPermissionsPage from "@/pages/settings/FleetBookingPermissionsPage";
+import UserPermissionsSettingsPage from "@/pages/settings/UserPermissionsSettingsPage";
 import AdminRoute from "@/components/auth/AdminRoute";
 import NotFound from "./pages/NotFound";
 
@@ -79,13 +79,14 @@ function AppRoutes() {
           }
         />
         <Route
-          path="/settings/fleet-permissions"
+          path="/settings/users"
           element={
             <AdminRoute>
-              <FleetBookingPermissionsPage />
+              <UserPermissionsSettingsPage />
             </AdminRoute>
           }
         />
+        <Route path="/settings/fleet-permissions" element={<Navigate to="/settings/users" replace />} />
         <Route path="*" element={<NotFound />} />
       </Route>
     </Routes>

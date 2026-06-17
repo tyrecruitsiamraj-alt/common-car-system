@@ -241,12 +241,17 @@ const AppearanceSettingsPage: React.FC = () => {
         </div>
         {user?.role === 'admin' ? (
           <div className="glass-card rounded-xl border border-border p-4 flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-2 text-sm">
-              <Shield className="h-4 w-4 text-primary" />
-              <span className="font-medium">สิทธิ์แก้เวลาใบงานที่ปิดแล้ว</span>
+            <div className="flex items-center gap-2 text-sm min-w-0">
+              <Shield className="h-4 w-4 text-primary shrink-0" />
+              <div>
+                <span className="font-medium">จัดการผู้ใช้และสิทธิ์</span>
+                <p className="text-[10px] text-muted-foreground mt-0.5">
+                  กำหนดบทบาท และมอบหมายสิทธิ์แก้เวลาหลังปิดงานให้ผู้ใช้
+                </p>
+              </div>
             </div>
             <Button type="button" variant="secondary" size="sm" asChild>
-              <Link to="/settings/fleet-permissions">กำหนดผู้ใช้</Link>
+              <Link to="/settings/users">เปิดหน้าจัดการ</Link>
             </Button>
           </div>
         ) : null}
