@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bookingsOnDay, computeTodaySummaryCounts } from '@/lib/fleetBookingsDashboard';
+import { bookingsOnDay, bookingEffectiveEnd, computeTodaySummaryCounts } from '@/lib/fleetBookingsDashboard';
 import type { VehicleBooking } from '@/types';
 
 function booking(partial: Partial<VehicleBooking> & Pick<VehicleBooking, 'starts_at' | 'ends_at'>): VehicleBooking {
@@ -39,5 +39,14 @@ describe('bookingsOnDay', () => {
 
     expect(computeTodaySummaryCounts([b], workDay)).toMatchObject({ completed: 1 });
     expect(computeTodaySummaryCounts([b], closeDay)).toMatchObject({ completed: 0 });
+  });
+
+  it('occupancy uses scheduled ends_at even when completed late', () => {
+    const b = booking({
+      starts_at: '2026-05-05T08:00:00+07:00',
+      ends_at: '2026-05-05T17:00:00+07:00',
+      completed_at: '2026-05-06T09:00:00+07:00',
+    });
+    expect(bookingEffectiveEnd(b).toISOString()).toBe(new Date(b.ends_at).toISOString());
   });
 });

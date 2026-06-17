@@ -450,12 +450,7 @@ async function handler(req: AuthedReq, res: ApiRes): Promise<void> {
         const userSetStarts = b.starts_at !== undefined;
         if (!userSetStarts && !starts) starts = roundDateToMinuteStep(new Date(cur.starts_at));
         if (!userSetEnds) {
-          if (!ends) ends = roundDateToMinuteStep(new Date(cur.ends_at));
-          if (now > starts) ends = now;
-          else ends = roundDateToMinuteStep(new Date(starts.getTime() + 60_000));
-          const plannedEnd = roundDateToMinuteStep(new Date(cur.ends_at));
-          if (plannedEnd < ends) ends = plannedEnd;
-          if (ends <= starts) ends = roundDateToMinuteStep(new Date(starts.getTime() + 60_000));
+          ends = roundDateToMinuteStep(new Date(cur.ends_at));
         }
       }
 
