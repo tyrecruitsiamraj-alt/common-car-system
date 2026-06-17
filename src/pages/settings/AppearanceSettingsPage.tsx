@@ -1,4 +1,5 @@
 import React, { useCallback, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import PageHeader from '@/components/shared/PageHeader';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,6 +13,7 @@ import {
   type BrandingConfig,
 } from '@/lib/brandingStorage';
 import { toast } from 'sonner';
+import { Shield } from 'lucide-react';
 
 const MAX_LOGO_FILE_BYTES = 450_000;
 
@@ -237,6 +239,17 @@ const AppearanceSettingsPage: React.FC = () => {
             </Button>
           ) : null}
         </div>
+        {user?.role === 'admin' ? (
+          <div className="glass-card rounded-xl border border-border p-4 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2 text-sm">
+              <Shield className="h-4 w-4 text-primary" />
+              <span className="font-medium">สิทธิ์แก้เวลาใบงานที่ปิดแล้ว</span>
+            </div>
+            <Button type="button" variant="secondary" size="sm" asChild>
+              <Link to="/settings/fleet-permissions">กำหนดผู้ใช้</Link>
+            </Button>
+          </div>
+        ) : null}
         {user?.role === 'admin' ? (
           <p className="text-[10px] text-muted-foreground max-w-xl">
             เฉพาะ Admin: ปุ่มเผยแพร่จะบันทึกธีมลงฐานข้อมูล — ผู้ใช้คนอื่นจะได้ธีมนี้หลังรีเฟรช (ถ้าเชื่อม API อยู่)

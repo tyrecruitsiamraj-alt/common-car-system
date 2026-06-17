@@ -20,9 +20,11 @@ import {
   bookingsOnDay,
   deriveBookingListStatus,
   isBookingCancellable,
+  isBookingCompletedTimeEditable,
   isBookingEditable,
   isBookingInProgress,
 } from '@/lib/fleetBookingsDashboard';
+import { fetchFleetBookingPermissions } from '@/lib/fleetBookingPermissions';
 import { formatBookingWorkOrderNo } from '@/lib/bookingWorkOrder';
 import { BOOKING_MINUTE_STEP, roundDateToMinuteStep } from '@/lib/bookingMinuteStep';
 import { notifyFleetBookingsChanged } from '@/lib/bookingNotifications';
@@ -451,9 +453,19 @@ type FleetBookingsPageProps = {
 };
 
 const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) => {
-  const { hasPermission } = useAuth();
+  const { hasPermission, user } = useAuth();
   const canEdit = hasPermission('staff');
   const canDelete = hasPermission('staff');
+
+  useEffect(() => {
+    let cancelled = false;
+    void fetchFleetBookingPermissions().then((p) => {
+      if (!cancelled) setCanEditCompletedTimes(p?.can_edit_completed_booking_times === true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
   const isMonitor = mode === 'monitor';
 
   const [viewMode, setViewMode] = useState<ViewMode>(() => (mode === 'monitor' ? 'month' : 'day'));
@@ -518,7 +530,9 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
   /** ช่วงเวลาเดิมตอนเปิดแก้ไข — แสดงเทียบกับค่าที่กำลังแก้ */
   const [editTimeBaseline, setEditTimeBaseline] = useState<{ starts: string; ends: string } | null>(null);
   /** แก้ไขทั่วไป หรือ เปิดจากปุ่มเสร็จสิ้น (ต้องปรับเวลาก่อนบันทึก) */
-  const [editDialogMode, setEditDialogMode] = useState<'edit' | 'complete'>('edit');
+  const [editDialogMode, setEditDialogMode] = useState<'edit' | 'complete' | 'completedTime'>('edit');
+  const [editCompletedAt, setEditCompletedAt] = useState('');
+  const [canEditCompletedTimes, setCanEditCompletedTimes] = useState(false);
   const [createDateFrom, setCreateDateFrom] = useState('');
   const [createDateTo, setCreateDateTo] = useState('');
   const [createSelectedDays, setCreateSelectedDays] = useState<Set<string>>(() => new Set());
@@ -1400,21 +1414,34 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
     setEditBooking(null);
     setEditTimeBaseline(null);
     setEditDialogMode('edit');
+    setEditCompletedAt('');
   };
 
-  const openEditBooking = (b: VehicleBooking, mode: 'edit' | 'complete' = 'edit') => {
+  const openEditBooking = (b: VehicleBooking, mode: 'edit' | 'complete' | 'completedTime' = 'edit') => {
     const startLocal = toDatetimeLocalValue(roundDateToMinuteStep(parseISO(b.starts_at)));
     const endLocal = toDatetimeLocalValue(roundDateToMinuteStep(parseISO(b.ends_at)));
+    const completedLocal = b.completed_at
+      ? toDatetimeLocalValue(roundDateToMinuteStep(parseISO(b.completed_at)))
+      : endLocal;
     setEditDialogMode(mode);
     setEditBooking(b);
     setEditEmp(b.employee_id);
     setEditVeh(b.vehicle_id);
     setEditStart(startLocal);
     setEditEnd(endLocal);
+    setEditCompletedAt(completedLocal);
     setEditTimeBaseline({ starts: startLocal, ends: endLocal });
     setEditDestination(b.destination ?? '');
     setEditDocumentNo(b.document_no ?? '');
     setEditNotes(b.notes ?? '');
+  };
+
+  const openCompletedTimeEdit = (b: VehicleBooking) => {
+    if (!canEditCompletedTimes) {
+      toast.message('คุณไม่มีสิทธิ์แก้เวลาใบงานที่ปิดแล้ว');
+      return;
+    }
+    openEditBooking(b, 'completedTime');
   };
 
   const openCompleteBooking = (b: VehicleBooking) => {
@@ -1481,10 +1508,24 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
     setEditEnd(next);
   };
 
+  const patchEditCompleted = (ymd: string, hm: string) => {
+    const next = combineBookYmdHm(ymd, hm);
+    setEditCompletedAt(next);
+  };
+
   const saveEditBooking = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editBooking || !canEdit) return;
-    if (!isBookingEditable(editBooking)) {
+    if (!editBooking) return;
+    const correctingTime = editDialogMode === 'completedTime';
+    if (correctingTime) {
+      if (!canEditCompletedTimes) {
+        toast.error('คุณไม่มีสิทธิ์แก้เวลาใบงานที่ปิดแล้ว');
+        return;
+      }
+    } else if (!canEdit) {
+      return;
+    }
+    if (!correctingTime && !isBookingEditable(editBooking)) {
       toast.error('การจองที่เสร็จสิ้นแล้วแก้ไขไม่ได้');
       closeEditDialog();
       return;
@@ -1496,22 +1537,37 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
     }
     const completing = editDialogMode === 'complete';
     if (completing && !window.confirm('บันทึกช่วงเวลาที่แก้แล้วระบุว่าเสร็จสิ้น?')) return;
+    if (correctingTime && !window.confirm('บันทึกการแก้เวลาใบงานที่ปิดแล้ว? (บันทึกลงประวัติ)')) return;
+    const completedAtDate = correctingTime ? roundDateToMinuteStep(new Date(editCompletedAt)) : null;
+    if (correctingTime && Number.isNaN(completedAtDate!.getTime())) {
+      toast.error('เวลาปิดงานไม่ถูกต้อง');
+      return;
+    }
     setSaving(true);
     try {
+      const body = correctingTime
+        ? {
+            id: editBooking.id,
+            edit_completed_times: true,
+            starts_at: win.from.toISOString(),
+            ends_at: win.to.toISOString(),
+            completed_at: completedAtDate!.toISOString(),
+          }
+        : {
+            id: editBooking.id,
+            employee_id: editEmp,
+            vehicle_id: editVeh,
+            starts_at: win.from.toISOString(),
+            ends_at: win.to.toISOString(),
+            destination: editDestination.trim() || undefined,
+            document_no: editDocumentNo.trim() || undefined,
+            notes: editNotes.trim() || undefined,
+            ...(completing ? { mark_completed: true } : {}),
+          };
       const r = await apiFetch('/api/vehicle-bookings', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id: editBooking.id,
-          employee_id: editEmp,
-          vehicle_id: editVeh,
-          starts_at: win.from.toISOString(),
-          ends_at: win.to.toISOString(),
-          destination: editDestination.trim() || undefined,
-          document_no: editDocumentNo.trim() || undefined,
-          notes: editNotes.trim() || undefined,
-          ...(completing ? { mark_completed: true } : {}),
-        }),
+        body: JSON.stringify(body),
       });
       if (!r.ok) throw new Error(await parseApiError(r));
       const updated = (await r.json()) as VehicleBooking;
@@ -1521,8 +1577,12 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
         await refresh();
         return;
       }
-      toast.success(completing ? 'บันทึกเวลาและเสร็จสิ้นแล้ว' : 'บันทึกการแก้ไขแล้ว');
-      addDestinationSuggestionsFromJoined(editDestination, addDestinationSuggestion);
+      toast.success(
+        correctingTime ? 'แก้เวลาใบงานที่ปิดแล้วแล้ว' : completing ? 'บันทึกเวลาและเสร็จสิ้นแล้ว' : 'บันทึกการแก้ไขแล้ว',
+      );
+      if (!correctingTime) {
+        addDestinationSuggestionsFromJoined(editDestination, addDestinationSuggestion);
+      }
       closeEditDialog();
       setEmpDayDialog(null);
       await refresh();
@@ -1534,11 +1594,12 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
   };
 
   const renderBookingActions = (b: VehicleBooking) => {
-    if (isMonitor) return null;
     const inProgress = isBookingInProgress(b);
+    const showTimeFix = isBookingCompletedTimeEditable(b, canEditCompletedTimes);
+    if (isMonitor && !showTimeFix) return null;
     return (
       <span className="inline-flex flex-wrap gap-2 ml-1">
-        {canEdit && inProgress ? (
+        {canEdit && inProgress && !isMonitor ? (
           <button
             type="button"
             className="text-[10px] font-semibold text-emerald-700 hover:underline"
@@ -1547,12 +1608,21 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
             เสร็จสิ้น
           </button>
         ) : null}
-        {canEdit && isBookingEditable(b) ? (
+        {canEdit && isBookingEditable(b) && !isMonitor ? (
           <button type="button" className="text-[10px] text-primary hover:underline" onClick={() => openEditBooking(b)}>
             แก้ไข
           </button>
         ) : null}
-        {canDelete && isBookingCancellable(b) ? (
+        {showTimeFix ? (
+          <button
+            type="button"
+            className="text-[10px] font-semibold text-amber-800 hover:underline"
+            onClick={() => openCompletedTimeEdit(b)}
+          >
+            แก้เวลา (ปิดแล้ว)
+          </button>
+        ) : null}
+        {canDelete && isBookingCancellable(b) && !isMonitor ? (
           <button type="button" className="text-[10px] text-destructive hover:underline" onClick={() => void cancelBooking(b.id)}>
             ยกเลิก
           </button>
@@ -1910,8 +1980,9 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
           const inProgress = isBookingInProgress(b);
           const showComplete = canEdit && inProgress;
           const showEdit = canEdit && isBookingEditable(b);
+          const showTimeFix = isBookingCompletedTimeEditable(b, canEditCompletedTimes);
           const showCancel = canDelete && isBookingCancellable(b);
-          if (!showComplete && !showEdit && !showCancel) return null;
+          if (!showComplete && !showEdit && !showCancel && !showTimeFix) return null;
           return (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -1932,6 +2003,11 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                 ) : null}
                 {showEdit ? (
                   <DropdownMenuItem onClick={() => openEditBooking(b)}>แก้ไขการจอง</DropdownMenuItem>
+                ) : null}
+                {showTimeFix ? (
+                  <DropdownMenuItem onClick={() => openCompletedTimeEdit(b)}>
+                    แก้เวลา (ปิดแล้ว)
+                  </DropdownMenuItem>
                 ) : null}
                 {showCancel ? (
                   <DropdownMenuItem
@@ -3075,17 +3151,24 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
         <DialogContent className="sm:max-w-md max-h-[min(92dvh,720px)] flex flex-col gap-0 p-0 overflow-hidden">
           <DialogHeader className="shrink-0 px-6 pt-6 pb-2 text-left">
             <DialogTitle>
-              {editDialogMode === 'complete' ? 'เสร็จสิ้น — ปรับเวลาก่อนบันทึก' : 'แก้ไขการจอง'}
+              {editDialogMode === 'complete'
+                ? 'เสร็จสิ้น — ปรับเวลาก่อนบันทึก'
+                : editDialogMode === 'completedTime'
+                  ? 'แก้เวลาใบงานที่ปิดแล้ว'
+                  : 'แก้ไขการจอง'}
             </DialogTitle>
             <DialogDescription>
               {editDialogMode === 'complete'
                 ? 'ปรับวัน–เวลาจริงด้านล่าง แล้วกดปุ่มเขียวที่แถบล่าง (ไม่ต้องเลื่อนหา)'
-                : 'ปรับผู้ขับ รถ ช่วงเวลา สถานที่ที่ไป หรือหมายเหตุ — บันทึกลงประวัติการแก้ไข'}
+                : editDialogMode === 'completedTime'
+                  ? 'แก้เฉพาะเวลาเริ่ม สิ้นสุด และเวลาปิดงาน — บันทึกลงประวัติการแก้ไข'
+                  : 'ปรับผู้ขับ รถ ช่วงเวลา สถานที่ที่ไป หรือหมายเหตุ — บันทึกลงประวัติการแก้ไข'}
             </DialogDescription>
           </DialogHeader>
           {editBooking ? (
             <form onSubmit={(e) => void saveEditBooking(e)} className="flex flex-col flex-1 min-h-0">
               <div className="flex-1 min-h-0 overflow-y-auto px-6 space-y-3 pb-2">
+              {editDialogMode !== 'completedTime' ? (
               <div className="space-y-1">
                 <Label className="text-xs">เลขที่เอกสาร</Label>
                 <Input
@@ -3095,12 +3178,15 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                   placeholder="ทางเลือก"
                 />
               </div>
+              ) : null}
               <div className="rounded-lg border border-border/70 bg-muted/20 px-3 py-2 text-xs">
                 <span className="text-muted-foreground">เลขใบงาน: </span>
                 <span className="font-mono font-semibold text-foreground">
                   {formatBookingWorkOrderNo(editBooking)}
                 </span>
               </div>
+              {editDialogMode !== 'completedTime' ? (
+              <>
               <div className="space-y-1">
                 <Label className="text-xs">ผู้ขับ</Label>
                 <SearchablePicker
@@ -3125,6 +3211,8 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                   aria-label="ทะเบียนรถ"
                 />
               </div>
+              </>
+              ) : null}
               {editTimeBaseline ? (
                 <div className="rounded-lg border border-amber-200/80 bg-amber-50/60 px-3 py-2 text-xs space-y-1.5">
                   <p className="font-semibold text-foreground">ช่วงเวลาเดิม (ตอนเปิดแก้ไข)</p>
@@ -3194,6 +3282,38 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                   </div>
                 </div>
               </div>
+              {editDialogMode === 'completedTime' ? (
+                <div className="space-y-2 rounded-lg border border-amber-200/80 bg-amber-50/50 p-2.5">
+                  <p className="text-xs font-semibold text-foreground">เวลาปิดงาน (complete)</p>
+                  <div className="flex flex-wrap gap-2 items-end">
+                    <DateSelectDmyBe
+                      className="flex-1 min-w-[9.5rem]"
+                      yearKind="ce"
+                      triggerClassName="h-9 rounded-md border border-input bg-background px-2 text-xs"
+                      value={ymdFromDatetimeLocalField(editCompletedAt) ?? ymdFromDatetimeLocalField(editEnd) ?? todayYmd}
+                      onChange={(ymd) => patchEditCompleted(ymd, hmFromBookField(editCompletedAt))}
+                    />
+                    <TimeHm24Select
+                      minuteStep={BOOKING_MINUTE_STEP}
+                      value={hmFromBookField(editCompletedAt)}
+                      onChange={(hm) => {
+                        const ymd =
+                          ymdFromDatetimeLocalField(editCompletedAt) ??
+                          ymdFromDatetimeLocalField(editEnd) ??
+                          todayYmd;
+                        patchEditCompleted(ymd, hm);
+                      }}
+                      selectClassName="h-9 rounded-md border border-input bg-background px-1.5 text-xs min-w-[3.75rem]"
+                      aria-label="เวลาปิดงาน"
+                    />
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">
+                    แนะนำให้เวลาปิดไม่เกินช่วงสิ้นสุดที่จอง — ระบบจะปรับให้อัตโนมัติถ้าเกิน
+                  </p>
+                </div>
+              ) : null}
+              {editDialogMode !== 'completedTime' ? (
+              <>
               <DestinationField
                 value={editDestination}
                 onChange={setEditDestination}
@@ -3204,6 +3324,8 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                 <Label className="text-xs">หมายเหตุ</Label>
                 <Input value={editNotes} onChange={(e) => setEditNotes(e.target.value)} className="h-9 text-xs" />
               </div>
+              </>
+              ) : null}
               <details className="rounded-md border border-border/60 text-xs" open={editDialogMode !== 'complete'}>
                 <summary className="cursor-pointer select-none px-2 py-2 font-medium hover:bg-muted/30">
                   ประวัติการแก้ไข
@@ -3239,7 +3361,9 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                       ? 'กำลังบันทึก…'
                       : editDialogMode === 'complete'
                         ? 'บันทึกและเสร็จสิ้น'
-                        : 'บันทึก'}
+                        : editDialogMode === 'completedTime'
+                          ? 'บันทึกเวลา'
+                          : 'บันทึก'}
                   </Button>
                 </div>
               </div>

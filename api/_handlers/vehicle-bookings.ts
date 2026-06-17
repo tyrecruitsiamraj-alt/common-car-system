@@ -23,6 +23,7 @@ import {
 } from '../_lib/vehicleBookingsSchema.js';
 import { roundDateToMinuteStep } from '../_lib/bookingMinuteStep.js';
 import { needsBookingOverlapCheck } from '../_lib/bookingOverlap.js';
+import { userCanEditCompletedBookingTimes } from '../_lib/fleetBookingPermissions.js';
 
 const tbl = tableInAppSchema('vehicle_bookings');
 const ACTIVE_ONLY = `coalesce(status, 'active') = 'active'`;
@@ -375,13 +376,29 @@ async function handler(req: AuthedReq, res: ApiRes): Promise<void> {
       if (cur.status === 'cancelled') {
         return sendError(res, 409, 'Conflict', 'การจองนี้ถูกยกเลิกแล้ว — สร้างรายการจองใหม่แทน');
       }
+
+      const editCompletedTimes = b.edit_completed_times === true;
+      const markCompleted = b.mark_completed === true;
+
       if (cur.completed_at) {
-        return sendError(res, 409, 'Conflict', 'การจองนี้เสร็จสิ้นแล้ว — แก้ไขไม่ได้');
+        if (!editCompletedTimes) {
+          return sendError(res, 409, 'Conflict', 'การจองนี้เสร็จสิ้นแล้ว — แก้ไขไม่ได้');
+        }
+        if (!(await userCanEditCompletedBookingTimes(req.user.sub))) {
+          return sendError(
+            res,
+            403,
+            'Forbidden',
+            'เฉพาะผู้ที่ได้รับมอบหมายจาก Admin เท่านั้นที่แก้เวลาใบงานที่ปิดแล้ว',
+          );
+        }
+        if (markCompleted) {
+          return sendError(res, 400, 'Bad request', 'ใบงานปิดแล้ว');
+        }
       }
 
-      const markCompleted = b.mark_completed === true;
       let supportsCompletedAt = useCompletedAt;
-      if (markCompleted) {
+      if (markCompleted || editCompletedTimes) {
         supportsCompletedAt = await ensureVehicleBookingCompletedAt();
         if (!supportsCompletedAt) {
           return sendError(
@@ -397,17 +414,34 @@ async function handler(req: AuthedReq, res: ApiRes): Promise<void> {
         return sendError(res, 409, 'Conflict', 'การจองนี้เสร็จสิ้นแล้ว');
       }
 
-      const employee_id = b.employee_id !== undefined ? getString(b.employee_id) : cur.employee_id;
-      const vehicle_id = b.vehicle_id !== undefined ? getString(b.vehicle_id) : cur.vehicle_id;
+      let employee_id = cur.employee_id;
+      let vehicle_id = cur.vehicle_id;
+      let notes = cur.notes;
+      let destination = cur.destination;
+      let document_no = cur.document_no?.trim() || null;
+
+      if (!editCompletedTimes) {
+        employee_id = b.employee_id !== undefined ? getString(b.employee_id) ?? cur.employee_id : cur.employee_id;
+        vehicle_id = b.vehicle_id !== undefined ? getString(b.vehicle_id) ?? cur.vehicle_id : cur.vehicle_id;
+        notes = b.notes !== undefined ? optionalText(b.notes) : cur.notes;
+        destination = b.destination !== undefined ? optionalText(b.destination) : cur.destination;
+        document_no =
+          b.document_no !== undefined ? optionalText(b.document_no) : cur.document_no?.trim() || null;
+      }
+
       let starts =
         b.starts_at !== undefined ? bookingTimeFromIso(b.starts_at) : roundDateToMinuteStep(new Date(cur.starts_at));
       let ends =
         b.ends_at !== undefined ? bookingTimeFromIso(b.ends_at) : roundDateToMinuteStep(new Date(cur.ends_at));
-      const notes = b.notes !== undefined ? optionalText(b.notes) : cur.notes;
-      const destination = b.destination !== undefined ? optionalText(b.destination) : cur.destination;
-      const document_no =
-        b.document_no !== undefined ? optionalText(b.document_no) : cur.document_no?.trim() || null;
       let completedAt: Date | null = cur.completed_at ? new Date(cur.completed_at) : null;
+
+      if (editCompletedTimes && b.completed_at !== undefined) {
+        const parsedCompleted = bookingTimeFromIso(b.completed_at);
+        if (!parsedCompleted) {
+          return sendError(res, 400, 'Bad request', 'completed_at invalid');
+        }
+        completedAt = parsedCompleted;
+      }
 
       if (markCompleted) {
         const now = roundDateToMinuteStep(new Date());
@@ -428,15 +462,22 @@ async function handler(req: AuthedReq, res: ApiRes): Promise<void> {
       if (starts) starts = roundDateToMinuteStep(starts);
       if (ends) ends = roundDateToMinuteStep(ends);
       if (completedAt) completedAt = roundDateToMinuteStep(completedAt);
+      if (completedAt && ends && completedAt > ends) completedAt = ends;
+      if (completedAt && starts && completedAt < starts) {
+        return sendError(res, 400, 'Bad request', 'เวลาปิดงานต้องอยู่ในช่วงเริ่ม–สิ้นสุดที่จอง');
+      }
 
       if (!employee_id || !vehicle_id || !starts || !ends) {
         return sendError(res, 400, 'Bad request', 'Invalid field values');
       }
       if (starts >= ends) return sendError(res, 400, 'Bad request', 'ends_at must be after starts_at');
 
+      const overlapPatch = editCompletedTimes
+        ? { starts_at: b.starts_at, ends_at: b.ends_at, completed_at: b.completed_at }
+        : b;
       const needsOverlapCheck = needsBookingOverlapCheck(
         cur,
-        b,
+        overlapPatch,
         employee_id,
         vehicle_id,
         starts,

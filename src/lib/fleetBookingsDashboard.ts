@@ -67,6 +67,14 @@ export function isBookingCancellable(b: VehicleBooking): boolean {
   return isBookingInProgress(b);
 }
 
+/** แก้เวลาใบงานที่ปิดแล้ว — เฉพาะผู้ได้รับมอบหมายจาก Admin */
+export function isBookingCompletedTimeEditable(
+  b: VehicleBooking,
+  canEditCompletedTimes: boolean,
+): boolean {
+  return canEditCompletedTimes && b.status !== 'cancelled' && !!b.completed_at;
+}
+
 /** เลยเวลาสิ้นสุดที่จองไว้แล้ว แต่ยังไม่กดเสร็จสิ้น — ใช้แจ้งเตือน */
 export function isBookingOverdueNotCompleted(b: VehicleBooking, now = new Date()): boolean {
   if (b.status === 'cancelled' || b.completed_at) return false;
