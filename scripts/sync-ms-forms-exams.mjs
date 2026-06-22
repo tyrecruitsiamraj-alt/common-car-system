@@ -31,14 +31,31 @@ const EXAM_SOURCES = [
   },
   {
     key: 'fuel_refill',
-    msFormId: 'XkjN2b05yUyVOYyXYx-7cVniQHtG9_xFuulQOMyLWTRUQ003OFpUWllVQkVCMkszN0hKMFRGSzhTNy4u',
-    qrLabel: 'สแกนเมื่อเริ่มงาน (ชุดที่ 3)',
+    msFormId: 'XkjN2b05yUyVOYyXYx-7cVniQHtG9_xFuulQOMyLWTRUMTlDR0Y0MFlWREVINzEzMFNNNFZSWVBEQi4u',
+    qrLabel: 'บันทึกการเติมน้ำมัน',
     stickerNote: 'สติกเกอร์ชุดที่ 3',
-    whenToUse: 'ทุกครั้งก่อนเริ่มงาน / ก่อนออกรถ',
+    whenToUse: 'ทุกครั้งที่เติมน้ำมัน',
     url:
-      'https://forms.office.com/Pages/ResponsePage.aspx?id=XkjN2b05yUyVOYyXYx-7cVniQHtG9_xFuulQOMyLWTRUQ003OFpUWllVQkVCMkszN0hKMFRGSzhTNy4u&origin=QRCode',
+      'https://forms.office.com/Pages/ResponsePage.aspx?id=XkjN2b05yUyVOYyXYx-7cVniQHtG9_xFuulQOMyLWTRUMTlDR0Y0MFlWREVINzEzMFNNNFZSWVBEQi4u&origin=QRCode',
   },
 ];
+
+function dedupeQuestions(questions) {
+  const seen = new Set();
+  return questions.filter((q) => {
+    const key = `${q.type}:${q.label}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+/** ตัดส่วนแทนงาน/อุปกรณ์ (กรอกเมื่อแทนงาน) — แบบฟอร์มหลักมี 15 ข้อตรวจสภาพ */
+function trimCoreInspectionQuestions(questions) {
+  const idx = questions.findIndex((q) => /คุณไปแทนงานหรือไม่/.test(q.label));
+  if (idx < 0) return questions;
+  return questions.slice(0, idx);
+}
 
 const MATRIX_OPTIONS = ['ปกติ', 'ไม่ปกติ', 'ไม่มี'];
 
@@ -150,12 +167,23 @@ const exams = [];
 for (const src of EXAM_SOURCES) {
   console.log('Fetching', src.key, '…');
   const data = await fetchRuntimeForm(src.msFormId);
-  const questions = convertQuestions(data.questions || []);
+  let questions = convertQuestions(data.questions || []);
+  questions = dedupeQuestions(questions);
+  if (src.key === 'start_work_sticker_single') {
+    questions = trimCoreInspectionQuestions(questions);
+    questions = questions.filter(
+      (q) => !/ปัญหาและสิ่งผิดปกติอื่นเกี่ยวกับรถยนต์/.test(q.label),
+    );
+  }
+  const title =
+    src.key === 'fuel_refill'
+      ? 'บันทึกการเติมน้ำมัน'
+      : stripHtml(data.title) || src.qrLabel;
   exams.push({
     key: src.key,
     qrLabel: src.qrLabel,
     stickerNote: src.stickerNote,
-    title: stripHtml(data.title) || src.qrLabel,
+    title,
     trainingTopic: stripHtml(data.description || data.formsProRTDescription || '').replace(/<br\s*\/?>/gi, '\n'),
     whenToUse: src.whenToUse,
     msFormUrl: src.url,

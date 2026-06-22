@@ -8,7 +8,7 @@
     "whenToUse": "ทุกวันก่อนเริ่มงาน / ก่อนออกรถ",
     "msFormUrl": "https://forms.office.com/pages/responsepage.aspx?id=XkjN2b05yUyVOYyXYx-7cVniQHtG9_xFuulQOMyLWTRUQ1dDTDA5Nk05UkRZUVNYR01SQ0xUV1BFUS4u&origin=QRCode&qrcodeorigin=presentation&route=shorturl",
     "msFormId": "XkjN2b05yUyVOYyXYx-7cVniQHtG9_xFuulQOMyLWTRUQ1dDTDA5Nk05UkRZUVNYR01SQ0xUV1BFUS4u",
-    "syncedAt": "2026-06-22T02:59:25.222Z",
+    "syncedAt": "2026-06-22T04:08:04.125Z",
     "questions": [
       {
         "id": "driver_name",
@@ -69,7 +69,7 @@
     "whenToUse": "ทุกครั้งก่อนเริ่มงาน / ก่อนออกรถ",
     "msFormUrl": "https://forms.office.com/Pages/ResponsePage.aspx?id=XkjN2b05yUyVOYyXYx-7cVniQHtG9_xFuulQOMyLWTRUQ003OFpUWllVQkVCMkszN0hKMFRGSzhTNy4u&origin=QRCode",
     "msFormId": "XkjN2b05yUyVOYyXYx-7cVniQHtG9_xFuulQOMyLWTRUQ003OFpUWllVQkVCMkszN0hKMFRGSzhTNy4u",
-    "syncedAt": "2026-06-22T02:59:25.333Z",
+    "syncedAt": "2026-06-22T04:08:04.256Z",
     "questions": [
       {
         "id": "driver_name",
@@ -217,12 +217,6 @@
         "required": false
       },
       {
-        "id": "ms_r48a2c06307574e4a9b4322c",
-        "type": "text",
-        "label": "ปัญหาและสิ่งผิดปกติอื่นเกี่ยวกับรถยนต์",
-        "required": false
-      },
-      {
         "id": "ms_r73c7fd95e0f547e0be969cb",
         "type": "single",
         "label": "รายละเอียดที่ผิดปกติ แจ้งผู้ประสานงานแล้วหรือยัง",
@@ -254,124 +248,36 @@
           "รับทราบ"
         ],
         "required": true
-      },
-      {
-        "id": "ms_r93b3951cc33f4513b61aaa2",
-        "type": "single",
-        "label": "คุณไปแทนงานหรือไม่",
-        "options": [
-          "ไม่แทนงาน (ขับนายตัวเอง)",
-          "แทนงาน (ขับนายคนอื่น)"
-        ],
-        "required": true
-      },
-      {
-        "id": "ms_r0195cd3b40a1465289928c2",
-        "type": "section",
-        "label": "ตรวจสอบอุปกรณ์ เครื่องมือในรถ (กรอกเมื่อแทนงาน)",
-        "required": false
-      },
-      {
-        "id": "ms_rb1e78ec7d98d4c50ba9f416",
-        "type": "single",
-        "label": "ตรวจสอบอุปกรณ์ เครื่องมือในรถ (กรอกเมื่อแทนงาน) — ยางอะไหล่",
-        "options": [
-          "ปกติ",
-          "ไม่ปกติ",
-          "ไม่มี"
-        ],
-        "required": false
-      },
-      {
-        "id": "ms_rbe75bc386ad348568374109",
-        "type": "single",
-        "label": "ตรวจสอบอุปกรณ์ เครื่องมือในรถ (กรอกเมื่อแทนงาน) — ถุงเครื่องมือ",
-        "options": [
-          "ปกติ",
-          "ไม่ปกติ",
-          "ไม่มี"
-        ],
-        "required": false
-      },
-      {
-        "id": "ms_r92179ad74cb44a2d99d3c55",
-        "type": "single",
-        "label": "ตรวจสอบอุปกรณ์ เครื่องมือในรถ (กรอกเมื่อแทนงาน) — ประแจ",
-        "options": [
-          "ปกติ",
-          "ไม่ปกติ",
-          "ไม่มี"
-        ],
-        "required": false
-      },
-      {
-        "id": "ms_r219a6bb290c248bd96486f0",
-        "type": "single",
-        "label": "ตรวจสอบอุปกรณ์ เครื่องมือในรถ (กรอกเมื่อแทนงาน) — คีม",
-        "options": [
-          "ปกติ",
-          "ไม่ปกติ",
-          "ไม่มี"
-        ],
-        "required": false
-      },
-      {
-        "id": "ms_r4f44af375d434062b9ae34f",
-        "type": "single",
-        "label": "ตรวจสอบอุปกรณ์ เครื่องมือในรถ (กรอกเมื่อแทนงาน) — ไขควง",
-        "options": [
-          "ปกติ",
-          "ไม่ปกติ",
-          "ไม่มี"
-        ],
-        "required": false
-      },
-      {
-        "id": "ms_r292a4d71aed74a869fe08c5",
-        "type": "single",
-        "label": "ตรวจสอบอุปกรณ์ เครื่องมือในรถ (กรอกเมื่อแทนงาน) — บล็อคขันล้อ",
-        "options": [
-          "ปกติ",
-          "ไม่ปกติ",
-          "ไม่มี"
-        ],
-        "required": false
-      },
-      {
-        "id": "ms_r187bff5cfe664d82a7b7286",
-        "type": "single",
-        "label": "ตรวจสอบอุปกรณ์ เครื่องมือในรถ (กรอกเมื่อแทนงาน) — ขอเกี่ยวลากรถ",
-        "options": [
-          "ปกติ",
-          "ไม่ปกติ",
-          "ไม่มี"
-        ],
-        "required": false
-      },
-      {
-        "id": "ms_r65e7376ac1214191945164f",
-        "type": "single",
-        "label": "ตรวจสอบอุปกรณ์ เครื่องมือในรถ (กรอกเมื่อแทนงาน) — แม่แรง",
-        "options": [
-          "ปกติ",
-          "ไม่ปกติ",
-          "ไม่มี"
-        ],
-        "required": false
       }
     ]
   },
   {
     "key": "fuel_refill",
-    "qrLabel": "สแกนเมื่อเริ่มงาน (ชุดที่ 3)",
+    "qrLabel": "บันทึกการเติมน้ำมัน",
     "stickerNote": "สติกเกอร์ชุดที่ 3",
-    "title": "บันทึกการตรวจสภาพรถ (ประจำตำแหน่ง)",
-    "trainingTopic": "เบอร์ติดต่อ Driver House: 02-790-7401 02-790-6671",
-    "whenToUse": "ทุกครั้งก่อนเริ่มงาน / ก่อนออกรถ",
-    "msFormUrl": "https://forms.office.com/Pages/ResponsePage.aspx?id=XkjN2b05yUyVOYyXYx-7cVniQHtG9_xFuulQOMyLWTRUQ003OFpUWllVQkVCMkszN0hKMFRGSzhTNy4u&origin=QRCode",
-    "msFormId": "XkjN2b05yUyVOYyXYx-7cVniQHtG9_xFuulQOMyLWTRUQ003OFpUWllVQkVCMkszN0hKMFRGSzhTNy4u",
-    "syncedAt": "2026-06-22T02:59:25.469Z",
+    "title": "บันทึกการเติมน้ำมัน",
+    "trainingTopic": "กรอกข้อมูลทุกครั้งที่เติม",
+    "whenToUse": "ทุกครั้งที่เติมน้ำมัน",
+    "msFormUrl": "https://forms.office.com/Pages/ResponsePage.aspx?id=XkjN2b05yUyVOYyXYx-7cVniQHtG9_xFuulQOMyLWTRUMTlDR0Y0MFlWREVINzEzMFNNNFZSWVBEQi4u&origin=QRCode",
+    "msFormId": "XkjN2b05yUyVOYyXYx-7cVniQHtG9_xFuulQOMyLWTRUMTlDR0Y0MFlWREVINzEzMFNNNFZSWVBEQi4u",
+    "syncedAt": "2026-06-22T04:08:04.771Z",
     "questions": [
+      {
+        "id": "ms_r8bd4a5a78843423ca22f577",
+        "type": "text",
+        "label": "ปริมาณที่เติม (ลิตร)",
+        "required": true
+      },
+      {
+        "id": "ms_r449e51cfd2ac4405bc89c0a",
+        "type": "single",
+        "label": "ออกจาก TMA ระหว่างวันเพื่อไปเติมน้ำมันใช่หรือไม่",
+        "options": [
+          "ใช่ และแจ้งผู้ประสานงานแล้ว",
+          "ไม่ใช่"
+        ],
+        "required": true
+      },
       {
         "id": "driver_name",
         "type": "text",
@@ -379,286 +285,34 @@
         "required": true
       },
       {
-        "id": "ms_re2fbe950eb0c48fa8bf4fac",
-        "type": "single",
-        "label": "รุ่นรถ",
-        "options": [
-          "Fortuner",
-          "Innova",
-          "Commuter",
-          "Hiace",
-          "Majesty",
-          "Alphard",
-          "Camry",
-          "Cross",
-          "Altis",
-          "Revo"
-        ],
-        "required": true
-      },
-      {
         "id": "plate",
         "type": "text",
-        "label": "ทะเบียนรถ",
+        "label": "เลขทะเบียนรถ",
         "required": true
       },
       {
-        "id": "ms_r0dbe056059924ef8ab7f37e",
-        "type": "single",
-        "label": "วันนี้คุณทำงานที่ไหน",
-        "options": [
-          "TMA",
-          "TMT สำโรง",
-          "TMT เกทเวย์",
-          "TMT บ้านโพธิ์",
-          "TMT บางปะกง",
-          "TPCAP",
-          "STM",
-          "บริการครอบครัว"
-        ],
-        "required": true
-      },
-      {
-        "id": "ms_r0142268f4f7e449397ff04d",
+        "id": "ms_rec949612a95241b6a59d0b3",
         "type": "text",
-        "label": "เลขไมล์ปัจจุบัน",
+        "label": "เวลาที่เติม",
         "required": true
       },
       {
-        "id": "ms_r22d303a7a4b94a0ca69ff88",
-        "type": "section",
-        "label": "ระดับน้ำมัน",
-        "required": false
-      },
-      {
-        "id": "ms_r1d826fd83b634216b010bb8",
-        "type": "single",
-        "label": "ระดับน้ำมัน — ระดับ",
-        "options": [
-          "ปกติ",
-          "ไม่ปกติ",
-          "ไม่มี"
-        ],
-        "required": false
-      },
-      {
-        "id": "ms_r4963a68bc77c4b57a253583",
-        "type": "single",
-        "label": "มีบัตรน้ำมันพร้อมใช้งาน บัตรไม่หมดอายุ",
-        "options": [
-          "พร้อมใช้",
-          "ไม่พร้อม"
-        ],
-        "required": true
-      },
-      {
-        "id": "ms_r5bdc913d62bf4386a4df5a2",
-        "type": "single",
-        "label": "Easy pass พร้อมใช้งาน",
-        "options": [
-          "พร้อมใช้",
-          "ไม่พร้อม"
-        ],
-        "required": true
-      },
-      {
-        "id": "ms_r652d0fea16cd482786e9de9",
-        "type": "section",
-        "label": "ความสะอาดของรถยนต์",
-        "required": false
-      },
-      {
-        "id": "ms_r8333331b41cb464cadb2613",
-        "type": "single",
-        "label": "ความสะอาดของรถยนต์ — ด้านนอก",
-        "options": [
-          "ปกติ",
-          "ไม่ปกติ",
-          "ไม่มี"
-        ],
-        "required": false
-      },
-      {
-        "id": "ms_raede660966b04e44952109a",
-        "type": "single",
-        "label": "ความสะอาดของรถยนต์ — ด้านใน",
-        "options": [
-          "ปกติ",
-          "ไม่ปกติ",
-          "ไม่มี"
-        ],
-        "required": false
-      },
-      {
-        "id": "ms_r934d8220c3694577b5d8d0e",
-        "type": "section",
-        "label": "สภาพรถโดยรวม",
-        "required": false
-      },
-      {
-        "id": "ms_rf4f34be4babf46d7863a66b",
-        "type": "single",
-        "label": "สภาพรถโดยรวม — กระจกรถร้าว/แตก",
-        "options": [
-          "ปกติ",
-          "ไม่ปกติ",
-          "ไม่มี"
-        ],
-        "required": false
-      },
-      {
-        "id": "ms_r13d1381040654b3b8d3ccd4",
-        "type": "single",
-        "label": "สภาพรถโดยรวม — รถมีรอย/บุบ",
-        "options": [
-          "ปกติ",
-          "ไม่ปกติ",
-          "ไม่มี"
-        ],
-        "required": false
-      },
-      {
-        "id": "ms_r48a2c06307574e4a9b4322c",
+        "id": "ms_rc2d98064614a437c93640a7",
         "type": "text",
-        "label": "ปัญหาและสิ่งผิดปกติอื่นเกี่ยวกับรถยนต์",
-        "required": false
-      },
-      {
-        "id": "ms_r73c7fd95e0f547e0be969cb",
-        "type": "single",
-        "label": "รายละเอียดที่ผิดปกติ แจ้งผู้ประสานงานแล้วหรือยัง",
-        "options": [
-          "รถปกติ ไม่ต้องแจ้ง",
-          "แจ้งแล้ว",
-          "ยังไม่ได้แจ้ง"
-        ],
+        "label": "ชื่อสาขา หรือสถานที่ของปั๊มน้ำมัน",
         "required": true
       },
       {
-        "id": "ms_r1bef75bd8fdb48a59eca236",
-        "type": "single",
-        "label": "ชื่อผู้ประสานงาน ที่รับแจ้งเรื่องรายละเอียดที่ผิดปกติ",
-        "options": [
-          "ริน",
-          "มาย",
-          "เปรี้ยว",
-          "เน็ต",
-          "ปาแปง"
-        ],
+        "id": "ms_r9a42c4c66c944699956da40",
+        "type": "text",
+        "label": "จำนวนเงินที่เติม (บาท)",
         "required": true
       },
       {
-        "id": "ms_r3009fa1393554ea0b7edd40",
-        "type": "single",
-        "label": "หากข้อมูลเป็นเท็จและเกิดปัญหาในการทำงาน ข้าพเจ้ายินดีรับผลการกระทำตามกฎระเบียบบริษัท",
-        "options": [
-          "รับทราบ"
-        ],
+        "id": "ms_r976c8c5f1981471b8a88cd1",
+        "type": "text",
+        "label": "หมายเลขใบเสร็จ",
         "required": true
-      },
-      {
-        "id": "ms_r93b3951cc33f4513b61aaa2",
-        "type": "single",
-        "label": "คุณไปแทนงานหรือไม่",
-        "options": [
-          "ไม่แทนงาน (ขับนายตัวเอง)",
-          "แทนงาน (ขับนายคนอื่น)"
-        ],
-        "required": true
-      },
-      {
-        "id": "ms_r0195cd3b40a1465289928c2",
-        "type": "section",
-        "label": "ตรวจสอบอุปกรณ์ เครื่องมือในรถ (กรอกเมื่อแทนงาน)",
-        "required": false
-      },
-      {
-        "id": "ms_rb1e78ec7d98d4c50ba9f416",
-        "type": "single",
-        "label": "ตรวจสอบอุปกรณ์ เครื่องมือในรถ (กรอกเมื่อแทนงาน) — ยางอะไหล่",
-        "options": [
-          "ปกติ",
-          "ไม่ปกติ",
-          "ไม่มี"
-        ],
-        "required": false
-      },
-      {
-        "id": "ms_rbe75bc386ad348568374109",
-        "type": "single",
-        "label": "ตรวจสอบอุปกรณ์ เครื่องมือในรถ (กรอกเมื่อแทนงาน) — ถุงเครื่องมือ",
-        "options": [
-          "ปกติ",
-          "ไม่ปกติ",
-          "ไม่มี"
-        ],
-        "required": false
-      },
-      {
-        "id": "ms_r92179ad74cb44a2d99d3c55",
-        "type": "single",
-        "label": "ตรวจสอบอุปกรณ์ เครื่องมือในรถ (กรอกเมื่อแทนงาน) — ประแจ",
-        "options": [
-          "ปกติ",
-          "ไม่ปกติ",
-          "ไม่มี"
-        ],
-        "required": false
-      },
-      {
-        "id": "ms_r219a6bb290c248bd96486f0",
-        "type": "single",
-        "label": "ตรวจสอบอุปกรณ์ เครื่องมือในรถ (กรอกเมื่อแทนงาน) — คีม",
-        "options": [
-          "ปกติ",
-          "ไม่ปกติ",
-          "ไม่มี"
-        ],
-        "required": false
-      },
-      {
-        "id": "ms_r4f44af375d434062b9ae34f",
-        "type": "single",
-        "label": "ตรวจสอบอุปกรณ์ เครื่องมือในรถ (กรอกเมื่อแทนงาน) — ไขควง",
-        "options": [
-          "ปกติ",
-          "ไม่ปกติ",
-          "ไม่มี"
-        ],
-        "required": false
-      },
-      {
-        "id": "ms_r292a4d71aed74a869fe08c5",
-        "type": "single",
-        "label": "ตรวจสอบอุปกรณ์ เครื่องมือในรถ (กรอกเมื่อแทนงาน) — บล็อคขันล้อ",
-        "options": [
-          "ปกติ",
-          "ไม่ปกติ",
-          "ไม่มี"
-        ],
-        "required": false
-      },
-      {
-        "id": "ms_r187bff5cfe664d82a7b7286",
-        "type": "single",
-        "label": "ตรวจสอบอุปกรณ์ เครื่องมือในรถ (กรอกเมื่อแทนงาน) — ขอเกี่ยวลากรถ",
-        "options": [
-          "ปกติ",
-          "ไม่ปกติ",
-          "ไม่มี"
-        ],
-        "required": false
-      },
-      {
-        "id": "ms_r65e7376ac1214191945164f",
-        "type": "single",
-        "label": "ตรวจสอบอุปกรณ์ เครื่องมือในรถ (กรอกเมื่อแทนงาน) — แม่แรง",
-        "options": [
-          "ปกติ",
-          "ไม่ปกติ",
-          "ไม่มี"
-        ],
-        "required": false
       }
     ]
   }
