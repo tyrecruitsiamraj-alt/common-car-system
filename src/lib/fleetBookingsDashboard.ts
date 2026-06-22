@@ -29,8 +29,9 @@ export type TodayBookingDetail = {
   status: Exclude<BookingListStatus, 'all'>;
 };
 
-/** ช่วงสิ้นสุดสำหรับทับซ้อน/ปฏิทิน — ยึด ends_at ตามที่จอง ไม่ขยายด้วยเวลาปิดจริง */
+/** เวลาสิ้นสุดจริงของการจองสำหรับทับซ้อน/ว่าง — coalesce(completed_at, ends_at) */
 export function bookingEffectiveEnd(b: VehicleBooking): Date {
+  if (b.completed_at) return parseISO(b.completed_at);
   return parseISO(b.ends_at);
 }
 

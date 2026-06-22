@@ -23,6 +23,17 @@ import {
 } from '../_lib/vehicleBookingsSchema.js';
 import { roundDateToMinuteStep } from '../_lib/bookingMinuteStep.js';
 import { needsBookingOverlapCheck } from '../_lib/bookingOverlap.js';
+import {
+  bookingWasCancelled,
+  createBookingRequestId,
+  findEmployeeBookingConflict,
+  findVehicleBookingConflict,
+  logBookingAction,
+  sendBookingConflictIfOverlap,
+  sendBookingScheduleConflict,
+  sendStaleCancelledConflict,
+  type BookingAttemptContext,
+} from '../_lib/bookingConflict.js';
 import { userCanEditCompletedBookingTimes } from '../_lib/fleetBookingPermissions.js';
 
 const tbl = tableInAppSchema('vehicle_bookings');
@@ -113,52 +124,67 @@ function bookingTimeFromIso(v: unknown): Date | null {
   return d ? roundDateToMinuteStep(d) : null;
 }
 
-async function overlapVehicle(
-  vehicleId: string,
-  start: Date,
-  end: Date,
-  excludeId: string | null,
-  effectiveEnd: string,
+async function rejectIfScheduleConflict(
+  req: AuthedReq,
+  res: ApiRes,
+  requestId: string,
+  opts: {
+    vehicleId: string;
+    employeeId: string;
+    starts: Date;
+    ends: Date;
+    excludeId: string | null;
+    effectiveEndSql: string;
+    action: BookingAttemptContext['action'];
+    bookingId?: string;
+    logContext: string;
+  },
 ): Promise<boolean> {
-  const params: unknown[] = [vehicleId, start.toISOString(), end.toISOString()];
-  let sql = `
-    select 1 from ${tbl}
-    where vehicle_id = $1::uuid
-      and starts_at < $3::timestamptz
-      and ${effectiveEnd} > $2::timestamptz
-      and ${ACTIVE_ONLY}
-  `;
-  if (excludeId) {
-    params.push(excludeId);
-    sql += ` and id <> $${params.length}::uuid`;
+  const attempted: BookingAttemptContext = {
+    action: opts.action,
+    employee_id: opts.employeeId,
+    vehicle_id: opts.vehicleId,
+    starts_at: opts.starts.toISOString(),
+    ends_at: opts.ends.toISOString(),
+    booking_id: opts.bookingId,
+  };
+  const vehicleConflict = await findVehicleBookingConflict(
+    tbl,
+    opts.vehicleId,
+    opts.starts,
+    opts.ends,
+    opts.excludeId,
+    opts.effectiveEndSql,
+  );
+  if (vehicleConflict) {
+    sendBookingScheduleConflict(res, req, {
+      requestId,
+      kind: 'vehicle',
+      attempted,
+      conflict: vehicleConflict,
+      logContext: opts.logContext,
+    });
+    return true;
   }
-  sql += ' limit 1';
-  const { rows } = await dbQuery<{ ok: number }>(sql, params);
-  return rows.length > 0;
-}
-
-async function overlapEmployee(
-  employeeId: string,
-  start: Date,
-  end: Date,
-  excludeId: string | null,
-  effectiveEnd: string,
-): Promise<boolean> {
-  const params: unknown[] = [employeeId, start.toISOString(), end.toISOString()];
-  let sql = `
-    select 1 from ${tbl}
-    where employee_id = $1::uuid
-      and starts_at < $3::timestamptz
-      and ${effectiveEnd} > $2::timestamptz
-      and ${ACTIVE_ONLY}
-  `;
-  if (excludeId) {
-    params.push(excludeId);
-    sql += ` and id <> $${params.length}::uuid`;
+  const employeeConflict = await findEmployeeBookingConflict(
+    tbl,
+    opts.employeeId,
+    opts.starts,
+    opts.ends,
+    opts.excludeId,
+    opts.effectiveEndSql,
+  );
+  if (employeeConflict) {
+    sendBookingScheduleConflict(res, req, {
+      requestId,
+      kind: 'employee',
+      attempted,
+      conflict: employeeConflict,
+      logContext: opts.logContext,
+    });
+    return true;
   }
-  sql += ' limit 1';
-  const { rows } = await dbQuery<{ ok: number }>(sql, params);
-  return rows.length > 0;
+  return false;
 }
 
 type EmpRow = {
@@ -295,6 +321,8 @@ async function handler(req: AuthedReq, res: ApiRes): Promise<void> {
   }
 
   if (method === 'POST') {
+    const requestId = createBookingRequestId();
+    let postAttempt: BookingAttemptContext = { action: 'create' };
     try {
       const raw = await readJsonBody(req);
       if (typeof raw !== 'object' || raw === null) {
@@ -313,11 +341,27 @@ async function handler(req: AuthedReq, res: ApiRes): Promise<void> {
       }
       if (starts >= ends) return sendError(res, 400, 'Bad request', 'ends_at must be after starts_at');
 
-      if (await overlapVehicle(vehicle_id, starts, ends, null, effectiveEnd)) {
-        return sendError(res, 409, 'Conflict', 'รถคันนี้ถูกจองในช่วงเวลานี้แล้ว');
-      }
-      if (await overlapEmployee(employee_id, starts, ends, null, effectiveEnd)) {
-        return sendError(res, 409, 'Conflict', 'ผู้ขับคนนี้มีการจองทับช่วงเวลานี้แล้ว');
+      postAttempt = {
+        action: 'create',
+        employee_id,
+        vehicle_id,
+        starts_at: starts.toISOString(),
+        ends_at: ends.toISOString(),
+      };
+
+      if (
+        await rejectIfScheduleConflict(req, res, requestId, {
+          vehicleId: vehicle_id,
+          employeeId: employee_id,
+          starts,
+          ends,
+          excludeId: null,
+          effectiveEndSql: effectiveEnd,
+          action: 'create',
+          logContext: 'vehicle-bookings POST schedule conflict',
+        })
+      ) {
+        return;
       }
 
       await ensureVehicleBookingDocumentNo();
@@ -351,13 +395,42 @@ async function handler(req: AuthedReq, res: ApiRes): Promise<void> {
         oldValue: null,
         newValue: bookingSnapshot(row),
       });
+      logBookingAction('vehicle-booking created', requestId, req, {
+        bookingId: row.id,
+        vehicle_id,
+        employee_id,
+        starts_at: starts.toISOString(),
+        ends_at: ends.toISOString(),
+        work_order_no: row.work_order_no,
+      });
       return res.status(201).json(toBooking(row));
     } catch (e) {
-      return handleApiError(res, e, 'vehicle-bookings POST', { userId: req.user.sub });
+      if (
+        await sendBookingConflictIfOverlap(res, req, e, {
+          requestId,
+          tbl,
+          effectiveEndSql: effectiveEnd,
+          attempted: postAttempt,
+          vehicleId: postAttempt.vehicle_id,
+          employeeId: postAttempt.employee_id,
+          starts: postAttempt.starts_at ? new Date(postAttempt.starts_at) : undefined,
+          ends: postAttempt.ends_at ? new Date(postAttempt.ends_at) : undefined,
+          logContext: 'vehicle-bookings POST db conflict',
+        })
+      ) {
+        return;
+      }
+      return handleApiError(res, e, 'vehicle-bookings POST', {
+        userId: req.user.sub,
+        requestId,
+      });
     }
   }
 
   if (method === 'PATCH') {
+    const requestId = createBookingRequestId();
+    let patchAttempt: BookingAttemptContext = { action: 'update' };
+    let patchEffectiveEndSql = effectiveEnd;
     try {
       const raw = await readJsonBody(req);
       if (typeof raw !== 'object' || raw === null) {
@@ -373,12 +446,17 @@ async function handler(req: AuthedReq, res: ApiRes): Promise<void> {
       );
       const cur = curRows[0];
       if (!cur) return sendError(res, 404, 'Not found');
-      if (cur.status === 'cancelled') {
-        return sendError(res, 409, 'Conflict', 'การจองนี้ถูกยกเลิกแล้ว — สร้างรายการจองใหม่แทน');
-      }
 
       const editCompletedTimes = b.edit_completed_times === true;
       const markCompleted = b.mark_completed === true;
+
+      if (cur.status === 'cancelled') {
+        sendStaleCancelledConflict(res, req, requestId, {
+          action: markCompleted ? 'complete' : 'update',
+          booking_id: id,
+        }, 'vehicle-bookings PATCH stale cancelled');
+        return;
+      }
 
       if (cur.completed_at) {
         if (!editCompletedTimes) {
@@ -410,6 +488,7 @@ async function handler(req: AuthedReq, res: ApiRes): Promise<void> {
         }
       }
       const patchEffectiveEnd = bookingEffectiveEndSql(supportsCompletedAt);
+      patchEffectiveEndSql = patchEffectiveEnd;
       if (markCompleted && cur.completed_at) {
         return sendError(res, 409, 'Conflict', 'การจองนี้เสร็จสิ้นแล้ว');
       }
@@ -467,6 +546,15 @@ async function handler(req: AuthedReq, res: ApiRes): Promise<void> {
       }
       if (starts >= ends) return sendError(res, 400, 'Bad request', 'ends_at must be after starts_at');
 
+      patchAttempt = {
+        action: markCompleted ? 'complete' : 'update',
+        booking_id: id,
+        employee_id,
+        vehicle_id,
+        starts_at: starts.toISOString(),
+        ends_at: ends.toISOString(),
+      };
+
       const overlapPatch = editCompletedTimes
         ? { starts_at: b.starts_at, ends_at: b.ends_at, completed_at: b.completed_at }
         : b;
@@ -478,13 +566,21 @@ async function handler(req: AuthedReq, res: ApiRes): Promise<void> {
         starts,
         ends,
       );
-      if (needsOverlapCheck) {
-        if (await overlapVehicle(vehicle_id, starts, ends, id, patchEffectiveEnd)) {
-          return sendError(res, 409, 'Conflict', 'รถคันนี้ถูกจองในช่วงเวลานี้แล้ว');
-        }
-        if (await overlapEmployee(employee_id, starts, ends, id, patchEffectiveEnd)) {
-          return sendError(res, 409, 'Conflict', 'ผู้ขับคนนี้มีการจองทับช่วงเวลานี้แล้ว');
-        }
+      if (
+        needsOverlapCheck &&
+        (await rejectIfScheduleConflict(req, res, requestId, {
+          vehicleId: vehicle_id,
+          employeeId: employee_id,
+          starts,
+          ends,
+          excludeId: id,
+          effectiveEndSql: patchEffectiveEndSql,
+          action: patchAttempt.action,
+          bookingId: id,
+          logContext: 'vehicle-bookings PATCH schedule conflict',
+        }))
+      ) {
+        return;
       }
 
       await ensureVehicleBookingDocumentNo();
@@ -542,7 +638,13 @@ async function handler(req: AuthedReq, res: ApiRes): Promise<void> {
             ],
           );
       const row = rows[0];
-      if (!row) return sendError(res, 404, 'Not found');
+      if (!row) {
+        if (await bookingWasCancelled(tbl, id)) {
+          sendStaleCancelledConflict(res, req, requestId, patchAttempt, 'vehicle-bookings PATCH stale race');
+          return;
+        }
+        return sendError(res, 404, 'Not found');
+      }
       await insertBookingAudit({
         bookingId: row.id,
         userId: auditUserId(req),
@@ -551,13 +653,46 @@ async function handler(req: AuthedReq, res: ApiRes): Promise<void> {
         oldValue: bookingSnapshot(cur),
         newValue: bookingSnapshot(row),
       });
+      logBookingAction(
+        markCompleted ? 'vehicle-booking completed' : 'vehicle-booking updated',
+        requestId,
+        req,
+        {
+          bookingId: row.id,
+          vehicle_id,
+          employee_id,
+          starts_at: starts.toISOString(),
+          ends_at: ends.toISOString(),
+          ...(row.completed_at ? { completed_at: toIso(row.completed_at) } : {}),
+        },
+      );
       return res.status(200).json(toBooking(row));
     } catch (e) {
-      return handleApiError(res, e, 'vehicle-bookings PATCH', { userId: req.user.sub });
+      if (
+        await sendBookingConflictIfOverlap(res, req, e, {
+          requestId,
+          tbl,
+          effectiveEndSql: patchEffectiveEndSql,
+          attempted: patchAttempt,
+          vehicleId: patchAttempt.vehicle_id,
+          employeeId: patchAttempt.employee_id,
+          starts: patchAttempt.starts_at ? new Date(patchAttempt.starts_at) : undefined,
+          ends: patchAttempt.ends_at ? new Date(patchAttempt.ends_at) : undefined,
+          excludeId: patchAttempt.booking_id ?? null,
+          logContext: 'vehicle-bookings PATCH db conflict',
+        })
+      ) {
+        return;
+      }
+      return handleApiError(res, e, 'vehicle-bookings PATCH', {
+        userId: req.user.sub,
+        requestId,
+      });
     }
   }
 
   if (method === 'DELETE') {
+    const requestId = createBookingRequestId();
     try {
       const id = getString(req.query?.id);
       if (!id) return sendError(res, 400, 'Bad request', 'query id required');
@@ -584,7 +719,13 @@ async function handler(req: AuthedReq, res: ApiRes): Promise<void> {
         [id],
       );
       const row = rows[0];
-      if (!row) return sendError(res, 404, 'Not found');
+      if (!row) {
+        if (await bookingWasCancelled(tbl, id)) {
+          sendStaleCancelledConflict(res, req, requestId, { action: 'cancel', booking_id: id }, 'vehicle-bookings DELETE stale race');
+          return;
+        }
+        return sendError(res, 404, 'Not found');
+      }
 
       await insertBookingAudit({
         bookingId: row.id,
@@ -595,9 +736,20 @@ async function handler(req: AuthedReq, res: ApiRes): Promise<void> {
         newValue: bookingSnapshot(row),
       });
 
+      logBookingAction('vehicle-booking cancelled', requestId, req, {
+        bookingId: row.id,
+        vehicle_id: row.vehicle_id,
+        employee_id: row.employee_id,
+        starts_at: toIso(row.starts_at),
+        ends_at: toIso(row.ends_at),
+      });
+
       return res.status(200).json({ ok: true, id: row.id, status: 'cancelled' });
     } catch (e) {
-      return handleApiError(res, e, 'vehicle-bookings DELETE', { userId: req.user.sub });
+      return handleApiError(res, e, 'vehicle-bookings DELETE', {
+        userId: req.user.sub,
+        requestId,
+      });
     }
   }
 

@@ -79,7 +79,7 @@ export async function listBookingAuditInRange(fromIso: string, toIso: string, li
       select a.*
       from ${tbl} a
       inner join ${tableInAppSchema('vehicle_bookings')} b on b.id = a.booking_id
-      where b.starts_at < $2::timestamptz and b.ends_at > $1::timestamptz
+      where b.starts_at < $2::timestamptz and coalesce(b.completed_at, b.ends_at) > $1::timestamptz
       order by a.created_at desc
       limit $3
     `,

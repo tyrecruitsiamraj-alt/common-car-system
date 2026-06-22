@@ -15,6 +15,7 @@ import {
   deriveBookingListStatus,
 } from '@/lib/fleetBookingsDashboard';
 import { formatThaiDateTime, formatThaiTimeRange } from '@/lib/thaiDateTimeFormat';
+import { BOOKING_DIALOG } from '@/lib/bookingUiMessages';
 import { cn } from '@/lib/utils';
 import type { Employee, Vehicle, VehicleBooking } from '@/types';
 
@@ -105,7 +106,7 @@ export default function BookingDetailDialog({
                 </p>
                 {booking.completed_at ? (
                   <p className="text-xs text-emerald-700 mt-1">
-                    เสร็จสิ้นเมื่อ {formatThaiDateTime(parseISO(booking.completed_at))}
+                    {BOOKING_DIALOG.detailCompletedAt(formatThaiDateTime(parseISO(booking.completed_at)))}
                   </p>
                 ) : null}
               </div>

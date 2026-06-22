@@ -1,4 +1,6 @@
 import { differenceInMinutes, parseISO } from 'date-fns';
+import { bookingEffectiveEnd } from '@/lib/fleetBookingsDashboard';
+import { BOOKING_STATUS_LABELS } from '@/lib/bookingUiMessages';
 import type { Vehicle, VehicleBooking } from '@/types';
 
 export type DriverBookingTiming = 'early' | 'late' | 'on_time' | 'in_progress' | 'cancelled';
@@ -8,7 +10,7 @@ export const DRIVER_BOOKING_TIMING_LABEL: Record<DriverBookingTiming, string> = 
   late: 'เกินเวลา',
   on_time: 'ตรงเวลา',
   in_progress: 'กำลังดำเนินการ',
-  cancelled: 'ยกเลิก',
+  cancelled: BOOKING_STATUS_LABELS.cancelled,
 };
 
 export type DriverBookingRow = {
@@ -125,7 +127,7 @@ export function buildDriverDestinationStats(bookings: VehicleBooking[]): DriverD
 /** ระยะเวลาจริงของงาน (นาที) — ใช้ completed_at ถ้ามี */
 export function bookingDurationMinutes(b: VehicleBooking): number {
   const start = parseISO(b.starts_at);
-  const end = b.completed_at ? parseISO(b.completed_at) : parseISO(b.ends_at);
+  const end = bookingEffectiveEnd(b);
   if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return 0;
   return Math.max(0, differenceInMinutes(end, start));
 }

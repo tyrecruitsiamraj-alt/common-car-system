@@ -30,6 +30,9 @@ function formatAnswerDisplay(q: ExamQuestion, raw: string): string {
     if (raw === 'no') return 'ไม่';
     return raw;
   }
+  if (q.type === 'multi' && raw.includes('|||')) {
+    return raw.split('|||').filter(Boolean).join(', ');
+  }
   return raw;
 }
 

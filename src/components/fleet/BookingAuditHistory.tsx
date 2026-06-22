@@ -3,12 +3,13 @@ import { parseISO } from 'date-fns';
 import { formatThaiDateTime } from '@/lib/thaiDateTimeFormat';
 import { apiFetch } from '@/lib/apiFetch';
 import { diffBookingAuditEntry } from '@/lib/bookingAuditDisplay';
+import { BOOKING_STATUS_LABELS } from '@/lib/bookingUiMessages';
 import type { Employee, Vehicle, VehicleBookingAudit } from '@/types';
 
 const ACTION_LABEL: Record<VehicleBookingAudit['action'], string> = {
   created: 'สร้างจอง',
   updated: 'แก้ไข',
-  cancelled: 'ยกเลิก',
+  cancelled: BOOKING_STATUS_LABELS.cancelled,
 };
 
 type Props = {

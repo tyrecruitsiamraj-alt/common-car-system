@@ -15,7 +15,7 @@ const VALID_EXAM_KEYS = new Set([
 
 const EXAM_TITLES: Record<string, string> = {
   start_work_sticker_single: 'บันทึกการตรวจสภาพรถ (ประจำตำแหน่ง)',
-  fuel_refill: 'บันทึกการเติมน้ำมัน',
+  fuel_refill: 'บันทึกการตรวจสภาพรถ (ประจำตำแหน่ง)',
   daily_driver_check: 'Daily Driver Check Sheet',
 };
 

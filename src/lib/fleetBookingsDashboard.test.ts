@@ -41,11 +41,19 @@ describe('bookingsOnDay', () => {
     expect(computeTodaySummaryCounts([b], closeDay)).toMatchObject({ completed: 0 });
   });
 
-  it('occupancy uses scheduled ends_at even when completed late', () => {
+  it('occupancy uses completed_at when set (coalesce rule)', () => {
     const b = booking({
       starts_at: '2026-05-05T08:00:00+07:00',
       ends_at: '2026-05-05T17:00:00+07:00',
-      completed_at: '2026-05-06T09:00:00+07:00',
+      completed_at: '2026-05-05T12:00:00+07:00',
+    });
+    expect(bookingEffectiveEnd(b).toISOString()).toBe(new Date(b.completed_at!).toISOString());
+  });
+
+  it('occupancy falls back to ends_at when not completed', () => {
+    const b = booking({
+      starts_at: '2026-05-05T08:00:00+07:00',
+      ends_at: '2026-05-05T17:00:00+07:00',
     });
     expect(bookingEffectiveEnd(b).toISOString()).toBe(new Date(b.ends_at).toISOString());
   });

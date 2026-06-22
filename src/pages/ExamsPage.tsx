@@ -42,7 +42,7 @@ const ExamsPage: React.FC = () => {
             <h1 className="text-xl font-bold">ข้อสอบระบบ</h1>
           </div>
           <p className="text-sm text-muted-foreground">
-            อ่านหัวข้อการอบรม แล้วกดทำข้อสอบในระบบ — ไม่ต้องเปิด Microsoft Forms
+            อ่านหัวข้อการอบรม แล้วกรอกแบบฟอร์มในระบบ (ข้อมูลตาม Microsoft Forms)
           </p>
         </div>
 

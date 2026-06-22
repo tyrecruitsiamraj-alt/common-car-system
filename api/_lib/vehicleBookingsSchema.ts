@@ -56,14 +56,16 @@ export async function ensureVehicleBookingCompletedAt(): Promise<boolean> {
   }
 }
 
-/** ช่วงครอบคลุมสำหรับทับซ้อน/ว่าง — ใช้ ends_at เท่านั้น (ไม่ขยายด้วย completed_at) */
-export function bookingEffectiveEndSql(_useCompletedAt?: boolean): string {
-  return 'ends_at';
+/** ช่วงครอบคลุมสำหรับทับซ้อน/ว่าง — coalesce(completed_at, ends_at) เมื่อมีคอลัมน์ completed_at */
+export function bookingEffectiveEndSql(useCompletedAt: boolean): string {
+  return useCompletedAt ? 'coalesce(completed_at, ends_at)' : 'ends_at';
 }
 
-export function bookingEffectiveEndSqlQualified(tableAlias: string, _useCompletedAt?: boolean): string {
+export function bookingEffectiveEndSqlQualified(tableAlias: string, useCompletedAt: boolean): string {
   const a = tableAlias.replace(/\./g, '');
-  return `${a}.ends_at`;
+  return useCompletedAt
+    ? `coalesce(${a}.completed_at, ${a}.ends_at)`
+    : `${a}.ends_at`;
 }
 
 /** สร้างคอลัมน์ document_no ถ้ายังไม่มี (migration 030) */

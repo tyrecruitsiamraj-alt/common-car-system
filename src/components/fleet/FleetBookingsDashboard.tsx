@@ -15,6 +15,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import type { DashboardMetricId } from '@/lib/fleetBookingsDashboard';
+import { BOOKING_STATUS_LABELS } from '@/lib/bookingUiMessages';
 import { cn } from '@/lib/utils';
 import { Label } from '@/components/ui/label';
 import DateSelectDmyBe from '@/components/shared/DateSelectDmyBe';
@@ -37,17 +38,17 @@ export const BOOKING_STATUS_META: Record<
 > = {
   all: { label: 'All', dot: 'bg-slate-400', pill: 'bg-slate-100 text-slate-700 ring-slate-200' },
   inProgress: {
-    label: 'In progress',
+    label: BOOKING_STATUS_LABELS.inProgress,
     dot: 'bg-blue-500',
     pill: 'bg-blue-50 text-blue-700 ring-blue-200',
   },
   completed: {
-    label: 'Completed',
+    label: BOOKING_STATUS_LABELS.completed,
     dot: 'bg-slate-500',
     pill: 'bg-slate-100 text-slate-600 ring-slate-200',
   },
   cancelled: {
-    label: 'Cancelled',
+    label: BOOKING_STATUS_LABELS.cancelled,
     dot: 'bg-red-500',
     pill: 'bg-red-50 text-red-700 ring-red-200',
   },
@@ -292,17 +293,17 @@ function SummaryPanel({
             <div className="rounded-xl bg-slate-50 p-3">
               <Clock3 className="h-4 w-4 text-blue-600" />
               <p className="mt-2 text-xl font-bold text-slate-950 tabular-nums">{inProgressToday}</p>
-              <p className="text-[10px] text-slate-500 leading-tight">In progress</p>
+              <p className="text-[10px] text-slate-500 leading-tight">{BOOKING_STATUS_LABELS.inProgress}</p>
             </div>
             <div className="rounded-xl bg-slate-50 p-3">
               <CheckCircle2 className="h-4 w-4 text-slate-500" />
               <p className="mt-2 text-xl font-bold text-slate-950 tabular-nums">{completedToday}</p>
-              <p className="text-[10px] text-slate-500 leading-tight">Completed</p>
+              <p className="text-[10px] text-slate-500 leading-tight">{BOOKING_STATUS_LABELS.completed}</p>
             </div>
             <div className="rounded-xl bg-red-50/90 border border-red-100 p-3">
               <Ban className="h-4 w-4 text-red-600" />
               <p className="mt-2 text-xl font-bold text-slate-950 tabular-nums">{cancelledToday}</p>
-              <p className="text-[10px] text-slate-600 leading-tight">Cancelled</p>
+              <p className="text-[10px] text-slate-600 leading-tight">{BOOKING_STATUS_LABELS.cancelled}</p>
             </div>
           </div>
         </div>

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Bell, AlertTriangle, RefreshCw, UserCheck, AlertCircle, CheckCheck } from 'lucide-react';
 import { useNotifications } from '@/contexts/NotificationContext';
 import { NotificationType } from '@/types/notification';
+import { BOOKING_NOTIFICATION } from '@/lib/bookingUiMessages';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
@@ -47,7 +48,7 @@ const NotificationPanel: React.FC = () => {
         </div>
         <div className="max-h-80 overflow-y-auto">
           {notifications.length === 0 ? (
-            <div className="p-6 text-center text-muted-foreground text-sm">ไม่มีการจองที่ยังไม่เสร็จสิ้น</div>
+            <div className="p-6 text-center text-muted-foreground text-sm">{BOOKING_NOTIFICATION.emptyPanel}</div>
           ) : (
             notifications.map(n => {
               const config = typeConfig[n.type];

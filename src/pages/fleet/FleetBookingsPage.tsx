@@ -26,6 +26,20 @@ import {
 } from '@/lib/fleetBookingsDashboard';
 import { fetchFleetBookingPermissions } from '@/lib/fleetBookingPermissions';
 import { formatBookingWorkOrderNo } from '@/lib/bookingWorkOrder';
+import {
+  computeBookingAvailability,
+  resolveBookEmployeeOptions,
+  resolveBookVehicleOptions,
+  type AvailabilityPayload,
+} from '@/lib/bookingAvailability';
+import {
+  BOOKING_ACTION_LABELS,
+  BOOKING_AVAILABILITY,
+  BOOKING_CONFIRM,
+  BOOKING_DIALOG,
+  BOOKING_STATUS_LABELS,
+  BOOKING_TOAST,
+} from '@/lib/bookingUiMessages';
 import { BOOKING_MINUTE_STEP, roundDateToMinuteStep } from '@/lib/bookingMinuteStep';
 import { notifyFleetBookingsChanged } from '@/lib/bookingNotifications';
 import ExportExcelDateRangeDialog from '@/components/shared/ExportExcelDateRangeDialog';
@@ -106,55 +120,6 @@ import { MoreHorizontal } from 'lucide-react';
 type ViewMode = 'month' | 'week' | 'day' | 'hour';
 
 export type FleetBookingsMode = 'book' | 'monitor';
-
-type AvailabilityPayload = {
-  from: string;
-  to: string;
-  availableEmployees: Pick<Employee, 'id' | 'first_name' | 'last_name' | 'employee_code'>[];
-  availableVehicles: Pick<Vehicle, 'id' | 'plate_no' | 'label' | 'seats'>[];
-};
-
-/** คำนวณความว่างแบบเดียวกับ API เมื่อ endpoint availability ตอบผิดพลาด */
-function computeLocalAvailability(
-  from: Date,
-  to: Date,
-  bookingRows: VehicleBooking[],
-  employees: Employee[],
-  vehicles: Vehicle[],
-): AvailabilityPayload {
-  const overlaps = (b: VehicleBooking) => {
-    if (b.status === 'cancelled') return false;
-    const s = parseISO(b.starts_at);
-    const e = bookingEffectiveEnd(b);
-    return s < to && e > from;
-  };
-  const busyEmp = new Set(bookingRows.filter(overlaps).map((b) => b.employee_id));
-  const busyVeh = new Set(bookingRows.filter(overlaps).map((b) => b.vehicle_id));
-  const availableEmployees = employees
-    .filter((e) => e.status === 'active' && !busyEmp.has(e.id))
-    .map((e) => ({
-      id: e.id,
-      first_name: e.first_name,
-      last_name: e.last_name,
-      employee_code: e.employee_code,
-    }))
-    .sort((a, b) => `${a.first_name} ${a.last_name}`.localeCompare(`${b.first_name} ${b.last_name}`, 'th'));
-  const availableVehicles = vehicles
-    .filter((v) => v.is_active !== false && !busyVeh.has(v.id))
-    .map((v) => ({
-      id: v.id,
-      plate_no: v.plate_no,
-      label: v.label,
-      seats: v.seats,
-    }))
-    .sort((a, b) => a.plate_no.localeCompare(b.plate_no, 'th'));
-  return {
-    from: from.toISOString(),
-    to: to.toISOString(),
-    availableEmployees,
-    availableVehicles,
-  };
-}
 
 async function parseApiError(r: Response): Promise<string> {
   const j = (await r.json().catch(() => ({}))) as { message?: string; error?: string; path?: string };
@@ -337,7 +302,7 @@ function employeeBusyPlannerSlots(
 const BOOKING_AUDIT_LABEL: Record<VehicleBookingAudit['action'], string> = {
   created: 'สร้างจอง',
   updated: 'แก้ไข',
-  cancelled: 'ยกเลิก',
+  cancelled: BOOKING_STATUS_LABELS.cancelled,
 };
 
 function driverShort(id: string, empMap: Map<string, Employee>): string {
@@ -697,7 +662,7 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
 
       const localAvail =
         !isMonitor && bookingWindow && employees.length && vehicles.length
-          ? computeLocalAvailability(bookingWindow.from, bookingWindow.to, bookingRows, employees, vehicles)
+          ? computeBookingAvailability(bookingWindow.from, bookingWindow.to, bookingRows, employees, vehicles)
           : null;
 
       if (localAvail) {
@@ -756,7 +721,7 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
     const employees = Array.from(empMap.values());
     const vehicles = Array.from(vehMap.values());
     if (employees.length === 0 || vehicles.length === 0) return null;
-    return computeLocalAvailability(bookingWindow.from, bookingWindow.to, bookings, employees, vehicles);
+    return computeBookingAvailability(bookingWindow.from, bookingWindow.to, bookings, employees, vehicles);
   }, [bookingWindow, bookings, empMap, vehMap, isMonitor]);
 
   useEffect(() => {
@@ -1294,6 +1259,18 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
       toast.error('เลือกผู้ขับและรถ');
       return;
     }
+    if (!displayAvailability) {
+      toast.error(BOOKING_AVAILABILITY.calculating);
+      return;
+    }
+    if (!displayAvailability.availableEmployees.some((emp) => emp.id === selEmp)) {
+      toast.error(BOOKING_AVAILABILITY.noEmployees);
+      return;
+    }
+    if (!displayAvailability.availableVehicles.some((veh) => veh.id === selVeh)) {
+      toast.error(BOOKING_AVAILABILITY.noVehicles);
+      return;
+    }
     const days = createDaysInRange.filter((ymd) => createSelectedDays.has(ymd));
     if (days.length === 0) {
       toast.error('เลือกอย่างน้อย 1 วัน');
@@ -1365,10 +1342,10 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
   const completeBooking = async (b: VehicleBooking) => {
     if (!canEdit) return;
     if (deriveBookingListStatus(b) === 'completed') {
-      toast.message('การจองนี้เสร็จสิ้นแล้ว');
+      toast.message(BOOKING_TOAST.alreadyCompleted);
       return;
     }
-    if (!window.confirm('บันทึกว่างานนี้เสร็จสิ้นแล้ว? รถและคนขับจะว่างในช่วงที่เหลือ')) return;
+    if (!window.confirm(BOOKING_CONFIRM.completeNow)) return;
     try {
       const r = await apiFetch('/api/vehicle-bookings', {
         method: 'PATCH',
@@ -1378,11 +1355,11 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
       if (!r.ok) throw new Error(await parseApiError(r));
       const updated = (await r.json()) as VehicleBooking;
       setBookings((prev) => prev.map((x) => (x.id === updated.id ? updated : x)));
-      toast.success('บันทึกเสร็จสิ้นแล้ว');
+      toast.success(BOOKING_TOAST.completeSuccess);
       setEmpDayDialog(null);
       await refresh();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'บันทึกไม่สำเร็จ');
+      toast.error(err instanceof Error ? err.message : BOOKING_TOAST.completeFailed);
     }
   };
 
@@ -1394,19 +1371,19 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
     if (!canDelete) return;
     const b = bookings.find((x) => x.id === id);
     if (b && !isBookingCancellable(b)) {
-      toast.message('การจองที่เสร็จสิ้นแล้วยกเลิกไม่ได้');
+      toast.message(BOOKING_TOAST.cannotCancelCompleted);
       return;
     }
-    if (!window.confirm('ยกเลิกการจองนี้? ช่วงเวลานี้จะว่าง — สามารถจองหรือแก้ไขตารางวันนี้ได้')) return;
+    if (!window.confirm(BOOKING_CONFIRM.cancel)) return;
     try {
       const r = await apiFetch(`/api/vehicle-bookings?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
       if (!r.ok) throw new Error(await parseApiError(r));
-      toast.success('ยกเลิกการจองแล้ว — ยังแสดงในตารางสถานะยกเลิก');
+      toast.success(BOOKING_TOAST.cancelSuccess);
       if (editBooking?.id === id) closeEditDialog();
       setEmpDayDialog(null);
       await refresh();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'ยกเลิกไม่สำเร็จ');
+      toast.error(err instanceof Error ? err.message : BOOKING_TOAST.cancelFailed);
     }
   };
 
@@ -1438,7 +1415,7 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
 
   const openCompletedTimeEdit = (b: VehicleBooking) => {
     if (!canEditCompletedTimes) {
-      toast.message('คุณไม่มีสิทธิ์แก้เวลาใบงานที่ปิดแล้ว');
+      toast.message(BOOKING_TOAST.noPermissionEditCompletedTime);
       return;
     }
     openEditBooking(b, 'completedTime');
@@ -1447,7 +1424,7 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
   const openCompleteBooking = (b: VehicleBooking) => {
     if (!canEdit) return;
     if (deriveBookingListStatus(b) === 'completed') {
-      toast.message('การจองนี้เสร็จสิ้นแล้ว');
+      toast.message(BOOKING_TOAST.alreadyCompleted);
       return;
     }
     openEditBooking(b, 'complete');
@@ -1519,14 +1496,14 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
     const correctingTime = editDialogMode === 'completedTime';
     if (correctingTime) {
       if (!canEditCompletedTimes) {
-        toast.error('คุณไม่มีสิทธิ์แก้เวลาใบงานที่ปิดแล้ว');
+        toast.error(BOOKING_TOAST.noPermissionEditCompletedTime);
         return;
       }
     } else if (!canEdit) {
       return;
     }
     if (!correctingTime && !isBookingEditable(editBooking)) {
-      toast.error('การจองที่เสร็จสิ้นแล้วแก้ไขไม่ได้');
+      toast.error(BOOKING_TOAST.cannotEditCompleted);
       closeEditDialog();
       return;
     }
@@ -1536,11 +1513,11 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
       return;
     }
     const completing = editDialogMode === 'complete';
-    if (completing && !window.confirm('บันทึกช่วงเวลาที่แก้แล้วระบุว่าเสร็จสิ้น?')) return;
-    if (correctingTime && !window.confirm('บันทึกการแก้เวลาใบงานที่ปิดแล้ว? (บันทึกลงประวัติ)')) return;
+    if (completing && !window.confirm(BOOKING_CONFIRM.completeWithEdits)) return;
+    if (correctingTime && !window.confirm(BOOKING_CONFIRM.editCompletedTime)) return;
     const completedAtDate = correctingTime ? roundDateToMinuteStep(new Date(editCompletedAt)) : null;
     if (correctingTime && Number.isNaN(completedAtDate!.getTime())) {
-      toast.error('เวลาปิดงานไม่ถูกต้อง');
+      toast.error(BOOKING_TOAST.invalidCompletedAt);
       return;
     }
     setSaving(true);
@@ -1573,12 +1550,16 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
       const updated = (await r.json()) as VehicleBooking;
       mergeBookingFromApi(updated);
       if (completing && !updated.completed_at) {
-        toast.error('บันทึกแล้วแต่สถานะเสร็จสิ้นไม่ติด — ติดต่อผู้ดูแลระบบ (คอลัมน์ completed_at)');
+        toast.error(BOOKING_TOAST.completeNotPersisted);
         await refresh();
         return;
       }
       toast.success(
-        correctingTime ? 'แก้เวลาใบงานที่ปิดแล้วแล้ว' : completing ? 'บันทึกเวลาและเสร็จสิ้นแล้ว' : 'บันทึกการแก้ไขแล้ว',
+        correctingTime
+          ? BOOKING_TOAST.editCompletedTimeSuccess
+          : completing
+            ? BOOKING_TOAST.completeWithEditsSuccess
+            : 'บันทึกการแก้ไขแล้ว',
       );
       if (!correctingTime) {
         addDestinationSuggestionsFromJoined(editDestination, addDestinationSuggestion);
@@ -1605,7 +1586,7 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
             className="text-[10px] font-semibold text-emerald-700 hover:underline"
             onClick={() => void completeBooking(b)}
           >
-            เสร็จสิ้น
+            {BOOKING_ACTION_LABELS.complete}
           </button>
         ) : null}
         {canEdit && isBookingEditable(b) && !isMonitor ? (
@@ -1619,12 +1600,12 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
             className="text-[10px] font-semibold text-amber-800 hover:underline"
             onClick={() => openCompletedTimeEdit(b)}
           >
-            แก้เวลา (ปิดแล้ว)
+            {BOOKING_ACTION_LABELS.editCompletedTime}
           </button>
         ) : null}
         {canDelete && isBookingCancellable(b) && !isMonitor ? (
           <button type="button" className="text-[10px] text-destructive hover:underline" onClick={() => void cancelBooking(b.id)}>
-            ยกเลิก
+            {BOOKING_ACTION_LABELS.cancelShort}
           </button>
         ) : null}
       </span>
@@ -1633,6 +1614,19 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
 
   const todayYmd = format(new Date(), 'yyyy-MM-dd');
   const displayAvailability = bookingWindow ? (slotDerivedAvailability ?? availability) : null;
+
+  const noAvailableEmployees =
+    displayAvailability !== null && displayAvailability.availableEmployees.length === 0;
+  const noAvailableVehicles =
+    displayAvailability !== null && displayAvailability.availableVehicles.length === 0;
+
+  const isBookingSelectionAvailable = useMemo(() => {
+    if (!displayAvailability || !selEmp || !selVeh) return false;
+    return (
+      displayAvailability.availableEmployees.some((e) => e.id === selEmp) &&
+      displayAvailability.availableVehicles.some((v) => v.id === selVeh)
+    );
+  }, [displayAvailability, selEmp, selVeh]);
 
   const selectedDay = useMemo(() => {
     const d = parse(dayValue, 'yyyy-MM-dd', new Date());
@@ -1645,17 +1639,11 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
   );
 
   const bookEmpOptions = useMemo(() => {
-    if (displayAvailability?.availableEmployees.length) {
-      return displayAvailability.availableEmployees;
-    }
-    return Array.from(empMap.values()).filter((e) => e.status !== 'inactive' && e.status !== 'suspended');
+    return resolveBookEmployeeOptions(displayAvailability, Array.from(empMap.values()));
   }, [displayAvailability, empMap]);
 
   const bookVehOptions = useMemo(() => {
-    if (displayAvailability?.availableVehicles.length) {
-      return displayAvailability.availableVehicles;
-    }
-    return Array.from(vehMap.values()).filter((v) => v.is_active !== false);
+    return resolveBookVehicleOptions(displayAvailability, Array.from(vehMap.values()));
   }, [displayAvailability, vehMap]);
 
   const bookEmpPickerOptions = useMemo((): SearchablePickerOption[] => {
@@ -1895,16 +1883,16 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
       description: (n) => `All active bookings on the selected day (${n})`,
     },
     inProgress: {
-      title: 'In progress — details',
-      description: (n) => `Not yet marked complete (${n})`,
+      title: `${BOOKING_STATUS_LABELS.inProgress} — รายละเอียด`,
+      description: (n) => `ยังไม่ปิดงาน — รถและพนักงานยังถูกจอง (${n})`,
     },
     completed: {
-      title: 'Completed — details',
-      description: (n) => `Marked complete (${n})`,
+      title: `${BOOKING_STATUS_LABELS.completed} — รายละเอียด`,
+      description: (n) => `ปิดงานแล้ว — ว่างตั้งแต่เวลาปิดงาน (${n})`,
     },
     cancelled: {
-      title: 'Cancelled — details',
-      description: (n) => `Cancelled on the selected day (${n})`,
+      title: `${BOOKING_STATUS_LABELS.cancelled} — รายละเอียด`,
+      description: (n) => `ยกเลิกแล้ว — ไม่บล็อกรถและพนักงาน (${n})`,
     },
     maintenance: {
       title: 'Maintenance — details',
@@ -1998,7 +1986,7 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
               <DropdownMenuContent align="end" className="rounded-xl">
                 {showComplete ? (
                   <DropdownMenuItem onClick={() => openCompleteBooking(b)}>
-                    {isMonitor ? 'เสร็จสิ้น (ปรับเวลาก่อน)' : 'เสร็จสิ้น'}
+                    {isMonitor ? BOOKING_ACTION_LABELS.completeWithTime : BOOKING_ACTION_LABELS.complete}
                   </DropdownMenuItem>
                 ) : null}
                 {showEdit ? (
@@ -2006,7 +1994,7 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                 ) : null}
                 {showTimeFix ? (
                   <DropdownMenuItem onClick={() => openCompletedTimeEdit(b)}>
-                    แก้เวลา (ปิดแล้ว)
+                    {BOOKING_ACTION_LABELS.editCompletedTime}
                   </DropdownMenuItem>
                 ) : null}
                 {showCancel ? (
@@ -2014,7 +2002,7 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                     className="text-destructive focus:text-destructive"
                     onClick={() => void cancelBooking(b.id)}
                   >
-                    ยกเลิกการจอง
+                    {BOOKING_ACTION_LABELS.cancelBooking}
                   </DropdownMenuItem>
                 ) : null}
               </DropdownMenuContent>
@@ -3026,10 +3014,15 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                   onValueChange={setSelEmp}
                   options={bookEmpPickerOptions}
                   placeholder="พิมพ์ชื่อหรือรหัสพนักงาน…"
-                  emptyMessage="ไม่พบผู้ขับ"
-                  disabled={loading}
+                  emptyMessage={
+                    noAvailableEmployees ? BOOKING_AVAILABILITY.noEmployees : 'ไม่พบผู้ขับ'
+                  }
+                  disabled={loading || noAvailableEmployees}
                   aria-label="ผู้ขับ"
                 />
+                {noAvailableEmployees ? (
+                  <p className="text-[10px] text-destructive leading-snug">{BOOKING_AVAILABILITY.noEmployees}</p>
+                ) : null}
               </div>
               <div className="space-y-0.5 min-w-0">
                 <Label className="text-[10px]">รถ (ทะเบียน)</Label>
@@ -3038,11 +3031,16 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                   onValueChange={setSelVeh}
                   options={bookVehPickerOptions}
                   placeholder="พิมพ์ทะเบียนรถ…"
-                  emptyMessage="ไม่พบรถ"
-                  disabled={loading}
+                  emptyMessage={
+                    noAvailableVehicles ? BOOKING_AVAILABILITY.noVehicles : 'ไม่พบรถ'
+                  }
+                  disabled={loading || noAvailableVehicles}
                   inputRef={createVehiclePickerRef}
                   aria-label="ทะเบียนรถ"
                 />
+                {noAvailableVehicles ? (
+                  <p className="text-[10px] text-destructive leading-snug">{BOOKING_AVAILABILITY.noVehicles}</p>
+                ) : null}
               </div>
             </div>
             <DestinationField value={destination} onChange={setDestination} />
@@ -3056,8 +3054,7 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                 disabled={
                   saving ||
                   loading ||
-                  !selEmp ||
-                  !selVeh ||
+                  !isBookingSelectionAvailable ||
                   createSelectedDays.size === 0 ||
                   createDaysInRange.length === 0
                 }
@@ -3152,16 +3149,16 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
           <DialogHeader className="shrink-0 px-6 pt-6 pb-2 text-left">
             <DialogTitle>
               {editDialogMode === 'complete'
-                ? 'เสร็จสิ้น — ปรับเวลาก่อนบันทึก'
+                ? BOOKING_DIALOG.completeTitle
                 : editDialogMode === 'completedTime'
-                  ? 'แก้เวลาใบงานที่ปิดแล้ว'
+                  ? BOOKING_DIALOG.completedTimeTitle
                   : 'แก้ไขการจอง'}
             </DialogTitle>
             <DialogDescription>
               {editDialogMode === 'complete'
-                ? 'ปรับวัน–เวลาจริงด้านล่าง แล้วกดปุ่มเขียวที่แถบล่าง (ไม่ต้องเลื่อนหา)'
+                ? BOOKING_DIALOG.completeDescription
                 : editDialogMode === 'completedTime'
-                  ? 'แก้เฉพาะเวลาเริ่ม สิ้นสุด และเวลาปิดงาน — บันทึกลงประวัติการแก้ไข'
+                  ? BOOKING_DIALOG.completedTimeDescription
                   : 'ปรับผู้ขับ รถ ช่วงเวลา สถานที่ที่ไป หรือหมายเหตุ — บันทึกลงประวัติการแก้ไข'}
             </DialogDescription>
           </DialogHeader>
@@ -3284,7 +3281,7 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
               </div>
               {editDialogMode === 'completedTime' ? (
                 <div className="space-y-2 rounded-lg border border-amber-200/80 bg-amber-50/50 p-2.5">
-                  <p className="text-xs font-semibold text-foreground">เวลาปิดงาน (complete)</p>
+                  <p className="text-xs font-semibold text-foreground">{BOOKING_DIALOG.completedAtField}</p>
                   <div className="flex flex-wrap gap-2 items-end">
                     <DateSelectDmyBe
                       className="flex-1 min-w-[9.5rem]"
@@ -3304,12 +3301,10 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                         patchEditCompleted(ymd, hm);
                       }}
                       selectClassName="h-9 rounded-md border border-input bg-background px-1.5 text-xs min-w-[3.75rem]"
-                      aria-label="เวลาปิดงาน"
+                      aria-label={BOOKING_DIALOG.completedAtField}
                     />
                   </div>
-                  <p className="text-[10px] text-muted-foreground">
-                    แนะนำให้เวลาปิดไม่เกินช่วงสิ้นสุดที่จอง — ระบบจะปรับให้อัตโนมัติถ้าเกิน
-                  </p>
+                  <p className="text-[10px] text-muted-foreground">{BOOKING_DIALOG.completedAtHint}</p>
                 </div>
               ) : null}
               {editDialogMode !== 'completedTime' ? (
@@ -3343,7 +3338,7 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                     disabled={saving}
                     onClick={() => void cancelBooking(editBooking.id)}
                   >
-                    ยกเลิกการจอง
+                    {BOOKING_ACTION_LABELS.cancelBooking}
                   </Button>
                 ) : (
                   <span className="min-w-[1px]" />
@@ -3360,7 +3355,7 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                     {saving
                       ? 'กำลังบันทึก…'
                       : editDialogMode === 'complete'
-                        ? 'บันทึกและเสร็จสิ้น'
+                        ? BOOKING_ACTION_LABELS.saveAndComplete
                         : editDialogMode === 'completedTime'
                           ? 'บันทึกเวลา'
                           : 'บันทึก'}

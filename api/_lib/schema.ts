@@ -8,3 +8,4 @@ export function tableInAppSchema(table: string): string {
   const schema = getPgSchema().replace(/"/g, '');
   return `"${schema}".${table}`;
 }
+

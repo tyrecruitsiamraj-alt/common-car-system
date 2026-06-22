@@ -1,5 +1,6 @@
 import { addDays, parseISO, startOfDay } from 'date-fns';
 import { isBookingOverdueNotCompleted } from '@/lib/fleetBookingsDashboard';
+import { BOOKING_NOTIFICATION } from '@/lib/bookingUiMessages';
 import { formatThaiTimeRange } from '@/lib/thaiDateTimeFormat';
 import type { Notification, NotificationType } from '@/types/notification';
 import type { Employee, Vehicle, VehicleBooking } from '@/types';
@@ -64,8 +65,8 @@ export function buildInProgressBookingNotifications(
       return {
         id,
         type: pickNotificationType(b),
-        title: `เลยเวลาแล้วยังไม่เสร็จ: ${dest.length > 36 ? `${dest.slice(0, 36)}…` : dest}`,
-        message: `${driver} · ${plate} · ${time} — กรุณากดเสร็จสิ้น`,
+        title: `${BOOKING_NOTIFICATION.overdueTitlePrefix} ${dest.length > 36 ? `${dest.slice(0, 36)}…` : dest}`,
+        message: `${driver} · ${plate} · ${time} — ${BOOKING_NOTIFICATION.overdueAction}`,
         timestamp: b.updated_at || b.starts_at,
         read: readIds.has(id),
         link: '/fleet/bookings',
