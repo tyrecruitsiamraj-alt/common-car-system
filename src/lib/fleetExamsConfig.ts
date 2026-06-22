@@ -21,6 +21,12 @@ export type ExamQuestion =
     }
   | {
       id: string;
+      type: 'date';
+      label: string;
+      required?: boolean;
+    }
+  | {
+      id: string;
       type: 'yes_no';
       label: string;
       required?: boolean;

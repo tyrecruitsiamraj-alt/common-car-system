@@ -184,6 +184,15 @@ const ExamForm: React.FC<Props> = ({ exam }) => {
                 />
               ) : null}
 
+              {q.type === 'date' ? (
+                <Input
+                  type="date"
+                  value={answers[q.id] ?? ''}
+                  onChange={(e) => setAnswer(q.id, e.target.value)}
+                  className="h-10 text-sm"
+                />
+              ) : null}
+
               {q.type === 'textarea' ? (
                 <Textarea
                   value={answers[q.id] ?? ''}

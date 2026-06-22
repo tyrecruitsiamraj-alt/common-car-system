@@ -8,7 +8,7 @@
     "whenToUse": "ทุกวันก่อนเริ่มงาน / ก่อนออกรถ",
     "msFormUrl": "https://forms.office.com/pages/responsepage.aspx?id=XkjN2b05yUyVOYyXYx-7cVniQHtG9_xFuulQOMyLWTRUQ1dDTDA5Nk05UkRZUVNYR01SQ0xUV1BFUS4u&origin=QRCode&qrcodeorigin=presentation&route=shorturl",
     "msFormId": "XkjN2b05yUyVOYyXYx-7cVniQHtG9_xFuulQOMyLWTRUQ1dDTDA5Nk05UkRZUVNYR01SQ0xUV1BFUS4u",
-    "syncedAt": "2026-06-22T04:08:04.125Z",
+    "syncedAt": "2026-06-22T04:28:43.409Z",
     "questions": [
       {
         "id": "driver_name",
@@ -69,7 +69,7 @@
     "whenToUse": "ทุกครั้งก่อนเริ่มงาน / ก่อนออกรถ",
     "msFormUrl": "https://forms.office.com/Pages/ResponsePage.aspx?id=XkjN2b05yUyVOYyXYx-7cVniQHtG9_xFuulQOMyLWTRUQ003OFpUWllVQkVCMkszN0hKMFRGSzhTNy4u&origin=QRCode",
     "msFormId": "XkjN2b05yUyVOYyXYx-7cVniQHtG9_xFuulQOMyLWTRUQ003OFpUWllVQkVCMkszN0hKMFRGSzhTNy4u",
-    "syncedAt": "2026-06-22T04:08:04.256Z",
+    "syncedAt": "2026-06-22T04:28:43.739Z",
     "questions": [
       {
         "id": "driver_name",
@@ -260,7 +260,7 @@
     "whenToUse": "ทุกครั้งที่เติมน้ำมัน",
     "msFormUrl": "https://forms.office.com/Pages/ResponsePage.aspx?id=XkjN2b05yUyVOYyXYx-7cVniQHtG9_xFuulQOMyLWTRUMTlDR0Y0MFlWREVINzEzMFNNNFZSWVBEQi4u&origin=QRCode",
     "msFormId": "XkjN2b05yUyVOYyXYx-7cVniQHtG9_xFuulQOMyLWTRUMTlDR0Y0MFlWREVINzEzMFNNNFZSWVBEQi4u",
-    "syncedAt": "2026-06-22T04:08:04.771Z",
+    "syncedAt": "2026-06-22T04:28:43.840Z",
     "questions": [
       {
         "id": "ms_r8bd4a5a78843423ca22f577",
@@ -291,6 +291,12 @@
         "required": true
       },
       {
+        "id": "ms_r96ae73fbb68840a397820b7",
+        "type": "date",
+        "label": "วันที่เติม",
+        "required": true
+      },
+      {
         "id": "ms_rec949612a95241b6a59d0b3",
         "type": "text",
         "label": "เวลาที่เติม",
@@ -300,6 +306,12 @@
         "id": "ms_rc2d98064614a437c93640a7",
         "type": "text",
         "label": "ชื่อสาขา หรือสถานที่ของปั๊มน้ำมัน",
+        "required": true
+      },
+      {
+        "id": "ms_rb0e401cbe791489f8bed311",
+        "type": "text",
+        "label": "ปริมาณที่เติม (ลิตร)",
         "required": true
       },
       {

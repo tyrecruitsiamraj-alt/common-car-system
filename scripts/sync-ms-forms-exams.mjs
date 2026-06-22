@@ -43,9 +43,8 @@ const EXAM_SOURCES = [
 function dedupeQuestions(questions) {
   const seen = new Set();
   return questions.filter((q) => {
-    const key = `${q.type}:${q.label}`;
-    if (seen.has(key)) return false;
-    seen.add(key);
+    if (seen.has(q.id)) return false;
+    seen.add(q.id);
     return true;
   });
 }
@@ -139,6 +138,16 @@ function convertQuestions(rawQuestions) {
       out.push({
         id: mapDriverPlateAlias(q.id, title),
         type: multiline ? 'textarea' : 'text',
+        label: title,
+        required: !!q.required,
+      });
+      continue;
+    }
+
+    if (q.type === 'Question.DateTime') {
+      out.push({
+        id: slugId(q.id),
+        type: info.Time && !info.Date ? 'text' : 'date',
         label: title,
         required: !!q.required,
       });
