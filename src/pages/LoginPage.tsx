@@ -8,16 +8,6 @@ import { Label } from '@/components/ui/label';
 import AuthPageShell from '@/components/auth/AuthPageShell';
 import { loginErrorSuggestHealthLink } from '@/lib/loginSetupHint';
 
-/** ตรงกับผลลัพธ์ default ของ npm run db:seed (ถ้าตั้ง SEED_USER_PASSWORD ให้ใช้รหัสนั้นแทน) */
-const TRIAL_EMAIL =
-  typeof import.meta.env.VITE_LOGIN_TRIAL_EMAIL === 'string' && import.meta.env.VITE_LOGIN_TRIAL_EMAIL.trim()
-    ? import.meta.env.VITE_LOGIN_TRIAL_EMAIL.trim()
-    : 'admin@example.com';
-const TRIAL_PASSWORD_HINT =
-  typeof import.meta.env.VITE_LOGIN_TRIAL_PASSWORD_HINT === 'string' && import.meta.env.VITE_LOGIN_TRIAL_PASSWORD_HINT.trim()
-    ? import.meta.env.VITE_LOGIN_TRIAL_PASSWORD_HINT.trim()
-    : 'ChangeMe123!';
-
 const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -70,17 +60,6 @@ const LoginPage: React.FC = () => {
           ข้อสอบระบบ
         </Link>
 
-        <div className="rounded-lg border border-border/70 bg-muted/30 px-3 py-2.5 space-y-1">
-          <p className="text-xs font-medium text-foreground">บัญชีทดลอง (หลังรัน db:seed)</p>
-          <p className="text-xs text-muted-foreground">
-            Email: <span className="font-mono text-foreground">{TRIAL_EMAIL}</span>
-          </p>
-          <p className="text-xs text-muted-foreground">
-            Password: <span className="font-mono text-foreground">{TRIAL_PASSWORD_HINT}</span>{' '}
-            <span className="italic">หรือรหัสที่ตั้งใน SEED_USER_PASSWORD</span>
-          </p>
-        </div>
-
         <form onSubmit={handleLogin} className="space-y-3">
           <div className="space-y-1.5">
             <Label htmlFor="email">อีเมล</Label>
@@ -90,7 +69,7 @@ const LoginPage: React.FC = () => {
               autoComplete="username"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder={TRIAL_EMAIL}
+              placeholder="name@company.com"
               required
               className="min-h-[44px]"
             />

@@ -101,7 +101,7 @@ const FleetVehicles: React.FC = () => {
         let msg = apiText;
         if (r.status === 401) {
           msg =
-            'ยังไม่ได้เข้าสู่ระบบหรือ session หมดอายุ — กลับไปหน้า Login แล้วล็อกอินใหม่ (หลัง db:seed ใช้ admin@example.com และรหัสจาก SEED_USER_PASSWORD หรือ ChangeMe123!)';
+            'ยังไม่ได้เข้าสู่ระบบหรือ session หมดอายุ — กลับไปหน้า Login แล้วล็อกอินใหม่';
           if (apiText && !/Unauthorized|Missing auth/i.test(apiText)) msg = apiText;
         }
         if (r.status === 409) {
