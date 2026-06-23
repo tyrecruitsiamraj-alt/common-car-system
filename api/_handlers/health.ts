@@ -5,8 +5,12 @@ import {
   canComposeDatabaseUrlParts,
   getDatabaseUrlSource,
 } from '../_lib/env.js';
-import { getJwtSecret } from '../_lib/auth.js';
+import { getJwtSecret, isVercelProduction } from '../_lib/auth.js';
 import { dbPing } from '../_lib/postgres.js';
+import {
+  bookingGuardsHealthPayload,
+  checkBookingProductionReadiness,
+} from '../_lib/bookingProductionReadiness.js';
 import { logError } from '../_lib/logger.js';
 import type { ApiReq, ApiRes } from '../_lib/http.js';
 
@@ -45,6 +49,43 @@ export default async function handler(req: ApiReq, res: ApiRes): Promise<void> {
 
   const loginLikelyWorks =
     jwtSigningReady && databaseConfigured && databaseReachable === true;
+
+  let bookingGuards: ReturnType<typeof bookingGuardsHealthPayload> | null = null;
+  if (databaseReachable === true) {
+    try {
+      const readiness = await checkBookingProductionReadiness();
+      bookingGuards = bookingGuardsHealthPayload(readiness);
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : String(e);
+      logError('health.booking_guards_check_failed', { message });
+      bookingGuards = {
+        status: 'unavailable',
+        schema: 'unknown',
+        checks: {
+          btree_gist_extension: false,
+          vehicle_bookings_completed_at_column: false,
+          vehicle_bookings_status_column: false,
+          vehicle_bookings_status_check: false,
+          vehicle_bookings_vehicle_no_overlap: false,
+          vehicle_bookings_employee_no_overlap: false,
+        },
+        allRequiredPresent: false,
+      };
+    }
+  }
+
+  const productionEnv = isVercelProduction();
+  const bookingGuardsReady = bookingGuards?.allRequiredPresent === true;
+  const readiness =
+    !productionEnv
+      ? 'ok'
+      : databaseReachable !== true
+        ? 'not_ready'
+        : bookingGuardsReady
+          ? 'ok'
+          : bookingGuards?.status === 'degraded'
+            ? 'degraded'
+            : 'not_ready';
 
   const hintsTh: string[] = [];
   if (!jwtSigningReady) {
@@ -90,10 +131,16 @@ export default async function handler(req: ApiReq, res: ApiRes): Promise<void> {
       'จากการตรวจเบื้องต้น: JWT + DB พร้อม — ถ้ายังล็อกอินไม่ได้ ให้ตรวจว่ามี user ใน DB (npm run db:seed) และอีเมล/รหัสถูกต้อง',
     );
   }
+  if (productionEnv && databaseReachable === true && bookingGuards && !bookingGuardsReady) {
+    hintsTh.push(
+      'การจองรถ: ยังไม่ครบ database guards (migration 034 / btree_gist / completed_at / status) — รัน npm run db:check:booking-production-readiness แล้ว npm run db:migrate',
+    );
+  }
 
   const body = {
     ok: true,
     message: 'API route is up',
+    readiness,
     vercel: {
       isVercel: process.env.VERCEL === '1',
       vercelEnv: process.env.VERCEL_ENV ?? null,
@@ -103,7 +150,9 @@ export default async function handler(req: ApiReq, res: ApiRes): Promise<void> {
       jwtSigningReady,
       databaseReachable,
       loginLikelyWorks,
+      bookingGuardsReady: bookingGuards?.allRequiredPresent ?? null,
     },
+    bookingGuards: bookingGuards ?? undefined,
     hintsTh,
     /** ว่า getDatabaseUrl() จะใช้คีย์ไหนเป็นหลัก — none = API ไม่เห็น connection */
     databaseUrlSource,
@@ -118,7 +167,17 @@ export default async function handler(req: ApiReq, res: ApiRes): Promise<void> {
   };
 
   if (databaseConfigured && databaseReachable === false) {
-    res.status(503).json({ ...body, ok: false, message: 'Database not reachable' });
+    res.status(503).json({ ...body, ok: false, message: 'Database not reachable', readiness: 'not_ready' });
+    return;
+  }
+
+  if (productionEnv && databaseReachable === true && bookingGuards && !bookingGuardsReady) {
+    res.status(503).json({
+      ...body,
+      ok: false,
+      message: 'Booking database guards not ready',
+      readiness,
+    });
     return;
   }
 

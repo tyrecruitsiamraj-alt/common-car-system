@@ -3,6 +3,7 @@ import {
   getTokenFromReq,
   getTokenFromAuthHeader,
   verifyAuthToken,
+  isVercelProduction,
   type UserRole,
   type JwtUserPayload,
 } from './auth.js';
@@ -46,6 +47,10 @@ export function handleApiError(
   const message = e instanceof Error ? e.message : String(e);
   const stack = e instanceof Error ? e.stack : undefined;
   logError(context, { ...fields, message, stack });
+  if (isVercelProduction()) {
+    res.status(500).json({ error: 'Internal server error' });
+    return;
+  }
   res.status(500).json({ error: 'Internal server error', message });
 }
 

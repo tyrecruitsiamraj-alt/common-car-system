@@ -22,20 +22,22 @@ describe('needsBookingOverlapCheck', () => {
     ).toBe(false);
   });
 
-  it('skips when marking complete without extending schedule', () => {
+  it('skips when marking complete without extending effective window', () => {
+    const completedAt = new Date('2026-06-05T05:00:00.000Z'); // 12:00 +7
     expect(
       needsBookingOverlapCheck(
-        cur,
+        { ...cur, completed_at: null },
         { mark_completed: true, starts_at: cur.starts_at, ends_at: cur.ends_at },
         'emp-1',
         'veh-1',
         new Date(cur.starts_at),
-        new Date('2026-06-05T06:00:00.000Z'), // 13:00 +7 — shorter
+        new Date(cur.ends_at),
+        completedAt,
       ),
     ).toBe(false);
   });
 
-  it('checks when end time is extended', () => {
+  it('checks when scheduled ends_at is extended and effective window grows', () => {
     expect(
       needsBookingOverlapCheck(
         cur,
@@ -59,5 +61,96 @@ describe('needsBookingOverlapCheck', () => {
         new Date(cur.ends_at),
       ),
     ).toBe(true);
+  });
+
+  it('requires overlap check when completed_at extends from 12:00 to 16:00', () => {
+    const base = {
+      ...cur,
+      completed_at: '2026-06-05T05:00:00.000Z', // 12:00 +7
+    };
+    const newCompletedAt = new Date('2026-06-05T09:00:00.000Z'); // 16:00 +7
+    expect(
+      needsBookingOverlapCheck(
+        base,
+        { completed_at: newCompletedAt.toISOString() },
+        'emp-1',
+        'veh-1',
+        new Date(cur.starts_at),
+        new Date(cur.ends_at),
+        newCompletedAt,
+      ),
+    ).toBe(true);
+  });
+
+  it('skips overlap check when completed_at shrinks from 16:00 to 12:00', () => {
+    const base = {
+      ...cur,
+      completed_at: '2026-06-05T09:00:00.000Z', // 16:00 +7
+    };
+    const newCompletedAt = new Date('2026-06-05T05:00:00.000Z'); // 12:00 +7
+    expect(
+      needsBookingOverlapCheck(
+        base,
+        { completed_at: newCompletedAt.toISOString() },
+        'emp-1',
+        'veh-1',
+        new Date(cur.starts_at),
+        new Date(cur.ends_at),
+        newCompletedAt,
+      ),
+    ).toBe(false);
+  });
+
+  it('skips overlap check when completed_at is set before ends_at and shrinks the window', () => {
+    const newCompletedAt = new Date('2026-06-05T05:00:00.000Z'); // 12:00 +7
+    expect(
+      needsBookingOverlapCheck(
+        { ...cur, completed_at: null },
+        { completed_at: newCompletedAt.toISOString() },
+        'emp-1',
+        'veh-1',
+        new Date(cur.starts_at),
+        new Date(cur.ends_at),
+        newCompletedAt,
+      ),
+    ).toBe(false);
+  });
+
+  it('requires overlap check when completed_at is cleared and effective end expands to ends_at', () => {
+    const base = {
+      ...cur,
+      completed_at: '2026-06-05T05:00:00.000Z', // 12:00 +7
+    };
+    expect(
+      needsBookingOverlapCheck(
+        base,
+        { completed_at: null },
+        'emp-1',
+        'veh-1',
+        new Date(cur.starts_at),
+        new Date(cur.ends_at),
+        null,
+      ),
+    ).toBe(true);
+  });
+
+  it('skips when ends_at extends but completed_at keeps effective window unchanged', () => {
+    const base = {
+      ...cur,
+      completed_at: '2026-06-05T05:00:00.000Z', // 12:00 +7
+    };
+    const newEnds = new Date('2026-06-05T11:00:00.000Z'); // 18:00 +7
+    const completedAt = new Date('2026-06-05T05:00:00.000Z');
+    expect(
+      needsBookingOverlapCheck(
+        base,
+        { ends_at: newEnds.toISOString() },
+        'emp-1',
+        'veh-1',
+        new Date(cur.starts_at),
+        newEnds,
+        completedAt,
+      ),
+    ).toBe(false);
   });
 });

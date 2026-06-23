@@ -14,6 +14,30 @@ export const AUTH_JWT_MISSING_API_CODE = 'AUTH_JWT_NOT_CONFIGURED' as const;
 export const AUTH_JWT_MISSING_API_MESSAGE =
   'JWT signing unavailable: set AUTH_JWT_SECRET (or JWT_SECRET), a Postgres URL (DATABASE_URL, NEON_DATABASE_URL, …), PGHOST+PGUSER+PGDATABASE, or on Vercel enable System Environment Variables so VERCEL_PROJECT_ID is available.';
 
+export const AUTH_JWT_MISSING_API_MESSAGE_PRODUCTION =
+  'Authentication is not configured. Contact the administrator.';
+
+export function isVercelProduction(): boolean {
+  return process.env.VERCEL_ENV === 'production';
+}
+
+export function getAuthJwtMissingMessage(): string {
+  return isVercelProduction() ? AUTH_JWT_MISSING_API_MESSAGE_PRODUCTION : AUTH_JWT_MISSING_API_MESSAGE;
+}
+
+/** In production responses omit JWT from JSON; rely on HttpOnly cookie only. */
+export function shouldExposeAuthTokenInJson(): boolean {
+  return !isVercelProduction();
+}
+
+export function buildAuthSessionJson(user: unknown, token: string): Record<string, unknown> {
+  const body: Record<string, unknown> = { user };
+  if (shouldExposeAuthTokenInJson()) {
+    body.token = token;
+  }
+  return body;
+}
+
 /** Stable salt so derived secrets never collide with arbitrary env strings */
 const JWT_DERIVE_SALT = 'car-stamp:jwt-from-database-url:v1';
 
@@ -43,6 +67,9 @@ export function getJwtSecret(): string | null {
 
   const legacy = (process.env.JWT_SECRET || '').trim();
   if (legacy) return legacy;
+
+  /** Production must use an explicit secret — never derive from DATABASE_URL or VERCEL_PROJECT_ID. */
+  if (isVercelProduction()) return null;
 
   if ((process.env.AUTH_JWT_NO_DERIVED_SECRET || '').trim() === '1') return null;
 

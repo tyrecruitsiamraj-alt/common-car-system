@@ -8,6 +8,7 @@ import { readJsonBody, getString } from '../../_lib/body.js';
 import { dbQuery } from '../../_lib/postgres.js';
 import { hashPassword } from '../../_lib/auth.js';
 import { tableInAppSchema } from '../../_lib/schema.js';
+import { enforceRateLimit } from '../../_lib/rateLimit.js';
 
 const usersTable = tableInAppSchema('users');
 
@@ -25,6 +26,8 @@ async function forgotPasswordHandler(req: ApiReq, res: ApiRes) {
   if (method !== 'POST') {
     return sendError(res, 405, 'Method not allowed');
   }
+
+  if (!enforceRateLimit(req, res, 'forgot-password')) return;
 
   try {
     const raw = await readJsonBody(req);

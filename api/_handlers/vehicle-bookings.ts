@@ -565,14 +565,16 @@ async function handler(req: AuthedReq, res: ApiRes): Promise<void> {
         vehicle_id,
         starts,
         ends,
+        completedAt,
       );
+      const proposedEffectiveEnd = completedAt ?? ends;
       if (
         needsOverlapCheck &&
         (await rejectIfScheduleConflict(req, res, requestId, {
           vehicleId: vehicle_id,
           employeeId: employee_id,
           starts,
-          ends,
+          ends: proposedEffectiveEnd,
           excludeId: id,
           effectiveEndSql: patchEffectiveEndSql,
           action: patchAttempt.action,

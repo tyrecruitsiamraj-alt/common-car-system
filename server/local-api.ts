@@ -11,6 +11,8 @@ import { URL } from 'node:url';
 
 import { apiRoutes } from '../api/_handlers/registry.ts';
 import { logError, logInfo, logWarn } from '../api/_lib/logger.ts';
+import { applyCorsHeaders, resolveCors } from '../api/_lib/cors.ts';
+import { isVercelProduction } from '../api/_lib/auth.ts';
 
 type VercelLikeRes = {
   setHeader?: (name: string, value: string | string[]) => void;
@@ -52,11 +54,9 @@ async function readBodyString(req: IncomingMessage): Promise<string> {
 }
 
 function setCors(res: ServerResponse, origin?: string) {
-  // ระบุ origin จริงเพื่อให้เบราว์เซอร์ส่ง cookie เมื่อใช้ credentials: 'include'
-  res.setHeader('Access-Control-Allow-Origin', origin && origin.trim() ? origin.trim() : '*');
-  res.setHeader('Access-Control-Allow-Credentials', 'true');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, Cookie');
+  const cors = resolveCors(origin?.trim() || '');
+  applyCorsHeaders(res, cors);
+  return cors;
 }
 
 type Handler = (
@@ -75,10 +75,17 @@ const port = Number(process.env.LOCAL_API_PORT || process.env.PORT || 3000);
 
 const server = createServer(async (req, res) => {
   const origin = typeof req.headers.origin === 'string' ? req.headers.origin : undefined;
-  setCors(res, origin);
+  const cors = setCors(res, origin);
   if (req.method === 'OPTIONS') {
-    res.statusCode = 204;
+    res.statusCode = cors.allowed ? 204 : 403;
     res.end();
+    return;
+  }
+
+  if (!cors.allowed) {
+    res.statusCode = 403;
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    res.end(JSON.stringify({ error: 'Forbidden', message: 'Origin not allowed' }));
     return;
   }
 
@@ -153,7 +160,11 @@ const server = createServer(async (req, res) => {
       logError('api.unhandled', { requestId, message, stack: e instanceof Error ? e.stack : undefined });
       res.statusCode = 500;
       res.setHeader('Content-Type', 'application/json; charset=utf-8');
-      res.end(JSON.stringify({ error: 'Unhandled server error', message }));
+      if (isVercelProduction()) {
+        res.end(JSON.stringify({ error: 'Internal server error' }));
+      } else {
+        res.end(JSON.stringify({ error: 'Unhandled server error', message }));
+      }
     }
   }
 });

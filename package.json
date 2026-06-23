@@ -15,6 +15,7 @@
     "db:ping": "node scripts/pg-ping.mjs",
     "db:migrate": "node scripts/migrate.mjs",
     "db:check:booking-overlaps": "node scripts/check-booking-overlaps.mjs",
+    "db:check:booking-production-readiness": "tsx scripts/check-booking-production-readiness.ts",
     "db:migrate:replay": "node scripts/db-migrate-replay.mjs",
     "db:migrate:status": "node scripts/migrate.mjs --status",
     "db:inspect": "node scripts/db-inspect.mjs",

@@ -1,7 +1,6 @@
 /**
  * Issue a session as the first active DB user matching role (no password).
- * Default: allowed unless JARVIS_DEV_ROLE_LOGIN is explicitly false/0/no/off.
- * For strict production, set JARVIS_DEV_ROLE_LOGIN=false.
+ * Default: disabled unless JARVIS_DEV_ROLE_LOGIN=true.
  */
 import { dbQuery } from '../../_lib/postgres.js';
 import {
@@ -9,12 +8,14 @@ import {
   buildSetCookieHeader,
   getJwtSecret,
   AUTH_JWT_MISSING_API_CODE,
-  AUTH_JWT_MISSING_API_MESSAGE,
+  getAuthJwtMissingMessage,
+  buildAuthSessionJson,
 } from '../../_lib/auth.js';
 import { sendError, handleApiError, type ApiReq, type ApiRes } from '../../_lib/http.js';
 import { readJsonBody } from '../../_lib/body.js';
 import type { UserRole } from '../../_lib/auth.js';
 import { tableInAppSchema } from '../../_lib/schema.js';
+import { enforceRateLimit } from '../../_lib/rateLimit.js';
 
 const usersTable = tableInAppSchema('users');
 
@@ -49,7 +50,7 @@ function toUserResponse(row: UserRow) {
 
 function devRoleLoginAllowed(): boolean {
   const raw = process.env.JARVIS_DEV_ROLE_LOGIN;
-  if (raw === undefined || String(raw).trim() === '') return true;
+  if (raw === undefined || String(raw).trim() === '') return false;
   const v = String(raw).toLowerCase().trim();
   if (v === 'false' || v === '0' || v === 'no' || v === 'off') return false;
   return v === 'true' || v === '1' || v === 'yes';
@@ -68,16 +69,13 @@ export default async function handler(req: ApiReq, res: ApiRes) {
   }
 
   if (!devRoleLoginAllowed()) {
-    return sendError(
-      res,
-      403,
-      'Forbidden',
-      'Role pick login is disabled (JARVIS_DEV_ROLE_LOGIN=false).',
-    );
+    return sendError(res, 403, 'Forbidden', 'Role pick login is disabled.');
   }
 
+  if (!enforceRateLimit(req, res, 'dev-role')) return;
+
   if (!getJwtSecret()) {
-    return sendError(res, 503, 'Service unavailable', AUTH_JWT_MISSING_API_MESSAGE, {
+    return sendError(res, 503, 'Service unavailable', getAuthJwtMissingMessage(), {
       code: AUTH_JWT_MISSING_API_CODE,
     });
   }
@@ -122,7 +120,7 @@ export default async function handler(req: ApiReq, res: ApiRes) {
     });
 
     res.setHeader?.('Set-Cookie', buildSetCookieHeader(token, ttl));
-    return res.status(200).json({ user: toUserResponse(row), token });
+    return res.status(200).json(buildAuthSessionJson(toUserResponse(row), token));
   } catch (e) {
     return handleApiError(res, e, 'auth/dev-role');
   }

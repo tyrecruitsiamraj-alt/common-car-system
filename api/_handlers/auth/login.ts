@@ -5,12 +5,14 @@ import {
   verifyPassword,
   getJwtSecret,
   AUTH_JWT_MISSING_API_CODE,
-  AUTH_JWT_MISSING_API_MESSAGE,
+  getAuthJwtMissingMessage,
+  buildAuthSessionJson,
 } from '../../_lib/auth.js';
 import { sendError, handleApiError, type ApiReq, type ApiRes } from '../../_lib/http.js';
 import { readJsonBody, getString } from '../../_lib/body.js';
 import type { UserRole } from '../../_lib/auth.js';
 import { tableInAppSchema } from '../../_lib/schema.js';
+import { enforceRateLimit } from '../../_lib/rateLimit.js';
 
 const usersTable = tableInAppSchema('users');
 
@@ -51,10 +53,12 @@ export default async function handler(req: ApiReq, res: ApiRes) {
   }
 
   if (!getJwtSecret()) {
-    return sendError(res, 503, 'Service unavailable', AUTH_JWT_MISSING_API_MESSAGE, {
+    return sendError(res, 503, 'Service unavailable', getAuthJwtMissingMessage(), {
       code: AUTH_JWT_MISSING_API_CODE,
     });
   }
+
+  if (!enforceRateLimit(req, res, 'login')) return;
 
   try {
     const raw = await readJsonBody(req);
@@ -99,7 +103,7 @@ export default async function handler(req: ApiReq, res: ApiRes) {
     });
 
     res.setHeader?.('Set-Cookie', buildSetCookieHeader(token, ttl));
-    return res.status(200).json({ user: toUserResponse(row), token });
+    return res.status(200).json(buildAuthSessionJson(toUserResponse(row), token));
   } catch (e) {
     return handleApiError(res, e, 'auth/login');
   }

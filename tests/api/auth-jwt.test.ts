@@ -1,12 +1,22 @@
 // @vitest-environment node
 import { describe, it, expect, beforeEach } from 'vitest';
-import { signAuthToken, verifyAuthToken, getJwtSecret } from '../../api/_lib/auth';
+import {
+  signAuthToken,
+  verifyAuthToken,
+  getJwtSecret,
+  isVercelProduction,
+  shouldExposeAuthTokenInJson,
+  buildAuthSessionJson,
+  getAuthJwtMissingMessage,
+  AUTH_JWT_MISSING_API_MESSAGE_PRODUCTION,
+} from '../../api/_lib/auth';
 
 describe('auth JWT', () => {
   beforeEach(() => {
     delete process.env.JWT_SECRET;
     delete process.env.AUTH_JWT_NO_DERIVED_SECRET;
     delete process.env.AUTH_JWT_DISABLE_VERCEL_PROJECT_FALLBACK;
+    delete process.env.VERCEL_ENV;
     delete process.env.DATABASE_URL;
     delete process.env.POSTGRES_URL;
     delete process.env.POSTGRES_PRISMA_URL;
@@ -55,7 +65,7 @@ describe('auth JWT', () => {
     expect(decoded.role).toBe('supervisor');
   });
 
-  it('derives secret from DATABASE_URL when AUTH_JWT_SECRET is unset', () => {
+  it('derives secret from DATABASE_URL when AUTH_JWT_SECRET is unset (non-production)', () => {
     delete process.env.AUTH_JWT_SECRET;
     process.env.DATABASE_URL = 'postgresql://u:p@host:5432/car_stamp';
     const token = signAuthToken({
@@ -65,6 +75,15 @@ describe('auth JWT', () => {
     });
     const decoded = verifyAuthToken(token);
     expect(decoded.email).toBe('x@example.com');
+  });
+
+  it('does not derive secret on VERCEL_ENV=production without AUTH_JWT_SECRET', () => {
+    delete process.env.AUTH_JWT_SECRET;
+    process.env.VERCEL_ENV = 'production';
+    process.env.DATABASE_URL = 'postgresql://u:p@host:5432/car_stamp';
+    expect(getJwtSecret()).toBeNull();
+    expect(isVercelProduction()).toBe(true);
+    expect(getAuthJwtMissingMessage()).toBe(AUTH_JWT_MISSING_API_MESSAGE_PRODUCTION);
   });
 
   it('respects AUTH_JWT_NO_DERIVED_SECRET=1', () => {
@@ -86,7 +105,7 @@ describe('auth JWT', () => {
     expect(verifyAuthToken(token).email).toBe('p@example.com');
   });
 
-  it('derives from VERCEL_PROJECT_ID on Vercel when no DB URL', () => {
+  it('derives from VERCEL_PROJECT_ID on Vercel when no DB URL (non-production)', () => {
     delete process.env.AUTH_JWT_SECRET;
     process.env.VERCEL = '1';
     process.env.VERCEL_PROJECT_ID = 'prj_test_vercel_fallback_xx';
@@ -96,5 +115,20 @@ describe('auth JWT', () => {
       role: 'staff',
     });
     expect(verifyAuthToken(token).email).toBe('v@example.com');
+  });
+
+  it('omits token from auth JSON on production', () => {
+    process.env.VERCEL_ENV = 'production';
+    expect(shouldExposeAuthTokenInJson()).toBe(false);
+    const body = buildAuthSessionJson({ id: '1' }, 'jwt-token');
+    expect(body.user).toEqual({ id: '1' });
+    expect(body.token).toBeUndefined();
+  });
+
+  it('includes token in auth JSON outside production', () => {
+    delete process.env.VERCEL_ENV;
+    expect(shouldExposeAuthTokenInJson()).toBe(true);
+    const body = buildAuthSessionJson({ id: '1' }, 'jwt-token');
+    expect(body.token).toBe('jwt-token');
   });
 });

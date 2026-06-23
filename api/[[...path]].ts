@@ -4,6 +4,8 @@
  */
 import { apiRoutes } from './_handlers/registry.js';
 import type { ApiReq, ApiRes } from './_lib/http.js';
+import { applyCorsHeaders, resolveCors } from './_lib/cors.js';
+import { isVercelProduction } from './_lib/auth.js';
 
 /** Vercel injects Node-compatible req/res; avoid @vercel/node dependency here. */
 type VercelishReq = {
@@ -70,14 +72,16 @@ function resolveHttpMethod(req: VercelishReq): string {
 
 export default async function handler(req: VercelishReq, res: VercelishRes): Promise<void> {
   const originHeader = typeof req.headers?.origin === 'string' ? req.headers.origin.trim() : '';
-  // ถ้ามี Origin ให้ตอบกลับแบบระบุ origin จริงเพื่อให้เบราว์เซอร์ส่ง cookie เมื่อใช้ credentials: 'include'
-  res.setHeader('Access-Control-Allow-Origin', originHeader ? originHeader : '*');
-  res.setHeader('Access-Control-Allow-Credentials', 'true');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, Cookie');
+  const cors = resolveCors(originHeader);
+  applyCorsHeaders(res, cors);
 
   if (resolveHttpMethod(req) === 'OPTIONS') {
-    res.status(204).end();
+    res.status(cors.allowed ? 204 : 403).end();
+    return;
+  }
+
+  if (!cors.allowed) {
+    res.status(403).json({ error: 'Forbidden', message: 'Origin not allowed' });
     return;
   }
 
@@ -103,7 +107,11 @@ export default async function handler(req: VercelishReq, res: VercelishRes): Pro
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
     try {
-      res.status(500).json({ error: 'Internal server error', message });
+      if (isVercelProduction()) {
+        res.status(500).json({ error: 'Internal server error' });
+      } else {
+        res.status(500).json({ error: 'Internal server error', message });
+      }
     } catch {
       /* response already sent */
     }

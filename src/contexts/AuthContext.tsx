@@ -8,13 +8,16 @@ import {
   clearRuntimeDemoFlag,
 } from '@/lib/demoMode';
 import { apiFetch } from '@/lib/apiFetch';
+import {
+  clearStoredAuthToken,
+  storeAuthToken,
+} from '@/lib/authTokenStorage';
 import { AUTH_JWT_MISSING_HINT, responseIndicatesJwtSigningUnavailable } from '@/lib/vercelAuthHint';
 import { LOGIN_DATABASE_MISSING_HINT_TH, loginErrorLooksLikeMissingDatabase } from '@/lib/loginSetupHint';
 import { clearJobStaffApiCache, refreshJobStaffFromApi } from '@/lib/jobStaffRemote';
 import { refreshWorkCalendarFromApi } from '@/lib/workCalendarStore';
 
 const DEMO_STORAGE_KEY = 'jarvis_user_role';
-const AUTH_TOKEN_STORAGE_KEY = 'jarvis_auth_token';
 
 interface AuthContextType {
   user: User | null;
@@ -158,7 +161,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (!r.ok) {
           if (r.status === 401 || r.status === 403) {
             setUser(null);
-            localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
+            clearStoredAuthToken();
             clearJobStaffApiCache();
             return;
           }
@@ -209,7 +212,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return `ไม่พบอีเมลในโหมดสาธิต — ลอง ${Object.keys(DEMO_EMAIL_TO_ROLE).join(', ')} หรือ ${mockUsers.map((u) => u.email).join(', ')} (รหัสผ่านใดก็ได้ที่ไม่ว่าง)`;
       }
       setUser(mockUser);
-      localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
+      clearStoredAuthToken();
       clearRuntimeDemoFlag();
       void refreshJobStaffFromApi();
       void refreshWorkCalendarFromApi();
@@ -239,8 +242,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       return humanizeLoginFailure(r.status, m, err);
     }
-    if (typeof data.token === 'string' && data.token.trim()) {
-      localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, data.token.trim());
+    if (typeof data.token === 'string') {
+      storeAuthToken(data.token);
     }
     const rawUser = data.user as Record<string, unknown> | undefined;
     const u = rawUser ? mapApiUser(rawUser) : null;
@@ -295,7 +298,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (isDemoMode()) {
       setUser(null);
       localStorage.removeItem(DEMO_STORAGE_KEY);
-      localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
+      clearStoredAuthToken();
       clearRuntimeDemoFlag();
       return;
     }
@@ -304,7 +307,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch {
       /* still clear client state */
     }
-    localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
+    clearStoredAuthToken();
     clearJobStaffApiCache();
     clearRuntimeDemoFlag();
     setUser(null);
