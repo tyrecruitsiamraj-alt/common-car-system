@@ -56,8 +56,6 @@ function trimCoreInspectionQuestions(questions) {
   return questions.slice(0, idx);
 }
 
-const MATRIX_OPTIONS = ['ปกติ', 'ไม่ปกติ', 'ไม่มี'];
-
 function stripHtml(s) {
   return String(s || '')
     .replace(/<[^>]+>/g, '')
@@ -94,12 +92,23 @@ async function fetchRuntimeForm(msFormId) {
   return r.json();
 }
 
+function matrixGroupChoices(groupQuestion) {
+  if (!groupQuestion?.choices?.length) return [];
+  return [...groupQuestion.choices]
+    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+    .map((c) => stripHtml(c.displayText || c.description || ''))
+    .map((t) => t.replace(/^O\s*:\s*/i, '').trim())
+    .filter(Boolean);
+}
+
 function convertQuestions(rawQuestions) {
   const sorted = [...rawQuestions].sort((a, b) => a.order - b.order);
   const groupTitles = new Map();
+  const groupChoices = new Map();
   for (const q of sorted) {
     if (q.type === 'Question.MatrixChoiceGroup') {
       groupTitles.set(q.id, stripHtml(q.title));
+      groupChoices.set(q.id, matrixGroupChoices(q));
     }
   }
 
@@ -123,11 +132,12 @@ function convertQuestions(rawQuestions) {
     if (q.type === 'Question.MatrixChoice') {
       const group = groupTitles.get(q.groupId);
       const label = group ? `${group} — ${title}` : title;
+      const options = groupChoices.get(q.groupId) ?? [];
       out.push({
         id: slugId(q.id),
         type: 'single',
         label,
-        options: MATRIX_OPTIONS,
+        options: options.length > 0 ? options : ['ปกติ', 'ไม่ปกติ'],
         required: !!q.required,
       });
       continue;

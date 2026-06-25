@@ -8,7 +8,7 @@
     "whenToUse": "ทุกวันก่อนเริ่มงาน / ก่อนออกรถ",
     "msFormUrl": "https://forms.office.com/pages/responsepage.aspx?id=XkjN2b05yUyVOYyXYx-7cVniQHtG9_xFuulQOMyLWTRUQ1dDTDA5Nk05UkRZUVNYR01SQ0xUV1BFUS4u&origin=QRCode&qrcodeorigin=presentation&route=shorturl",
     "msFormId": "XkjN2b05yUyVOYyXYx-7cVniQHtG9_xFuulQOMyLWTRUQ1dDTDA5Nk05UkRZUVNYR01SQ0xUV1BFUS4u",
-    "syncedAt": "2026-06-22T04:28:43.409Z",
+    "syncedAt": "2026-06-25T03:06:36.238Z",
     "questions": [
       {
         "id": "driver_name",
@@ -69,7 +69,7 @@
     "whenToUse": "ทุกครั้งก่อนเริ่มงาน / ก่อนออกรถ",
     "msFormUrl": "https://forms.office.com/Pages/ResponsePage.aspx?id=XkjN2b05yUyVOYyXYx-7cVniQHtG9_xFuulQOMyLWTRUQ003OFpUWllVQkVCMkszN0hKMFRGSzhTNy4u&origin=QRCode",
     "msFormId": "XkjN2b05yUyVOYyXYx-7cVniQHtG9_xFuulQOMyLWTRUQ003OFpUWllVQkVCMkszN0hKMFRGSzhTNy4u",
-    "syncedAt": "2026-06-22T04:28:43.739Z",
+    "syncedAt": "2026-06-25T03:06:36.359Z",
     "questions": [
       {
         "id": "driver_name",
@@ -134,9 +134,9 @@
         "type": "single",
         "label": "ระดับน้ำมัน — ระดับ",
         "options": [
-          "ปกติ",
-          "ไม่ปกติ",
-          "ไม่มี"
+          "ต่ำ",
+          "กลาง",
+          "เต็ม"
         ],
         "required": false
       },
@@ -171,9 +171,8 @@
         "type": "single",
         "label": "ความสะอาดของรถยนต์ — ด้านนอก",
         "options": [
-          "ปกติ",
-          "ไม่ปกติ",
-          "ไม่มี"
+          "สะอาด",
+          "ไม่สะอาด"
         ],
         "required": false
       },
@@ -182,9 +181,8 @@
         "type": "single",
         "label": "ความสะอาดของรถยนต์ — ด้านใน",
         "options": [
-          "ปกติ",
-          "ไม่ปกติ",
-          "ไม่มี"
+          "สะอาด",
+          "ไม่สะอาด"
         ],
         "required": false
       },
@@ -200,8 +198,7 @@
         "label": "สภาพรถโดยรวม — กระจกรถร้าว/แตก",
         "options": [
           "ปกติ",
-          "ไม่ปกติ",
-          "ไม่มี"
+          "ผิดปกติ"
         ],
         "required": false
       },
@@ -211,8 +208,7 @@
         "label": "สภาพรถโดยรวม — รถมีรอย/บุบ",
         "options": [
           "ปกติ",
-          "ไม่ปกติ",
-          "ไม่มี"
+          "ผิดปกติ"
         ],
         "required": false
       },
@@ -260,7 +256,7 @@
     "whenToUse": "ทุกครั้งที่เติมน้ำมัน",
     "msFormUrl": "https://forms.office.com/Pages/ResponsePage.aspx?id=XkjN2b05yUyVOYyXYx-7cVniQHtG9_xFuulQOMyLWTRUMTlDR0Y0MFlWREVINzEzMFNNNFZSWVBEQi4u&origin=QRCode",
     "msFormId": "XkjN2b05yUyVOYyXYx-7cVniQHtG9_xFuulQOMyLWTRUMTlDR0Y0MFlWREVINzEzMFNNNFZSWVBEQi4u",
-    "syncedAt": "2026-06-22T04:28:43.840Z",
+    "syncedAt": "2026-06-25T03:06:36.673Z",
     "questions": [
       {
         "id": "ms_r8bd4a5a78843423ca22f577",
