@@ -121,7 +121,7 @@ const ExamForm: React.FC<Props> = ({ exam }) => {
                   ดูคะแนนอีกครั้ง
                 </Button>
                 <Button asChild variant="secondary" className="rounded-2xl">
-                  <Link to={`/exams/results?id=${scoreRow.id}`}>ดูผลข้อสอบเต็ม</Link>
+                  <Link to="/exams/results">ดูผลข้อสอบ</Link>
                 </Button>
               </>
             ) : null}

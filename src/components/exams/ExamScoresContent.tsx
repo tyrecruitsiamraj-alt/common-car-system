@@ -37,20 +37,17 @@ function toScoreRow(sub: ExamSubmissionPayload): ExamScoreRow {
   };
 }
 
-function mergeSubmissions(
-  base: ExamSubmissionPayload[],
-  extra: ExamSubmissionPayload[],
-): ExamSubmissionPayload[] {
-  const byId = new Map<string, ExamSubmissionPayload>();
-  for (const sub of [...extra, ...base]) byId.set(sub.id, sub);
-  return [...byId.values()].sort(
-    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
-  );
+function submissionLocalDate(iso: string): string {
+  const d = new Date(iso);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
 }
 
 function matchesFilters(
   sub: ExamSubmissionPayload,
-  filters: { examKey: string; name: string; plate: string; submissionId: string },
+  filters: { examKey: string; name: string; plate: string; dateFrom: string; dateTo: string },
 ): boolean {
   if (filters.examKey !== 'all' && sub.exam_key !== filters.examKey) return false;
   if (filters.name.trim()) {
@@ -61,10 +58,9 @@ function matchesFilters(
     const p = (sub.vehicle_plate ?? '').toLowerCase();
     if (!p.includes(filters.plate.trim().toLowerCase())) return false;
   }
-  if (filters.submissionId.trim()) {
-    const id = filters.submissionId.trim().toLowerCase();
-    if (sub.id.toLowerCase() !== id && !sub.id.toLowerCase().includes(id)) return false;
-  }
+  const subDate = submissionLocalDate(sub.created_at);
+  if (filters.dateFrom && subDate < filters.dateFrom) return false;
+  if (filters.dateTo && subDate > filters.dateTo) return false;
   return true;
 }
 
@@ -74,13 +70,14 @@ const ExamScoresContent: React.FC = () => {
   const [examKey, setExamKey] = useState(searchParams.get('exam_key') ?? 'all');
   const [name, setName] = useState(searchParams.get('submitter_name') ?? '');
   const [plate, setPlate] = useState(searchParams.get('vehicle_plate') ?? '');
-  const [submissionId, setSubmissionId] = useState(searchParams.get('id') ?? '');
+  const [dateFrom, setDateFrom] = useState(searchParams.get('date_from') ?? '');
+  const [dateTo, setDateTo] = useState(searchParams.get('date_to') ?? '');
   const [loading, setLoading] = useState(true);
   const [allSubmissions, setAllSubmissions] = useState<ExamSubmissionPayload[]>([]);
 
   const filters = useMemo(
-    () => ({ examKey, name, plate, submissionId }),
-    [examKey, name, plate, submissionId],
+    () => ({ examKey, name, plate, dateFrom, dateTo }),
+    [examKey, name, plate, dateFrom, dateTo],
   );
 
   const filteredSubmissions = useMemo(
@@ -97,9 +94,13 @@ const ExamScoresContent: React.FC = () => {
   }, [allSubmissions]);
 
   const hasActiveFilters =
-    examKey !== 'all' || name.trim() !== '' || plate.trim() !== '' || submissionId.trim() !== '';
+    examKey !== 'all' ||
+    name.trim() !== '' ||
+    plate.trim() !== '' ||
+    dateFrom !== '' ||
+    dateTo !== '';
 
-  const loadAll = useCallback(async (opts?: { ensureId?: string }) => {
+  const loadAll = useCallback(async () => {
     setLoading(true);
     try {
       const q = new URLSearchParams();
@@ -110,19 +111,7 @@ const ExamScoresContent: React.FC = () => {
         throw new Error(j.message || `HTTP ${r.status}`);
       }
       const data = (await r.json()) as ExamSubmissionPayload[];
-      let list = Array.isArray(data) ? data : [];
-
-      const ensureId = opts?.ensureId?.trim();
-      if (ensureId && !list.some((sub) => sub.id === ensureId)) {
-        const one = await apiFetch(`/api/fleet-exam-submissions?id=${encodeURIComponent(ensureId)}`);
-        if (one.ok) {
-          const oneData = (await one.json()) as ExamSubmissionPayload[];
-          if (Array.isArray(oneData) && oneData[0]) {
-            list = mergeSubmissions(list, oneData);
-          }
-        }
-      }
-
+      const list = Array.isArray(data) ? data : [];
       setAllSubmissions(list);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'โหลดผลข้อสอบไม่สำเร็จ');
@@ -133,23 +122,25 @@ const ExamScoresContent: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    void loadAll({ ensureId: searchParams.get('id') ?? undefined });
-  }, [loadAll]); // eslint-disable-line react-hooks/exhaustive-deps
+    void loadAll();
+  }, [loadAll]);
 
   useEffect(() => {
     const next = new URLSearchParams();
     if (examKey !== 'all') next.set('exam_key', examKey);
     if (name.trim()) next.set('submitter_name', name.trim());
     if (plate.trim()) next.set('vehicle_plate', plate.trim());
-    if (submissionId.trim()) next.set('id', submissionId.trim());
+    if (dateFrom) next.set('date_from', dateFrom);
+    if (dateTo) next.set('date_to', dateTo);
     setSearchParams(next, { replace: true });
-  }, [examKey, name, plate, submissionId, setSearchParams]);
+  }, [examKey, name, plate, dateFrom, dateTo, setSearchParams]);
 
   const clearFilters = () => {
     setExamKey('all');
     setName('');
     setPlate('');
-    setSubmissionId('');
+    setDateFrom('');
+    setDateTo('');
   };
 
   return (
@@ -176,7 +167,7 @@ const ExamScoresContent: React.FC = () => {
               size="sm"
               className="h-8 rounded-xl text-xs"
               disabled={loading}
-              onClick={() => void loadAll({ ensureId: submissionId.trim() || undefined })}
+              onClick={() => void loadAll()}
             >
               {loading ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -228,14 +219,26 @@ const ExamScoresContent: React.FC = () => {
           </div>
         </div>
 
-        <div className="space-y-1">
-          <Label className="text-xs">รหัสการส่ง</Label>
-          <Input
-            value={submissionId}
-            onChange={(e) => setSubmissionId(e.target.value)}
-            className="h-9 text-sm font-mono text-xs"
-            placeholder="กรองตาม uuid"
-          />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <div className="space-y-1">
+            <Label className="text-xs">ตั้งแต่วันที่</Label>
+            <Input
+              type="date"
+              value={dateFrom}
+              onChange={(e) => setDateFrom(e.target.value)}
+              className="h-9 text-sm"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">ถึงวันที่</Label>
+            <Input
+              type="date"
+              value={dateTo}
+              onChange={(e) => setDateTo(e.target.value)}
+              className="h-9 text-sm"
+              min={dateFrom || undefined}
+            />
+          </div>
         </div>
       </div>
 

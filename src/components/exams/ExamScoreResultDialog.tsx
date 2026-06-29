@@ -27,19 +27,14 @@ const ExamScoreResultDialog: React.FC<Props> = ({ open, onOpenChange, row, onDon
             <BarChart3 className="h-5 w-5 text-primary" />
             ผลคะแนนข้อสอบ
           </DialogTitle>
-          <DialogDescription>
-            บันทึกคำตอบแล้ว — เก็บรหัสการส่งไว้สำหรับค้นหาคะแนนภายหลัง
-          </DialogDescription>
+          <DialogDescription>บันทึกคำตอบแล้ว — ดูผลทั้งหมดได้ที่หน้าผลข้อสอบ</DialogDescription>
         </DialogHeader>
 
         {row ? (
           <div className="space-y-3">
             <ExamScorePanel row={row} />
-            <p className="text-[11px] text-muted-foreground font-mono break-all rounded-xl bg-muted/40 px-3 py-2">
-              รหัสการส่ง: {row.id}
-            </p>
             <Button asChild type="button" variant="outline" className="w-full rounded-2xl">
-              <Link to={`/exams/results?id=${row.id}`}>เปิดหน้าผลข้อสอบเต็ม</Link>
+              <Link to="/exams/results">เปิดหน้าผลข้อสอบ</Link>
             </Button>
             <Button
               type="button"
