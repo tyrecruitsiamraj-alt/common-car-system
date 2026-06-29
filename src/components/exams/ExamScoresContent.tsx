@@ -68,12 +68,7 @@ function matchesFilters(
   return true;
 }
 
-type Props = {
-  /** เปิดรายละเอียดเมื่อเหลือรายการเดียว */
-  expandWhenSingle?: boolean;
-};
-
-const ExamScoresContent: React.FC<Props> = ({ expandWhenSingle = true }) => {
+const ExamScoresContent: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const [examKey, setExamKey] = useState(searchParams.get('exam_key') ?? 'all');
@@ -270,12 +265,11 @@ const ExamScoresContent: React.FC<Props> = ({ expandWhenSingle = true }) => {
         ) : null}
 
         {!loading
-          ? filteredRows.map((row, idx) => (
+          ? filteredRows.map((row) => (
               <ExamSubmissionDetail
                 key={row.id}
                 row={row}
                 submission={submissionById.get(row.id)}
-                defaultExpanded={expandWhenSingle && filteredRows.length === 1 && idx === 0}
               />
             ))
           : null}
