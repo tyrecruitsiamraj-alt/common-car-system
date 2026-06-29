@@ -153,19 +153,8 @@ async function handleGet(req: ApiReq, res: ApiRes): Promise<void> {
       return res.status(200).json([toPublicRow(row)]);
     }
 
-    const token = getTokenFromReq(req) || getTokenFromAuthHeader(req);
-    let isStaff = false;
-    if (token) {
-      try {
-        const user = verifyAuthToken(token);
-        isStaff = user.role === 'staff' || user.role === 'supervisor' || user.role === 'admin';
-      } catch {
-        isStaff = false;
-      }
-    }
-
-    if (isStaff && recent && !submitterName && !vehiclePlate) {
-      const limit = Math.min(50, Math.max(1, parseInt(recent, 10) || 20));
+    if (recent && !submitterName && !vehiclePlate) {
+      const limit = Math.min(50, Math.max(1, parseInt(recent, 10) || 30));
       const params: unknown[] = [limit];
       let sql = `select * from ${tbl}`;
       if (examKey && VALID_EXAM_KEYS.has(examKey)) {

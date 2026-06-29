@@ -1,12 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Loader2, Search } from 'lucide-react';
+import { Loader2, RefreshCw, X } from 'lucide-react';
 import ExamSubmissionDetail from '@/components/exams/ExamSubmissionDetail';
 import { type ExamScoreRow } from '@/components/exams/ExamScorePanel';
 import { FLEET_EXAMS } from '@/lib/fleetExamsConfig';
 import { submissionToScoreResult, type ExamSubmissionPayload } from '@/lib/fleetExamScoring';
 import { apiFetch } from '@/lib/apiFetch';
-import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -18,6 +17,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { toast } from 'sonner';
+
+const RECENT_LIMIT = 50;
 
 function toScoreRow(sub: ExamSubmissionPayload): ExamScoreRow {
   const scored = submissionToScoreResult(sub);
@@ -36,102 +37,164 @@ function toScoreRow(sub: ExamSubmissionPayload): ExamScoreRow {
   };
 }
 
+function mergeSubmissions(
+  base: ExamSubmissionPayload[],
+  extra: ExamSubmissionPayload[],
+): ExamSubmissionPayload[] {
+  const byId = new Map<string, ExamSubmissionPayload>();
+  for (const sub of [...extra, ...base]) byId.set(sub.id, sub);
+  return [...byId.values()].sort(
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+  );
+}
+
+function matchesFilters(
+  sub: ExamSubmissionPayload,
+  filters: { examKey: string; name: string; plate: string; submissionId: string },
+): boolean {
+  if (filters.examKey !== 'all' && sub.exam_key !== filters.examKey) return false;
+  if (filters.name.trim()) {
+    const n = (sub.submitter_name ?? '').toLowerCase();
+    if (!n.includes(filters.name.trim().toLowerCase())) return false;
+  }
+  if (filters.plate.trim()) {
+    const p = (sub.vehicle_plate ?? '').toLowerCase();
+    if (!p.includes(filters.plate.trim().toLowerCase())) return false;
+  }
+  if (filters.submissionId.trim()) {
+    const id = filters.submissionId.trim().toLowerCase();
+    if (sub.id.toLowerCase() !== id && !sub.id.toLowerCase().includes(id)) return false;
+  }
+  return true;
+}
+
 type Props = {
-  /** เปิดรายละเอียดรายการแรกอัตโนมัติ */
-  expandFirst?: boolean;
+  /** เปิดรายละเอียดเมื่อเหลือรายการเดียว */
+  expandWhenSingle?: boolean;
 };
 
-const ExamScoresContent: React.FC<Props> = ({ expandFirst = false }) => {
+const ExamScoresContent: React.FC<Props> = ({ expandWhenSingle = true }) => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const { isAuthenticated, user } = useAuth();
-  const isStaff =
-    isAuthenticated && user && (user.role === 'staff' || user.role === 'supervisor' || user.role === 'admin');
 
-  const initialId = searchParams.get('id') ?? '';
-  const initialName = searchParams.get('submitter_name') ?? '';
-  const initialPlate = searchParams.get('vehicle_plate') ?? '';
-  const initialExamKey = searchParams.get('exam_key') ?? 'all';
+  const [examKey, setExamKey] = useState(searchParams.get('exam_key') ?? 'all');
+  const [name, setName] = useState(searchParams.get('submitter_name') ?? '');
+  const [plate, setPlate] = useState(searchParams.get('vehicle_plate') ?? '');
+  const [submissionId, setSubmissionId] = useState(searchParams.get('id') ?? '');
+  const [loading, setLoading] = useState(true);
+  const [allSubmissions, setAllSubmissions] = useState<ExamSubmissionPayload[]>([]);
 
-  const [examKey, setExamKey] = useState(initialExamKey);
-  const [name, setName] = useState(initialName);
-  const [plate, setPlate] = useState(initialPlate);
-  const [submissionId, setSubmissionId] = useState(initialId);
-  const [loading, setLoading] = useState(false);
-  const [rows, setRows] = useState<ExamScoreRow[]>([]);
-  const [submissions, setSubmissions] = useState<ExamSubmissionPayload[]>([]);
-  const [searched, setSearched] = useState(false);
-  const [recentMode, setRecentMode] = useState(false);
+  const filters = useMemo(
+    () => ({ examKey, name, plate, submissionId }),
+    [examKey, name, plate, submissionId],
+  );
+
+  const filteredSubmissions = useMemo(
+    () => allSubmissions.filter((sub) => matchesFilters(sub, filters)),
+    [allSubmissions, filters],
+  );
+
+  const filteredRows = useMemo(() => filteredSubmissions.map(toScoreRow), [filteredSubmissions]);
 
   const submissionById = useMemo(() => {
     const map = new Map<string, ExamSubmissionPayload>();
-    for (const sub of submissions) map.set(sub.id, sub);
+    for (const sub of allSubmissions) map.set(sub.id, sub);
     return map;
-  }, [submissions]);
+  }, [allSubmissions]);
 
-  const fetchResults = useCallback(
-    async (opts?: { recent?: boolean; syncUrl?: boolean }) => {
+  const hasActiveFilters =
+    examKey !== 'all' || name.trim() !== '' || plate.trim() !== '' || submissionId.trim() !== '';
+
+  const loadAll = useCallback(async (opts?: { ensureId?: string }) => {
+    setLoading(true);
+    try {
       const q = new URLSearchParams();
-      if (opts?.recent && isStaff) {
-        q.set('recent', '30');
-        if (examKey !== 'all') q.set('exam_key', examKey);
-      } else {
-        if (examKey !== 'all') q.set('exam_key', examKey);
-        if (name.trim()) q.set('submitter_name', name.trim());
-        if (plate.trim()) q.set('vehicle_plate', plate.trim());
-        if (submissionId.trim()) q.set('id', submissionId.trim());
-        if ([...q.keys()].length === 0) {
-          toast.message('กรอกชื่อผู้ขับ ทะเบียน หรือรหัสการส่ง');
-          return;
+      q.set('recent', String(RECENT_LIMIT));
+      const r = await apiFetch(`/api/fleet-exam-submissions?${q}`);
+      if (!r.ok) {
+        const j = (await r.json().catch(() => ({}))) as { message?: string };
+        throw new Error(j.message || `HTTP ${r.status}`);
+      }
+      const data = (await r.json()) as ExamSubmissionPayload[];
+      let list = Array.isArray(data) ? data : [];
+
+      const ensureId = opts?.ensureId?.trim();
+      if (ensureId && !list.some((sub) => sub.id === ensureId)) {
+        const one = await apiFetch(`/api/fleet-exam-submissions?id=${encodeURIComponent(ensureId)}`);
+        if (one.ok) {
+          const oneData = (await one.json()) as ExamSubmissionPayload[];
+          if (Array.isArray(oneData) && oneData[0]) {
+            list = mergeSubmissions(list, oneData);
+          }
         }
       }
 
-      setLoading(true);
-      setSearched(true);
-      setRecentMode(!!opts?.recent);
-
-      try {
-        const r = await apiFetch(`/api/fleet-exam-submissions?${q}`);
-        if (!r.ok) {
-          const j = (await r.json().catch(() => ({}))) as { message?: string };
-          throw new Error(j.message || `HTTP ${r.status}`);
-        }
-        const data = (await r.json()) as ExamSubmissionPayload[];
-        const list = Array.isArray(data) ? data : [];
-        setSubmissions(list);
-        setRows(list.map(toScoreRow));
-
-        if (opts?.syncUrl !== false && !opts?.recent) {
-          const next = new URLSearchParams();
-          if (examKey !== 'all') next.set('exam_key', examKey);
-          if (name.trim()) next.set('submitter_name', name.trim());
-          if (plate.trim()) next.set('vehicle_plate', plate.trim());
-          if (submissionId.trim()) next.set('id', submissionId.trim());
-          setSearchParams(next, { replace: true });
-        }
-      } catch (err) {
-        toast.error(err instanceof Error ? err.message : 'โหลดผลข้อสอบไม่สำเร็จ');
-        setRows([]);
-        setSubmissions([]);
-      } finally {
-        setLoading(false);
-      }
-    },
-    [examKey, isStaff, name, plate, setSearchParams, submissionId],
-  );
+      setAllSubmissions(list);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'โหลดผลข้อสอบไม่สำเร็จ');
+      setAllSubmissions([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    if (initialId || initialName || initialPlate) {
-      void fetchResults({ syncUrl: false });
-      return;
-    }
-    if (isStaff) {
-      void fetchResults({ recent: true, syncUrl: false });
-    }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    void loadAll({ ensureId: searchParams.get('id') ?? undefined });
+  }, [loadAll]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    const next = new URLSearchParams();
+    if (examKey !== 'all') next.set('exam_key', examKey);
+    if (name.trim()) next.set('submitter_name', name.trim());
+    if (plate.trim()) next.set('vehicle_plate', plate.trim());
+    if (submissionId.trim()) next.set('id', submissionId.trim());
+    setSearchParams(next, { replace: true });
+  }, [examKey, name, plate, submissionId, setSearchParams]);
+
+  const clearFilters = () => {
+    setExamKey('all');
+    setName('');
+    setPlate('');
+    setSubmissionId('');
+  };
 
   return (
     <div className="space-y-5">
       <div className="rounded-2xl border border-border/80 bg-muted/20 p-4 space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-sm font-medium text-foreground">ตัวกรอง</p>
+          <div className="flex flex-wrap gap-2">
+            {hasActiveFilters ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-8 rounded-xl text-xs"
+                onClick={clearFilters}
+              >
+                <X className="h-3.5 w-3.5 mr-1" />
+                ล้างตัวกรอง
+              </Button>
+            ) : null}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-8 rounded-xl text-xs"
+              disabled={loading}
+              onClick={() => void loadAll({ ensureId: submissionId.trim() || undefined })}
+            >
+              {loading ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <>
+                  <RefreshCw className="h-3.5 w-3.5 mr-1" />
+                  รีเฟรช
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
+
         <div className="space-y-1">
           <Label className="text-xs">ข้อสอบ</Label>
           <Select value={examKey} onValueChange={setExamKey}>
@@ -156,7 +219,7 @@ const ExamScoresContent: React.FC<Props> = ({ expandFirst = false }) => {
               value={name}
               onChange={(e) => setName(e.target.value)}
               className="h-9 text-sm"
-              placeholder="ชื่อ-นามสกุล"
+              placeholder="กรองตามชื่อ"
             />
           </div>
           <div className="space-y-1">
@@ -165,75 +228,57 @@ const ExamScoresContent: React.FC<Props> = ({ expandFirst = false }) => {
               value={plate}
               onChange={(e) => setPlate(e.target.value)}
               className="h-9 text-sm"
-              placeholder="กข 1234"
+              placeholder="กรองตามทะเบียน"
             />
           </div>
         </div>
 
         <div className="space-y-1">
-          <Label className="text-xs">รหัสการส่ง (ถ้ามี)</Label>
+          <Label className="text-xs">รหัสการส่ง</Label>
           <Input
             value={submissionId}
             onChange={(e) => setSubmissionId(e.target.value)}
             className="h-9 text-sm font-mono text-xs"
-            placeholder="uuid หลังส่งข้อสอบ"
+            placeholder="กรองตาม uuid"
           />
-        </div>
-
-        <div className="flex flex-wrap gap-2">
-          <Button
-            type="button"
-            className="rounded-2xl h-10 flex-1 sm:flex-none sm:min-w-[160px]"
-            disabled={loading}
-            onClick={() => void fetchResults()}
-          >
-            {loading ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <>
-                <Search className="h-4 w-4 mr-2" />
-                ค้นหา
-              </>
-            )}
-          </Button>
-          {isStaff ? (
-            <Button
-              type="button"
-              variant="outline"
-              className="rounded-2xl h-10"
-              disabled={loading}
-              onClick={() => void fetchResults({ recent: true })}
-            >
-              รายการล่าสุด
-            </Button>
-          ) : null}
         </div>
       </div>
 
       <div className="space-y-3">
-        {!searched && !loading ? (
-          <p className="text-sm text-muted-foreground text-center py-8">
-            กรอกเงื่อนไขแล้วกดค้นหา
-            {isStaff ? ' หรือดูรายการล่าสุด' : ''}
+        {loading ? (
+          <div className="flex items-center justify-center gap-2 py-12 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            กำลังโหลดรายการ…
+          </div>
+        ) : null}
+
+        {!loading && allSubmissions.length > 0 ? (
+          <p className="text-xs text-muted-foreground">
+            แสดง {filteredRows.length} จาก {allSubmissions.length} รายการล่าสุด
+            {hasActiveFilters ? ' (กรองแล้ว)' : ''}
           </p>
         ) : null}
 
-        {searched && !loading && rows.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-8">ไม่พบรายการ</p>
+        {!loading && allSubmissions.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-8">ยังไม่มีผลข้อสอบในระบบ</p>
         ) : null}
 
-        {recentMode && rows.length > 0 ? (
-          <p className="text-xs text-muted-foreground">แสดง {rows.length} รายการล่าสุด (เจ้าหน้าที่)</p>
+        {!loading && allSubmissions.length > 0 && filteredRows.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-8">
+            ไม่พบรายการที่ตรงกับตัวกรอง — ลองล้างตัวกรองหรือกดรีเฟรช
+          </p>
         ) : null}
 
-        {rows.map((row, idx) => (
-          <ExamSubmissionDetail
-            key={row.id}
-            row={row}
-            submission={submissionById.get(row.id)}
-            defaultExpanded={expandFirst && idx === 0}
-          />
-        ))}
+        {!loading
+          ? filteredRows.map((row, idx) => (
+              <ExamSubmissionDetail
+                key={row.id}
+                row={row}
+                submission={submissionById.get(row.id)}
+                defaultExpanded={expandWhenSingle && filteredRows.length === 1 && idx === 0}
+              />
+            ))
+          : null}
       </div>
     </div>
   );

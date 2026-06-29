@@ -49,11 +49,11 @@ const ExamResultsPage: React.FC = () => {
             <h1 className="text-xl font-bold">ผลการทำข้อสอบ</h1>
           </div>
           <p className="text-sm text-muted-foreground">
-            ค้นหาด้วยชื่อผู้ขับ ทะเบียนรถ หรือรหัสการส่ง — ดูคำตอบทั้งหมดได้
+            ดูผลข้อสอบรวมล่าสุด — ใช้ตัวกรองด้านล่างเพื่อดูแยกตามที่ต้องการ
           </p>
         </div>
 
-        <ExamScoresContent expandFirst />
+        <ExamScoresContent />
       </div>
     </AuthPageShell>
   );

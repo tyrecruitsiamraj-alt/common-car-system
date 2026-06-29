@@ -24,7 +24,7 @@ const ExamScoresDialog: React.FC<Props> = ({ open, onOpenChange }) => {
             ดูคะแนนข้อสอบ
           </DialogTitle>
           <DialogDescription>
-            ค้นหาด้วยชื่อผู้ขับ ทะเบียนรถ หรือรหัสการส่ง (แสดงหลังส่งข้อสอบ)
+            ดูผลข้อสอบรวมล่าสุด — กรองแยกตามต้องการได้
           </DialogDescription>
         </DialogHeader>
         <ExamScoresContent />
