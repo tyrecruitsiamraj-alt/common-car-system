@@ -47,7 +47,7 @@ function submissionLocalDate(iso: string): string {
 
 function matchesFilters(
   sub: ExamSubmissionPayload,
-  filters: { examKey: string; name: string; plate: string; dateFrom: string; dateTo: string },
+  filters: { examKey: string; name: string; plate: string; date: string },
 ): boolean {
   if (filters.examKey !== 'all' && sub.exam_key !== filters.examKey) return false;
   if (filters.name.trim()) {
@@ -58,9 +58,7 @@ function matchesFilters(
     const p = (sub.vehicle_plate ?? '').toLowerCase();
     if (!p.includes(filters.plate.trim().toLowerCase())) return false;
   }
-  const subDate = submissionLocalDate(sub.created_at);
-  if (filters.dateFrom && subDate < filters.dateFrom) return false;
-  if (filters.dateTo && subDate > filters.dateTo) return false;
+  if (filters.date && submissionLocalDate(sub.created_at) !== filters.date) return false;
   return true;
 }
 
@@ -70,14 +68,15 @@ const ExamScoresContent: React.FC = () => {
   const [examKey, setExamKey] = useState(searchParams.get('exam_key') ?? 'all');
   const [name, setName] = useState(searchParams.get('submitter_name') ?? '');
   const [plate, setPlate] = useState(searchParams.get('vehicle_plate') ?? '');
-  const [dateFrom, setDateFrom] = useState(searchParams.get('date_from') ?? '');
-  const [dateTo, setDateTo] = useState(searchParams.get('date_to') ?? '');
+  const [date, setDate] = useState(
+    searchParams.get('date') ?? searchParams.get('date_from') ?? '',
+  );
   const [loading, setLoading] = useState(true);
   const [allSubmissions, setAllSubmissions] = useState<ExamSubmissionPayload[]>([]);
 
   const filters = useMemo(
-    () => ({ examKey, name, plate, dateFrom, dateTo }),
-    [examKey, name, plate, dateFrom, dateTo],
+    () => ({ examKey, name, plate, date }),
+    [examKey, name, plate, date],
   );
 
   const filteredSubmissions = useMemo(
@@ -94,11 +93,7 @@ const ExamScoresContent: React.FC = () => {
   }, [allSubmissions]);
 
   const hasActiveFilters =
-    examKey !== 'all' ||
-    name.trim() !== '' ||
-    plate.trim() !== '' ||
-    dateFrom !== '' ||
-    dateTo !== '';
+    examKey !== 'all' || name.trim() !== '' || plate.trim() !== '' || date !== '';
 
   const loadAll = useCallback(async () => {
     setLoading(true);
@@ -130,17 +125,15 @@ const ExamScoresContent: React.FC = () => {
     if (examKey !== 'all') next.set('exam_key', examKey);
     if (name.trim()) next.set('submitter_name', name.trim());
     if (plate.trim()) next.set('vehicle_plate', plate.trim());
-    if (dateFrom) next.set('date_from', dateFrom);
-    if (dateTo) next.set('date_to', dateTo);
+    if (date) next.set('date', date);
     setSearchParams(next, { replace: true });
-  }, [examKey, name, plate, dateFrom, dateTo, setSearchParams]);
+  }, [examKey, name, plate, date, setSearchParams]);
 
   const clearFilters = () => {
     setExamKey('all');
     setName('');
     setPlate('');
-    setDateFrom('');
-    setDateTo('');
+    setDate('');
   };
 
   return (
@@ -198,7 +191,7 @@ const ExamScoresContent: React.FC = () => {
           </Select>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
           <div className="space-y-1">
             <Label className="text-xs">ชื่อผู้ขับ</Label>
             <Input
@@ -217,26 +210,13 @@ const ExamScoresContent: React.FC = () => {
               placeholder="กรองตามทะเบียน"
             />
           </div>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           <div className="space-y-1">
-            <Label className="text-xs">ตั้งแต่วันที่</Label>
+            <Label className="text-xs">วันที่</Label>
             <Input
               type="date"
-              value={dateFrom}
-              onChange={(e) => setDateFrom(e.target.value)}
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
               className="h-9 text-sm"
-            />
-          </div>
-          <div className="space-y-1">
-            <Label className="text-xs">ถึงวันที่</Label>
-            <Input
-              type="date"
-              value={dateTo}
-              onChange={(e) => setDateTo(e.target.value)}
-              className="h-9 text-sm"
-              min={dateFrom || undefined}
             />
           </div>
         </div>
