@@ -116,9 +116,14 @@ const ExamForm: React.FC<Props> = ({ exam }) => {
           </div>
           <div className="flex flex-wrap justify-center gap-2">
             {scoreRow ? (
-              <Button type="button" variant="secondary" className="rounded-2xl" onClick={() => setScoreOpen(true)}>
-                ดูคะแนนอีกครั้ง
-              </Button>
+              <>
+                <Button type="button" variant="secondary" className="rounded-2xl" onClick={() => setScoreOpen(true)}>
+                  ดูคะแนนอีกครั้ง
+                </Button>
+                <Button asChild variant="secondary" className="rounded-2xl">
+                  <Link to={`/exams/results?id=${scoreRow.id}`}>ดูผลข้อสอบเต็ม</Link>
+                </Button>
+              </>
             ) : null}
             <Button asChild variant="outline" className="rounded-2xl">
               <Link to="/exams">กลับรายการข้อสอบ</Link>

@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { BarChart3 } from 'lucide-react';
 import {
   Dialog,
@@ -37,6 +38,9 @@ const ExamScoreResultDialog: React.FC<Props> = ({ open, onOpenChange, row, onDon
             <p className="text-[11px] text-muted-foreground font-mono break-all rounded-xl bg-muted/40 px-3 py-2">
               รหัสการส่ง: {row.id}
             </p>
+            <Button asChild type="button" variant="outline" className="w-full rounded-2xl">
+              <Link to={`/exams/results?id=${row.id}`}>เปิดหน้าผลข้อสอบเต็ม</Link>
+            </Button>
             <Button
               type="button"
               className="w-full rounded-2xl"

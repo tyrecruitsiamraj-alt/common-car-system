@@ -100,6 +100,28 @@ export type ExamSubmissionPayload = {
   answers?: Record<string, string>;
 };
 
+export type ExamSubmissionAnswerRow = {
+  questionId: string;
+  label: string;
+  answer: string;
+};
+
+export function submissionAnswerRows(sub: ExamSubmissionPayload): ExamSubmissionAnswerRow[] {
+  const exam = getFleetExam(sub.exam_key);
+  if (!exam || !sub.answers) return [];
+  const rows: ExamSubmissionAnswerRow[] = [];
+  for (const q of exam.questions) {
+    if (q.type === 'section') continue;
+    const raw = (sub.answers[q.id] ?? '').trim();
+    rows.push({
+      questionId: q.id,
+      label: q.label,
+      answer: formatAnswerDisplay(q, raw) || '—',
+    });
+  }
+  return rows;
+}
+
 export function submissionToScoreResult(sub: ExamSubmissionPayload): ExamScoreResult & { id: string } {
   const exam = getFleetExam(sub.exam_key);
   if (exam && sub.answers) {

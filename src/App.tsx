@@ -16,6 +16,7 @@ import FleetMonitorPage from "@/pages/fleet/FleetMonitorPage";
 import FleetVehicles from "@/pages/fleet/FleetVehicles";
 import ExamsPage from "@/pages/ExamsPage";
 import ExamTakePage from "@/pages/ExamTakePage";
+import ExamResultsPage from "@/pages/ExamResultsPage";
 import WLEmployees from "@/pages/wl/WLEmployees";
 import EmployeeProfile from "@/pages/wl/EmployeeProfile";
 import AddEmployeePage from "@/pages/wl/AddEmployeePage";
@@ -52,6 +53,7 @@ function AppRoutes() {
     <Routes>
       <Route path="/login" element={isAuthenticated ? <Navigate to="/" replace /> : <LoginPage />} />
       <Route path="/exams" element={<ExamsPage />} />
+      <Route path="/exams/results" element={<ExamResultsPage />} />
       <Route path="/exams/:examKey" element={<ExamTakePage />} />
       <Route path="/fleet/forms" element={<Navigate to="/exams" replace />} />
       <Route path="/register" element={isAuthenticated ? <Navigate to="/" replace /> : <RegisterPage />} />
