@@ -49,7 +49,7 @@ const ExamResultsPage: React.FC = () => {
             <h1 className="text-xl font-bold">ผลการทำข้อสอบ</h1>
           </div>
           <p className="text-sm text-muted-foreground">
-            ดูผลข้อสอบรวมล่าสุด — ใช้ตัวกรองด้านล่างเพื่อดูแยกตามที่ต้องการ
+            ตารางแนวนอน — เลื่อนซ้ายขวาดูคำตอบแต่ละข้อ ใช้ตัวกรองเพื่อดูแยกตามต้องการ
           </p>
         </div>
 

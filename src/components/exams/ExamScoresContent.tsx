@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Loader2, RefreshCw, X } from 'lucide-react';
-import ExamSubmissionDetail from '@/components/exams/ExamSubmissionDetail';
+import ExamResultsTable from '@/components/exams/ExamResultsTable';
 import { type ExamScoreRow } from '@/components/exams/ExamScorePanel';
 import { FLEET_EXAMS } from '@/lib/fleetExamsConfig';
 import { submissionToScoreResult, type ExamSubmissionPayload } from '@/lib/fleetExamScoring';
@@ -264,15 +264,9 @@ const ExamScoresContent: React.FC = () => {
           </p>
         ) : null}
 
-        {!loading
-          ? filteredRows.map((row) => (
-              <ExamSubmissionDetail
-                key={row.id}
-                row={row}
-                submission={submissionById.get(row.id)}
-              />
-            ))
-          : null}
+        {!loading && filteredRows.length > 0 ? (
+          <ExamResultsTable rows={filteredRows} submissions={submissionById} />
+        ) : null}
       </div>
     </div>
   );
