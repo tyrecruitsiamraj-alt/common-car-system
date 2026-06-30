@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { format, parseISO } from 'date-fns';
 import { th } from 'date-fns/locale';
 import { type ExamScoreRow } from '@/components/exams/ExamScorePanel';
-import { countableExamQuestions, getFleetExam } from '@/lib/fleetExamsConfig';
+import { examAnswerCells, getFleetExam } from '@/lib/fleetExamsConfig';
 import { submissionAnswerRows, type ExamSubmissionPayload } from '@/lib/fleetExamScoring';
 import { cn } from '@/lib/utils';
 
@@ -51,7 +51,7 @@ const ExamResultsTable: React.FC<Props> = ({ rows, submissions }) => {
     <div className="space-y-6">
       {groups.map((group) => {
         const exam = getFleetExam(group.examKey);
-        const questions = exam ? countableExamQuestions(exam) : [];
+        const questions = exam ? examAnswerCells(exam) : [];
 
         return (
           <section key={group.examKey} className="space-y-2">

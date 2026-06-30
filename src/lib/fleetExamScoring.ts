@@ -47,6 +47,23 @@ export function scoreFleetExam(exam: FleetExam, answers: Record<string, string>)
   let total = 0;
 
   for (const q of exam.questions) {
+    if (q.type === 'matrix') {
+      const expected = q.options[0] ?? null;
+      for (const row of q.rows) {
+        const raw = (answers[row.id] ?? '').trim();
+        const label = `${q.label} — ${row.label}`;
+        if (!expected) {
+          details.push({ questionId: row.id, label, scorable: false, correct: null, answer: raw });
+          continue;
+        }
+        total += 1;
+        const ok = raw === expected;
+        if (ok) correct += 1;
+        details.push({ questionId: row.id, label, scorable: true, correct: ok, answer: raw, expected });
+      }
+      continue;
+    }
+
     const expected = expectedAnswer(q);
     const raw = (answers[q.id] ?? '').trim();
     if (!expected) {
@@ -109,10 +126,21 @@ export type ExamSubmissionAnswerRow = {
 export function submissionAnswerRows(sub: ExamSubmissionPayload): ExamSubmissionAnswerRow[] {
   const exam = getFleetExam(sub.exam_key);
   if (!exam || !sub.answers) return [];
+  const answers = sub.answers;
   const rows: ExamSubmissionAnswerRow[] = [];
   for (const q of exam.questions) {
     if (q.type === 'section') continue;
-    const raw = (sub.answers[q.id] ?? '').trim();
+    if (q.type === 'matrix') {
+      for (const row of q.rows) {
+        rows.push({
+          questionId: row.id,
+          label: `${q.label} — ${row.label}`,
+          answer: (answers[row.id] ?? '').trim() || '—',
+        });
+      }
+      continue;
+    }
+    const raw = (answers[q.id] ?? '').trim();
     rows.push({
       questionId: q.id,
       label: q.label,

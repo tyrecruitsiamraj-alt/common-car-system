@@ -49,9 +49,9 @@ function dedupeQuestions(questions) {
   });
 }
 
-/** ตัดส่วนแทนงาน/อุปกรณ์ (กรอกเมื่อแทนงาน) — แบบฟอร์มหลักมี 15 ข้อตรวจสภาพ */
+/** ตัดเฉพาะตารางอุปกรณ์ "(กรอกเมื่อแทนงาน)" ออก — เก็บ 15 ข้อตรงตาม MS Forms (คงข้อ "คุณไปแทนงานหรือไม่") */
 function trimCoreInspectionQuestions(questions) {
-  const idx = questions.findIndex((q) => /คุณไปแทนงานหรือไม่/.test(q.label));
+  const idx = questions.findIndex((q) => /กรอกเมื่อแทนงาน/.test(q.label));
   if (idx < 0) return questions;
   return questions.slice(0, idx);
 }
@@ -97,25 +97,28 @@ function matrixGroupChoices(groupQuestion) {
   return [...groupQuestion.choices]
     .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
     .map((c) => stripHtml(c.displayText || c.description || ''))
-    .map((t) => t.replace(/^O\s*:\s*/i, '').trim())
     .filter(Boolean);
 }
 
 function convertQuestions(rawQuestions) {
   const sorted = [...rawQuestions].sort((a, b) => a.order - b.order);
-  const groupTitles = new Map();
-  const groupChoices = new Map();
+
+  // รวมตาราง (matrix) ให้เป็น 1 ข้อ: หัวข้อกลุ่ม + ตัวเลือกร่วม + แถวย่อยหลายแถว
+  const groups = new Map();
   for (const q of sorted) {
     if (q.type === 'Question.MatrixChoiceGroup') {
-      groupTitles.set(q.id, stripHtml(q.title));
-      groupChoices.set(q.id, matrixGroupChoices(q));
+      groups.set(q.id, { options: matrixGroupChoices(q), rows: [] });
+    }
+  }
+  for (const q of sorted) {
+    if (q.type === 'Question.MatrixChoice') {
+      groups.get(q.groupId)?.rows.push({ id: slugId(q.id), label: stripHtml(q.title) });
     }
   }
 
   const out = [];
   for (const q of sorted) {
     const title = stripHtml(q.title);
-    if (!title) continue;
 
     let info = {};
     try {
@@ -125,23 +128,22 @@ function convertQuestions(rawQuestions) {
     }
 
     if (q.type === 'Question.MatrixChoiceGroup') {
-      out.push({ id: slugId(q.id), type: 'section', label: title, required: false });
-      continue;
-    }
-
-    if (q.type === 'Question.MatrixChoice') {
-      const group = groupTitles.get(q.groupId);
-      const label = group ? `${group} — ${title}` : title;
-      const options = groupChoices.get(q.groupId) ?? [];
+      if (!title) continue;
+      const g = groups.get(q.id);
       out.push({
         id: slugId(q.id),
-        type: 'single',
-        label,
-        options: options.length > 0 ? options : ['ปกติ', 'ไม่ปกติ'],
+        type: 'matrix',
+        label: title,
+        rows: g?.rows ?? [],
+        options: g?.options?.length ? g.options : ['ปกติ', 'ผิดปกติ'],
         required: !!q.required,
       });
       continue;
     }
+
+    if (q.type === 'Question.MatrixChoice') continue; // รวมเข้าไปในข้อ matrix แล้ว
+
+    if (!title) continue;
 
     if (q.type === 'Question.TextField') {
       const multiline = !!info.Multiline;
@@ -190,9 +192,6 @@ for (const src of EXAM_SOURCES) {
   questions = dedupeQuestions(questions);
   if (src.key === 'start_work_sticker_single') {
     questions = trimCoreInspectionQuestions(questions);
-    questions = questions.filter(
-      (q) => !/ปัญหาและสิ่งผิดปกติอื่นเกี่ยวกับรถยนต์/.test(q.label),
-    );
   }
   const title =
     src.key === 'fuel_refill'

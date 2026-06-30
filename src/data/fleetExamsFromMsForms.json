@@ -8,7 +8,7 @@
     "whenToUse": "ทุกวันก่อนเริ่มงาน / ก่อนออกรถ",
     "msFormUrl": "https://forms.office.com/pages/responsepage.aspx?id=XkjN2b05yUyVOYyXYx-7cVniQHtG9_xFuulQOMyLWTRUQ1dDTDA5Nk05UkRZUVNYR01SQ0xUV1BFUS4u&origin=QRCode&qrcodeorigin=presentation&route=shorturl",
     "msFormId": "XkjN2b05yUyVOYyXYx-7cVniQHtG9_xFuulQOMyLWTRUQ1dDTDA5Nk05UkRZUVNYR01SQ0xUV1BFUS4u",
-    "syncedAt": "2026-06-25T03:06:36.238Z",
+    "syncedAt": "2026-06-30T01:48:36.891Z",
     "questions": [
       {
         "id": "driver_name",
@@ -69,7 +69,7 @@
     "whenToUse": "ทุกครั้งก่อนเริ่มงาน / ก่อนออกรถ",
     "msFormUrl": "https://forms.office.com/Pages/ResponsePage.aspx?id=XkjN2b05yUyVOYyXYx-7cVniQHtG9_xFuulQOMyLWTRUQ003OFpUWllVQkVCMkszN0hKMFRGSzhTNy4u&origin=QRCode",
     "msFormId": "XkjN2b05yUyVOYyXYx-7cVniQHtG9_xFuulQOMyLWTRUQ003OFpUWllVQkVCMkszN0hKMFRGSzhTNy4u",
-    "syncedAt": "2026-06-25T03:06:36.359Z",
+    "syncedAt": "2026-06-30T01:48:37.018Z",
     "questions": [
       {
         "id": "driver_name",
@@ -125,20 +125,20 @@
       },
       {
         "id": "ms_r22d303a7a4b94a0ca69ff88",
-        "type": "section",
+        "type": "matrix",
         "label": "ระดับน้ำมัน",
-        "required": false
-      },
-      {
-        "id": "ms_r1d826fd83b634216b010bb8",
-        "type": "single",
-        "label": "ระดับน้ำมัน — ระดับ",
+        "rows": [
+          {
+            "id": "ms_r1d826fd83b634216b010bb8",
+            "label": "ระดับ"
+          }
+        ],
         "options": [
           "ต่ำ",
           "กลาง",
           "เต็ม"
         ],
-        "required": false
+        "required": true
       },
       {
         "id": "ms_r4963a68bc77c4b57a253583",
@@ -162,54 +162,48 @@
       },
       {
         "id": "ms_r652d0fea16cd482786e9de9",
-        "type": "section",
+        "type": "matrix",
         "label": "ความสะอาดของรถยนต์",
-        "required": false
-      },
-      {
-        "id": "ms_r8333331b41cb464cadb2613",
-        "type": "single",
-        "label": "ความสะอาดของรถยนต์ — ด้านนอก",
+        "rows": [
+          {
+            "id": "ms_r8333331b41cb464cadb2613",
+            "label": "ด้านนอก"
+          },
+          {
+            "id": "ms_raede660966b04e44952109a",
+            "label": "ด้านใน"
+          }
+        ],
         "options": [
-          "สะอาด",
+          "O : สะอาด",
           "ไม่สะอาด"
         ],
-        "required": false
-      },
-      {
-        "id": "ms_raede660966b04e44952109a",
-        "type": "single",
-        "label": "ความสะอาดของรถยนต์ — ด้านใน",
-        "options": [
-          "สะอาด",
-          "ไม่สะอาด"
-        ],
-        "required": false
+        "required": true
       },
       {
         "id": "ms_r934d8220c3694577b5d8d0e",
-        "type": "section",
+        "type": "matrix",
         "label": "สภาพรถโดยรวม",
-        "required": false
-      },
-      {
-        "id": "ms_rf4f34be4babf46d7863a66b",
-        "type": "single",
-        "label": "สภาพรถโดยรวม — กระจกรถร้าว/แตก",
+        "rows": [
+          {
+            "id": "ms_rf4f34be4babf46d7863a66b",
+            "label": "กระจกรถร้าว/แตก"
+          },
+          {
+            "id": "ms_r13d1381040654b3b8d3ccd4",
+            "label": "รถมีรอย/บุบ"
+          }
+        ],
         "options": [
           "ปกติ",
           "ผิดปกติ"
         ],
-        "required": false
+        "required": true
       },
       {
-        "id": "ms_r13d1381040654b3b8d3ccd4",
-        "type": "single",
-        "label": "สภาพรถโดยรวม — รถมีรอย/บุบ",
-        "options": [
-          "ปกติ",
-          "ผิดปกติ"
-        ],
+        "id": "ms_r48a2c06307574e4a9b4322c",
+        "type": "text",
+        "label": "ปัญหาและสิ่งผิดปกติอื่นเกี่ยวกับรถยนต์",
         "required": false
       },
       {
@@ -244,6 +238,16 @@
           "รับทราบ"
         ],
         "required": true
+      },
+      {
+        "id": "ms_r93b3951cc33f4513b61aaa2",
+        "type": "single",
+        "label": "คุณไปแทนงานหรือไม่",
+        "options": [
+          "ไม่แทนงาน (ขับนายตัวเอง)",
+          "แทนงาน (ขับนายคนอื่น)"
+        ],
+        "required": true
       }
     ]
   },
@@ -256,7 +260,7 @@
     "whenToUse": "ทุกครั้งที่เติมน้ำมัน",
     "msFormUrl": "https://forms.office.com/Pages/ResponsePage.aspx?id=XkjN2b05yUyVOYyXYx-7cVniQHtG9_xFuulQOMyLWTRUMTlDR0Y0MFlWREVINzEzMFNNNFZSWVBEQi4u&origin=QRCode",
     "msFormId": "XkjN2b05yUyVOYyXYx-7cVniQHtG9_xFuulQOMyLWTRUMTlDR0Y0MFlWREVINzEzMFNNNFZSWVBEQi4u",
-    "syncedAt": "2026-06-25T03:06:36.673Z",
+    "syncedAt": "2026-06-30T01:48:37.350Z",
     "questions": [
       {
         "id": "ms_r8bd4a5a78843423ca22f577",

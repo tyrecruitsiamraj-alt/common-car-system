@@ -23,8 +23,11 @@ type Props = {
 function initialAnswers(questions: ExamQuestion[]): Record<string, string> {
   const out: Record<string, string> = {};
   for (const q of questions) {
-    if (q.type === 'yes_no') out[q.id] = '';
-    else out[q.id] = '';
+    if (q.type === 'matrix') {
+      for (const row of q.rows) out[row.id] = '';
+    } else {
+      out[q.id] = '';
+    }
   }
   return out;
 }
@@ -52,6 +55,7 @@ const ExamForm: React.FC<Props> = ({ exam }) => {
   const missingRequired = useMemo(() => {
     return countableExamQuestions(exam).filter((q) => {
       if (!q.required) return false;
+      if (q.type === 'matrix') return q.rows.some((row) => !(answers[row.id] ?? '').trim());
       const v = (answers[q.id] ?? '').trim();
       if (q.type === 'multi') return parseMultiAnswer(v).length === 0;
       return !v;
@@ -272,6 +276,34 @@ const ExamForm: React.FC<Props> = ({ exam }) => {
                       </label>
                     );
                   })}
+                </div>
+              ) : null}
+
+              {q.type === 'matrix' ? (
+                <div className="space-y-3 pt-1">
+                  {q.rows.map((row) => (
+                    <div key={row.id} className="space-y-1.5">
+                      <div className="text-sm font-medium text-foreground">{row.label}</div>
+                      <RadioGroup
+                        value={answers[row.id] ?? ''}
+                        onValueChange={(v) => setAnswer(row.id, v)}
+                        className="flex flex-wrap gap-2"
+                      >
+                        {q.options.map((opt) => (
+                          <label
+                            key={opt}
+                            className={cn(
+                              'inline-flex items-center gap-2 rounded-xl border border-border/70 px-3 py-2 text-sm cursor-pointer hover:bg-muted/40',
+                              answers[row.id] === opt && 'border-primary/50 bg-primary/5',
+                            )}
+                          >
+                            <RadioGroupItem value={opt} />
+                            <span>{opt}</span>
+                          </label>
+                        ))}
+                      </RadioGroup>
+                    </div>
+                  ))}
                 </div>
               ) : null}
             </div>

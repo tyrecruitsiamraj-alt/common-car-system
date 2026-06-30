@@ -47,6 +47,14 @@ export type ExamQuestion =
     }
   | {
       id: string;
+      type: 'matrix';
+      label: string;
+      rows: { id: string; label: string }[];
+      options: string[];
+      required?: boolean;
+    }
+  | {
+      id: string;
       type: 'section';
       label: string;
       required?: boolean;
@@ -73,7 +81,24 @@ export function isValidFleetExamKey(key: string): boolean {
   return FLEET_EXAMS.some((e) => e.key === key);
 }
 
-/** จำนวนข้อที่ต้องตอบ (ไม่นับหัวข้อ section) */
+/** จำนวนข้อที่ต้องตอบ (ไม่นับหัวข้อ section; ตาราง matrix นับเป็น 1 ข้อ) */
 export function countableExamQuestions(exam: FleetExam): ExamQuestion[] {
   return exam.questions.filter((q) => q.type !== 'section');
+}
+
+/** ช่องคำตอบรายช่อง (matrix แตกเป็น 1 ช่องต่อแถว) — ใช้ทำคอลัมน์ตารางผลและการบันทึกคำตอบ */
+export type ExamAnswerCell = { id: string; label: string };
+export function examAnswerCells(exam: FleetExam): ExamAnswerCell[] {
+  const cells: ExamAnswerCell[] = [];
+  for (const q of exam.questions) {
+    if (q.type === 'section') continue;
+    if (q.type === 'matrix') {
+      for (const row of q.rows) {
+        cells.push({ id: row.id, label: `${q.label} — ${row.label}` });
+      }
+      continue;
+    }
+    cells.push({ id: q.id, label: q.label });
+  }
+  return cells;
 }
