@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowLeft, Sparkles } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 
@@ -36,12 +36,12 @@ const PageHeader: React.FC<PageHeaderProps> = ({
         ) : null}
         <div>
           {showBrandKicker ? (
-            <p className="brand-kicker mb-1">
-              <Sparkles className="h-4 w-4" /> Common Car System
+            <p className="brand-kicker mb-2">
+              Common Car System
             </p>
           ) : null}
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground md:text-3xl">{title}</h1>
-          {subtitle ? <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p> : null}
+          <h1 className="text-3xl font-medium tracking-tight text-foreground md:text-4xl">{title}</h1>
+          {subtitle ? <p className="mt-2 text-base text-muted-foreground max-w-2xl">{subtitle}</p> : null}
         </div>
       </div>
       {actions ? <div className="flex items-center gap-2">{actions}</div> : null}

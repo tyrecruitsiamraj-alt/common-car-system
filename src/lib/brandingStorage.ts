@@ -15,9 +15,8 @@ export type BrandingConfig = {
   gradientToHsl: string;
 };
 
-/** พื้นหลังแบบ Apple — neutral gray gradient */
-export const FLEET_APP_SHELL_GRADIENT =
-  'linear-gradient(180deg, #ffffff 0%, #f5f5f7 48%, #ebebed 100%)';
+/** พื้นหลังแบบ Apple — flat system gray */
+export const FLEET_APP_SHELL_GRADIENT = '#f5f5f7';
 
 const LEGACY_RED_PRIMARY = '0 72% 50%';
 const LEGACY_SLATE_PRIMARY = '222 47% 11%';
@@ -30,12 +29,12 @@ export const DEFAULT_BRANDING: BrandingConfig = {
   appName: 'Common Car System',
   logoDataUrl: null,
   primaryHsl: '211 100% 50%',
-  backgroundHsl: '240 5% 96%',
-  foregroundHsl: '240 6% 10%',
+  backgroundHsl: '240 6% 97%',
+  foregroundHsl: '0 0% 11%',
   cardHsl: '0 0% 100%',
-  pageBackgroundMode: 'gradient',
-  gradientFromHsl: '240 5% 98%',
-  gradientToHsl: '240 4% 94%',
+  pageBackgroundMode: 'solid',
+  gradientFromHsl: '240 6% 97%',
+  gradientToHsl: '240 6% 97%',
 };
 
 function isLegacyAppName(name: string): boolean {
@@ -60,7 +59,7 @@ export function migrateBrandingTheme(c: BrandingConfig): BrandingConfig {
     primaryHsl: DEFAULT_BRANDING.primaryHsl,
     backgroundHsl: DEFAULT_BRANDING.backgroundHsl,
     foregroundHsl: DEFAULT_BRANDING.foregroundHsl,
-    pageBackgroundMode: 'gradient',
+    pageBackgroundMode: 'solid',
     gradientFromHsl: DEFAULT_BRANDING.gradientFromHsl,
     gradientToHsl: DEFAULT_BRANDING.gradientToHsl,
   };
@@ -232,7 +231,7 @@ export function applyBrandingToDocument(c: BrandingConfig): void {
     root.style.setProperty('--app-shell-gradient', FLEET_APP_SHELL_GRADIENT);
   } else {
     root.removeAttribute('data-page-bg');
-    const solid = `linear-gradient(135deg, hsl(${c.backgroundHsl}), hsl(${c.backgroundHsl}))`;
+    const solid = FLEET_APP_SHELL_GRADIENT;
     root.style.setProperty('--gradient-hero', solid);
     root.style.setProperty('--app-shell-gradient', solid);
   }

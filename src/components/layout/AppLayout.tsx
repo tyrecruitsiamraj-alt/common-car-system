@@ -61,7 +61,7 @@ const AppLayout: React.FC = () => {
       ) : null}
 
       {/* Top header — จอใหญ่ (lg+) */}
-      <header className="hidden lg:flex items-center justify-between gap-4 px-4 xl:px-8 py-3 border-b border-black/[0.06] bg-white/72 backdrop-blur-2xl sticky top-0 z-40">
+      <header className="hidden lg:flex items-center justify-between gap-4 px-4 xl:px-8 h-12 border-b border-border bg-white sticky top-0 z-40">
         <div className="flex items-center gap-4 xl:gap-8 min-w-0 flex-1">
           <button type="button" onClick={() => navigate('/')} className="flex items-center gap-2 shrink-0">
             <BrandMark size="md" />
@@ -77,10 +77,10 @@ const AppLayout: React.FC = () => {
                   type="button"
                   onClick={() => navigate(item.path)}
                   className={cn(
-                    'flex items-center gap-1.5 xl:gap-2 px-2.5 xl:px-3 py-2 rounded-xl text-xs xl:text-sm font-medium transition-all touch-manipulation',
+                    'flex items-center gap-1.5 xl:gap-2 px-2.5 xl:px-3 py-1.5 rounded-lg text-xs xl:text-sm transition-all touch-manipulation',
                     active
-                      ? 'bg-primary text-primary-foreground shadow-sm'
-                      : 'text-muted-foreground hover:text-foreground hover:bg-black/[0.04]',
+                      ? 'text-foreground font-medium'
+                      : 'text-muted-foreground hover:text-foreground',
                   )}
                 >
                   <Icon className="w-4 h-4 shrink-0" />
@@ -92,14 +92,14 @@ const AppLayout: React.FC = () => {
         </div>
         <div className="flex items-center gap-2 xl:gap-3 shrink-0">
           <NotificationPanel />
-          <div className="hidden xl:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-black/[0.04] max-w-[220px]">
+          <div className="hidden xl:flex items-center gap-2 px-3 py-1 rounded-lg bg-muted max-w-[220px]">
             <UserCircle className="w-4 h-4 text-muted-foreground shrink-0" />
-            <span className="text-sm font-medium text-foreground truncate">{user?.full_name}</span>
-            <span className="text-xs px-2 py-0.5 rounded-full bg-primary text-primary-foreground shrink-0">{user?.role}</span>
+            <span className="text-sm text-foreground truncate">{user?.full_name}</span>
+            <span className="text-[10px] px-2 py-0.5 rounded-md bg-secondary text-secondary-foreground shrink-0 capitalize">{user?.role}</span>
           </div>
-          <div className="flex xl:hidden items-center gap-1.5 px-2 py-1 rounded-xl bg-black/[0.04]">
+          <div className="flex xl:hidden items-center gap-1.5 px-2 py-1 rounded-lg bg-muted">
             <UserCircle className="w-4 h-4 text-muted-foreground" />
-            <span className="text-xs font-medium text-muted-foreground uppercase">{user?.role}</span>
+            <span className="text-xs text-muted-foreground capitalize">{user?.role}</span>
           </div>
           {showSettings ? (
             <button
@@ -133,14 +133,14 @@ const AppLayout: React.FC = () => {
       </header>
 
       {/* หัวแบบย่อ — แท็บเล็ต/มือถือ (ต่ำกว่า lg) */}
-      <header className="lg:hidden flex items-center justify-between gap-2 px-4 sm:px-5 py-3 border-b border-black/[0.06] bg-white/72 backdrop-blur-2xl sticky top-0 z-40 safe-area-pt">
+      <header className="lg:hidden flex items-center justify-between gap-2 px-4 sm:px-5 h-12 border-b border-border bg-white sticky top-0 z-40 safe-area-pt">
         <button type="button" onClick={() => navigate('/')} className="flex items-center gap-2 text-left min-w-0 touch-manipulation py-1">
           <BrandMark size="sm" />
-          <BrandTitle className="text-base font-bold text-foreground truncate" />
+          <BrandTitle className="text-base font-medium text-foreground truncate" />
         </button>
         <div className="flex items-center gap-1 shrink-0">
           <NotificationPanel />
-          <span className="text-[10px] sm:text-xs px-2 py-1 rounded-full bg-primary text-primary-foreground font-medium uppercase">
+          <span className="text-[10px] sm:text-xs px-2 py-0.5 rounded-md bg-muted text-muted-foreground capitalize">
             {user?.role}
           </span>
           {showSettings ? (
@@ -173,7 +173,7 @@ const AppLayout: React.FC = () => {
         </div>
       </header>
 
-      <main className="flex-1 w-full max-w-[1920px] mx-auto px-4 sm:px-5 md:px-6 lg:px-8 pb-[7.5rem] lg:pb-8">
+      <main className="flex-1 w-full max-w-[1920px] mx-auto px-4 sm:px-5 md:px-6 lg:px-8 pb-[calc(3.5rem+env(safe-area-inset-bottom))] lg:pb-8">
         <Outlet />
       </main>
 

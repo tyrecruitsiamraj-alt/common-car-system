@@ -30,7 +30,7 @@ const DashboardHourlyGrid: React.FC<Props> = ({ day, employees, bookings, vehMap
   }
 
   return (
-    <div className="glass-card rounded-3xl p-3 space-y-2 overflow-hidden">
+      <div className="glass-card p-3 space-y-2 overflow-hidden">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm font-semibold text-foreground">ตารางรายชั่วโมง — ใครว่างช่วงไหน</p>
         <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-muted-foreground">

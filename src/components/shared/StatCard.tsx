@@ -14,17 +14,8 @@ interface StatCardProps {
   onClick?: () => void;
 }
 
-const variantStyles = {
-  default: 'border-border',
-  primary: 'border-primary/30 bg-primary/5',
-  success: 'border-success/30 bg-success/5',
-  warning: 'border-warning/30 bg-warning/5',
-  destructive: 'border-destructive/30 bg-destructive/5',
-  info: 'border-info/30 bg-info/5',
-};
-
 const iconVariantStyles = {
-  default: 'text-muted-foreground bg-black/[0.04]',
+  default: 'text-muted-foreground bg-muted',
   primary: 'text-primary bg-primary/10',
   success: 'text-success bg-success/10',
   warning: 'text-warning bg-warning/10',
@@ -37,26 +28,25 @@ const StatCard: React.FC<StatCardProps> = ({ title, value, subtitle, icon: Icon,
     <div
       onClick={onClick}
       className={cn(
-        'glass-card rounded-2xl p-5 border transition-all',
-        variantStyles[variant],
-        onClick && 'cursor-pointer hover:scale-[1.02] active:scale-[0.98]',
-        className
+        'glass-card p-5 transition-colors',
+        onClick && 'cursor-pointer hover:bg-secondary/30 active:scale-[0.99]',
+        className,
       )}
     >
-      <div className="flex items-start justify-between">
+      <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
-          <p className="text-xs font-medium text-muted-foreground truncate">{title}</p>
-          <p className="text-2xl font-semibold text-foreground mt-1 tracking-tight">{value}</p>
-          {subtitle && <p className="text-xs text-muted-foreground mt-1">{subtitle}</p>}
+          <p className="text-xs text-muted-foreground truncate">{title}</p>
+          <p className="text-[1.75rem] font-medium tracking-tight text-foreground mt-1 leading-none">{value}</p>
+          {subtitle && <p className="text-xs text-muted-foreground mt-2">{subtitle}</p>}
           {trend && trendValue && (
-            <p className={cn('text-xs font-medium mt-1', trend === 'up' ? 'text-success' : trend === 'down' ? 'text-destructive' : 'text-muted-foreground')}>
+            <p className={cn('text-xs font-medium mt-2', trend === 'up' ? 'text-success' : trend === 'down' ? 'text-destructive' : 'text-muted-foreground')}>
               {trend === 'up' ? '↑' : trend === 'down' ? '↓' : '→'} {trendValue}
             </p>
           )}
         </div>
         {Icon && (
-          <div className={cn('p-2 rounded-lg', iconVariantStyles[variant])}>
-            <Icon className="w-5 h-5" />
+          <div className={cn('p-2.5 rounded-xl shrink-0', iconVariantStyles[variant])}>
+            <Icon className="w-5 h-5" strokeWidth={1.75} />
           </div>
         )}
       </div>

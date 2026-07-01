@@ -51,10 +51,10 @@ const LoginPage: React.FC = () => {
         </p>
       }
     >
-      <div className="glass-card rounded-2xl border border-border/80 p-5 sm:p-6 shadow-lg shadow-black/[0.04] space-y-4">
+      <div className="glass-card p-5 sm:p-6 space-y-4">
         <Link
           to="/exams"
-          className="flex w-full min-h-[48px] items-center justify-center gap-2 rounded-xl border-2 border-primary/30 bg-primary/5 px-4 py-3 text-sm font-semibold text-primary transition hover:border-primary hover:bg-primary/10 touch-manipulation"
+          className="flex w-full min-h-[44px] items-center justify-center gap-2 rounded-xl border border-border bg-card px-4 py-3 text-sm font-medium text-foreground transition hover:bg-muted touch-manipulation"
         >
           <ClipboardList className="h-5 w-5 shrink-0" />
           ข้อสอบระบบ
@@ -97,7 +97,7 @@ const LoginPage: React.FC = () => {
           <button
             type="submit"
             disabled={submitting}
-            className="w-full min-h-[48px] p-3 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-60 touch-manipulation"
+            className="w-full min-h-[44px] p-3 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 disabled:opacity-40 touch-manipulation"
           >
             {submitting ? 'กำลังเข้าสู่ระบบ…' : 'เข้าสู่ระบบ'}
           </button>

@@ -69,7 +69,7 @@ const DailyDashboardTab: React.FC<Props> = ({
 
   return (
     <div className="space-y-4">
-      <div className="glass-card rounded-3xl p-4 space-y-3">
+      <div className="glass-card p-4 space-y-3">
         <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-end gap-3">
           <div className="space-y-1.5">
             <Label className="text-xs text-muted-foreground">วันที่</Label>
@@ -128,7 +128,7 @@ const DailyDashboardTab: React.FC<Props> = ({
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div className="glass-card rounded-3xl p-4 space-y-3">
+        <div className="glass-card p-4 space-y-3">
           <div className="flex items-center gap-2">
             <Users className="w-4 h-4 text-emerald-600" />
             <p className="text-sm font-semibold text-foreground">
@@ -153,7 +153,7 @@ const DailyDashboardTab: React.FC<Props> = ({
           )}
         </div>
 
-        <div className="glass-card rounded-3xl p-4 space-y-3">
+        <div className="glass-card p-4 space-y-3">
           <div className="flex items-center gap-2">
             <CalendarDays className="w-4 h-4 text-blue-600" />
             <p className="text-sm font-semibold text-foreground">สรุปพนักงาน {dayLabel}</p>

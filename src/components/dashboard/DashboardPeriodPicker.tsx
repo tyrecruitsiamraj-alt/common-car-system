@@ -38,7 +38,7 @@ const DashboardPeriodPicker: React.FC<Props> = ({
   periodLabel,
 }) => {
   return (
-    <div className="glass-card rounded-3xl p-4 space-y-3">
+    <div className="glass-card p-4 space-y-3">
       <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-end gap-3">
         <div className="space-y-1.5 min-w-[10rem]">
           <Label className="text-xs text-muted-foreground">ช่วงเวลา</Label>

@@ -29,14 +29,14 @@ const ExamsContent: React.FC = () => {
           return (
             <article
               key={item.key}
-              className="rounded-3xl border border-border/80 bg-card p-5 shadow-sm"
+              className="glass-card p-5"
             >
               <div className="flex items-start gap-3">
-                <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-slate-950 text-white">
-                  <Icon className="h-6 w-6" />
+                <div className="apple-icon-tile h-12 w-12 shrink-0">
+                  <Icon className="h-6 w-6" strokeWidth={1.75} />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-blue-600">
+                  <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
                     {item.qrLabel}
                     {item.stickerNote ? (
                       <span className="ml-1.5 font-normal normal-case text-muted-foreground">
@@ -44,7 +44,7 @@ const ExamsContent: React.FC = () => {
                       </span>
                     ) : null}
                   </p>
-                  <h2 className="mt-0.5 text-lg font-bold text-foreground">{item.title}</h2>
+                  <h2 className="mt-1 text-lg font-medium tracking-tight text-foreground">{item.title}</h2>
                   <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
                     <span className="font-semibold text-foreground">หัวข้อนี้อบรม:</span>{' '}
                     {item.trainingTopic}

@@ -103,7 +103,7 @@ const SupervisorDashboard: React.FC = () => {
   const loading = empLoading || vehiclesLoading || bookingsLoading;
 
   return (
-    <AppPage maxWidth="4xl" panel>
+    <AppPage maxWidth="4xl">
       <PageHeader
         showBrandKicker
         title="Dashboard"
@@ -112,12 +112,12 @@ const SupervisorDashboard: React.FC = () => {
       />
 
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as DashboardTab)} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-2 h-auto">
-          <TabsTrigger value="daily" className="text-xs sm:text-sm py-2.5">
-            01 รายวัน
+        <TabsList className="grid w-full grid-cols-2 h-auto bg-[#e5e5ea] p-1 rounded-[10px]">
+          <TabsTrigger value="daily" className="text-xs sm:text-sm py-2 rounded-[8px]">
+            รายวัน
           </TabsTrigger>
-          <TabsTrigger value="period" className="text-xs sm:text-sm py-2.5">
-            02 รายสัปดาห์/เดือน
+          <TabsTrigger value="period" className="text-xs sm:text-sm py-2 rounded-[8px]">
+            รายสัปดาห์/เดือน
           </TabsTrigger>
         </TabsList>
 
