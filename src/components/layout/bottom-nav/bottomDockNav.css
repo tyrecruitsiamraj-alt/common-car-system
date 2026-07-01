@@ -1,4 +1,4 @@
-/** Floating bottom dock — สไตล์แยกไฟล์เพื่อปรับ transition ได้ชัดเจน */
+/** Floating bottom dock — iOS-style tab bar */
 
 .bottom-dock {
   position: fixed;
@@ -25,16 +25,16 @@
   align-items: flex-end;
   justify-content: space-between;
   gap: 0;
-  padding: 14px 4px 12px;
+  padding: 12px 6px 10px;
   min-height: 58px;
-  border-radius: 28px 28px 22px 22px;
-  background: hsl(0 0% 100% / 0.92);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
-  border: 1px solid hsl(214 32% 91% / 0.9);
+  border-radius: 24px;
+  background: hsl(0 0% 100% / 0.82);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  border: 1px solid hsl(0 0% 0% / 0.06);
   box-shadow:
-    0 -6px 28px hsl(222 47% 11% / 0.06),
-    0 12px 40px hsl(222 47% 11% / 0.05);
+    0 1px 2px hsl(240 6% 10% / 0.04),
+    0 12px 32px hsl(240 6% 10% / 0.08);
 }
 
 .bottom-dock__btn {
@@ -59,7 +59,7 @@
 }
 
 .bottom-dock__btn--active {
-  color: hsl(222 47% 11%);
+  color: hsl(var(--primary));
 }
 
 .bottom-dock__btn:focus-visible {
@@ -78,12 +78,12 @@
 }
 
 .bottom-dock__btn--active .bottom-dock__icon-wrap {
-  transform: translateY(-2px);
+  transform: translateY(-1px) scale(1.04);
 }
 
 .bottom-dock__label {
   font-size: 8px;
-  font-weight: 600;
+  font-weight: 500;
   line-height: 1.15;
   text-align: center;
   max-width: 100%;

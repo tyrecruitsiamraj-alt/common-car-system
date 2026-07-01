@@ -23,7 +23,7 @@ const AuthPageShell: React.FC<AuthPageShellProps> = ({ children, footer, maxWidt
   return (
     <div
       className={cn(
-        'min-h-[100dvh] min-h-screen flex items-center justify-center p-4 sm:p-6 text-slate-900',
+        'min-h-[100dvh] min-h-screen flex items-center justify-center p-4 sm:p-6 text-foreground',
         config.pageBackgroundMode === 'solid' && 'bg-background',
         config.pageBackgroundMode === 'gradient' && 'app-shell-gradient',
       )}
@@ -35,10 +35,10 @@ const AuthPageShell: React.FC<AuthPageShellProps> = ({ children, footer, maxWidt
         className={cn('w-full mx-auto', maxWidth === '3xl' ? 'max-w-3xl' : 'max-w-md')}
       >
         {!hideBrand ? (
-        <div className="glass-card mb-8 rounded-[2rem] p-6 text-center">
+        <div className="glass-card mb-8 rounded-[1.75rem] p-6 text-center">
           <Link to="/login" className="inline-flex flex-col items-center gap-2 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-ring">
             <BrandMark size="lg" />
-            <h1 className="text-2xl font-bold text-foreground">
+            <h1 className="text-2xl font-semibold tracking-tight text-foreground">
               <BrandTitle />
             </h1>
           </Link>

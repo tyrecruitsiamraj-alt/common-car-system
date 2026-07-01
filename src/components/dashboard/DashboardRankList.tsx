@@ -26,7 +26,7 @@ const DashboardRankList: React.FC<Props> = ({
   return (
     <div className="glass-card rounded-3xl p-4 space-y-2 min-h-[11rem]">
       <div className="flex items-start gap-2">
-        <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-slate-950 text-white">
+        <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
           <Icon className="w-4 h-4" />
         </div>
         <div className="min-w-0 flex-1">

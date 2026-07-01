@@ -29,7 +29,7 @@ const PageHeader: React.FC<PageHeaderProps> = ({
           <button
             type="button"
             onClick={() => navigate(backPath)}
-            className="mt-0.5 grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:bg-slate-50 hover:text-slate-950"
+            className="mt-0.5 grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-black/[0.06] bg-white/90 text-muted-foreground transition hover:bg-white hover:text-foreground"
           >
             <ArrowLeft className="h-5 w-5" />
           </button>
@@ -40,8 +40,8 @@ const PageHeader: React.FC<PageHeaderProps> = ({
               <Sparkles className="h-4 w-4" /> Common Car System
             </p>
           ) : null}
-          <h1 className="text-xl font-bold tracking-tight text-slate-950 md:text-2xl">{title}</h1>
-          {subtitle ? <p className="mt-0.5 text-sm text-slate-500">{subtitle}</p> : null}
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground md:text-3xl">{title}</h1>
+          {subtitle ? <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p> : null}
         </div>
       </div>
       {actions ? <div className="flex items-center gap-2">{actions}</div> : null}

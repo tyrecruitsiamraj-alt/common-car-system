@@ -24,8 +24,8 @@ const variantStyles = {
 };
 
 const iconVariantStyles = {
-  default: 'text-muted-foreground bg-secondary',
-  primary: 'text-white bg-slate-950',
+  default: 'text-muted-foreground bg-black/[0.04]',
+  primary: 'text-primary bg-primary/10',
   success: 'text-success bg-success/10',
   warning: 'text-warning bg-warning/10',
   destructive: 'text-destructive bg-destructive/10',
@@ -37,7 +37,7 @@ const StatCard: React.FC<StatCardProps> = ({ title, value, subtitle, icon: Icon,
     <div
       onClick={onClick}
       className={cn(
-        'glass-card rounded-3xl p-5 border transition-all',
+        'glass-card rounded-2xl p-5 border transition-all',
         variantStyles[variant],
         onClick && 'cursor-pointer hover:scale-[1.02] active:scale-[0.98]',
         className
@@ -46,7 +46,7 @@ const StatCard: React.FC<StatCardProps> = ({ title, value, subtitle, icon: Icon,
       <div className="flex items-start justify-between">
         <div className="flex-1 min-w-0">
           <p className="text-xs font-medium text-muted-foreground truncate">{title}</p>
-          <p className="text-2xl font-bold text-foreground mt-1">{value}</p>
+          <p className="text-2xl font-semibold text-foreground mt-1 tracking-tight">{value}</p>
           {subtitle && <p className="text-xs text-muted-foreground mt-1">{subtitle}</p>}
           {trend && trendValue && (
             <p className={cn('text-xs font-medium mt-1', trend === 'up' ? 'text-success' : trend === 'down' ? 'text-destructive' : 'text-muted-foreground')}>

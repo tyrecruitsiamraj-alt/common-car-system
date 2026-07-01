@@ -15,11 +15,12 @@ export type BrandingConfig = {
   gradientToHsl: string;
 };
 
-/** พื้นหลังแบบ Fleet Bookings mockup */
+/** พื้นหลังแบบ Apple — neutral gray gradient */
 export const FLEET_APP_SHELL_GRADIENT =
-  'radial-gradient(circle at top left, #dbeafe, transparent 32%), linear-gradient(135deg, #f8fafc, #eef2ff 45%, #f8fafc)';
+  'linear-gradient(180deg, #ffffff 0%, #f5f5f7 48%, #ebebed 100%)';
 
 const LEGACY_RED_PRIMARY = '0 72% 50%';
+const LEGACY_SLATE_PRIMARY = '222 47% 11%';
 
 /** localStorage — เปลี่ยนคีย์เมื่อ rebrand เพื่อตัดชื่อ So Recruit ที่ค้างจากเวอร์ชันเก่า */
 const KEY = 'common_car_branding_v1';
@@ -28,13 +29,13 @@ const LEGACY_KEYS = ['so_recruit_branding_v1', 'jarvis_branding_v1'] as const;
 export const DEFAULT_BRANDING: BrandingConfig = {
   appName: 'Common Car System',
   logoDataUrl: null,
-  primaryHsl: '222 47% 11%',
-  backgroundHsl: '210 40% 98%',
-  foregroundHsl: '222 47% 11%',
+  primaryHsl: '211 100% 50%',
+  backgroundHsl: '240 5% 96%',
+  foregroundHsl: '240 6% 10%',
   cardHsl: '0 0% 100%',
   pageBackgroundMode: 'gradient',
-  gradientFromHsl: '210 40% 98%',
-  gradientToHsl: '226 57% 96%',
+  gradientFromHsl: '240 5% 98%',
+  gradientToHsl: '240 4% 94%',
 };
 
 function isLegacyAppName(name: string): boolean {
@@ -50,9 +51,10 @@ function isLegacyAppName(name: string): boolean {
   return false;
 }
 
-/** ย้ายจากธีมแดงเก่า → slate/blue ใหม่ */
+/** ย้ายจากธีมเก่า → Apple-inspired ใหม่ */
 export function migrateBrandingTheme(c: BrandingConfig): BrandingConfig {
-  if (c.primaryHsl.trim() !== LEGACY_RED_PRIMARY) return c;
+  const primary = c.primaryHsl.trim();
+  if (primary !== LEGACY_RED_PRIMARY && primary !== LEGACY_SLATE_PRIMARY) return c;
   return {
     ...c,
     primaryHsl: DEFAULT_BRANDING.primaryHsl,
@@ -198,10 +200,11 @@ export function applyBrandingToDocument(c: BrandingConfig): void {
 
   root.style.setProperty('--primary', c.primaryHsl);
   root.style.setProperty('--primary-foreground', '0 0% 100%');
-  root.style.setProperty('--ring', '217 91% 60%');
+  root.style.setProperty('--ring', c.primaryHsl);
   root.style.setProperty('--sidebar-primary', c.primaryHsl);
   root.style.setProperty('--sidebar-primary-foreground', '0 0% 100%');
-  root.style.setProperty('--sidebar-ring', '217 91% 60%');
+  root.style.setProperty('--sidebar-ring', c.primaryHsl);
+  root.style.setProperty('--info', c.primaryHsl);
 
   const pp = c.primaryHsl.trim().split(/\s+/);
   const ph = pp[0] ?? '222';
