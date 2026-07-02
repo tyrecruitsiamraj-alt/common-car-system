@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Label } from '@/components/ui/label';
 import {
   Select,
@@ -8,6 +8,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import DateSelectDmyBe from '@/components/shared/DateSelectDmyBe';
+import SearchablePicker from '@/components/shared/SearchablePicker';
 import { STATUS_LABELS } from '@/lib/dashboard/buildDashboardData';
 import type { DashboardFilters, DashboardTaskStatus } from '@/lib/dashboard/types';
 import type { DashboardPeriodPreset } from '@/lib/fleetDashboardStats';
@@ -36,6 +37,8 @@ type Props = {
   periodLabel: string;
 };
 
+const pickerInputClass = 'h-10 text-sm bg-slate-50 border-slate-200';
+
 const DashboardFilterBar: React.FC<Props> = ({
   filters,
   onChange,
@@ -43,6 +46,34 @@ const DashboardFilterBar: React.FC<Props> = ({
   vehicles,
   periodLabel,
 }) => {
+  const ownerOptions = useMemo(
+    () => [
+      { value: '', label: 'ทุกคน' },
+      ...employees
+        .filter((e) => e.status === 'active')
+        .map((e) => ({
+          value: e.id,
+          label: `${e.first_name} ${e.last_name}`.trim(),
+          keywords: `${e.employee_code} ${e.position ?? ''} ${e.phone ?? ''}`.trim(),
+        })),
+    ],
+    [employees],
+  );
+
+  const vehicleOptions = useMemo(
+    () => [
+      { value: '', label: 'ทุกคัน' },
+      ...vehicles
+        .filter((v) => v.is_active !== false)
+        .map((v) => ({
+          value: v.id,
+          label: [v.plate_no, v.label].filter(Boolean).join(' · '),
+          keywords: `${v.plate_no} ${v.label ?? ''}`.trim(),
+        })),
+    ],
+    [vehicles],
+  );
+
   return (
     <div className="rounded-xl border border-slate-200/80 bg-white p-4 shadow-sm space-y-4 lg:sticky lg:top-20">
       <div>
@@ -108,43 +139,28 @@ const DashboardFilterBar: React.FC<Props> = ({
 
       <div className="space-y-1.5">
         <Label className="text-xs text-slate-500">ผู้รับผิดชอบ</Label>
-        <Select value={filters.ownerId || '__all__'} onValueChange={(v) => onChange({ ownerId: v === '__all__' ? '' : v })}>
-          <SelectTrigger className="h-10 bg-slate-50 border-slate-200">
-            <SelectValue placeholder="ทุกคน" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="__all__">ทุกคน</SelectItem>
-            {employees
-              .filter((e) => e.status === 'active')
-              .map((e) => (
-                <SelectItem key={e.id} value={e.id}>
-                  {e.first_name} {e.last_name}
-                </SelectItem>
-              ))}
-          </SelectContent>
-        </Select>
+        <SearchablePicker
+          value={filters.ownerId}
+          onValueChange={(v) => onChange({ ownerId: v })}
+          options={ownerOptions}
+          placeholder="พิมพ์ชื่อ รหัส หรือตำแหน่ง…"
+          emptyMessage="ไม่พบพนักงาน"
+          inputClassName={pickerInputClass}
+          aria-label="ผู้รับผิดชอบ"
+        />
       </div>
 
       <div className="space-y-1.5">
         <Label className="text-xs text-slate-500">รถ</Label>
-        <Select
-          value={filters.vehicleId || '__all__'}
-          onValueChange={(v) => onChange({ vehicleId: v === '__all__' ? '' : v })}
-        >
-          <SelectTrigger className="h-10 bg-slate-50 border-slate-200">
-            <SelectValue placeholder="ทุกคัน" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="__all__">ทุกคัน</SelectItem>
-            {vehicles
-              .filter((v) => v.is_active !== false)
-              .map((v) => (
-                <SelectItem key={v.id} value={v.id}>
-                  {v.plate_no} {v.label ? `· ${v.label}` : ''}
-                </SelectItem>
-              ))}
-          </SelectContent>
-        </Select>
+        <SearchablePicker
+          value={filters.vehicleId}
+          onValueChange={(v) => onChange({ vehicleId: v })}
+          options={vehicleOptions}
+          placeholder="พิมพ์ทะเบียนหรือชื่อรถ…"
+          emptyMessage="ไม่พบรถ"
+          inputClassName={pickerInputClass}
+          aria-label="รถ"
+        />
       </div>
     </div>
   );
