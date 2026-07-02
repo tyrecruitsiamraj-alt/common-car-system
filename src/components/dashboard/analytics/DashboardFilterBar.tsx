@@ -47,30 +47,26 @@ const DashboardFilterBar: React.FC<Props> = ({
   periodLabel,
 }) => {
   const ownerOptions = useMemo(
-    () => [
-      { value: '', label: 'ทุกคน' },
-      ...employees
+    () =>
+      employees
         .filter((e) => e.status === 'active')
         .map((e) => ({
           value: e.id,
           label: `${e.first_name} ${e.last_name}`.trim(),
           keywords: `${e.employee_code} ${e.position ?? ''} ${e.phone ?? ''}`.trim(),
         })),
-    ],
     [employees],
   );
 
   const vehicleOptions = useMemo(
-    () => [
-      { value: '', label: 'ทุกคัน' },
-      ...vehicles
+    () =>
+      vehicles
         .filter((v) => v.is_active !== false)
         .map((v) => ({
           value: v.id,
           label: [v.plate_no, v.label].filter(Boolean).join(' · '),
           keywords: `${v.plate_no} ${v.label ?? ''}`.trim(),
         })),
-    ],
     [vehicles],
   );
 
