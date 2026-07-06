@@ -4,9 +4,11 @@ import { CheckCircle2, Loader2 } from 'lucide-react';
 import type { ExamQuestion, FleetExam } from '@/lib/fleetExamsConfig';
 import { countableExamQuestions } from '@/lib/fleetExamsConfig';
 import { submissionToScoreResult, type ExamSubmissionPayload } from '@/lib/fleetExamScoring';
+import { tmaDriverPickerOptions } from '@/lib/tmaDriverNames';
 import { apiFetch } from '@/lib/apiFetch';
 import ExamScoreResultDialog from '@/components/exams/ExamScoreResultDialog';
 import type { ExamScoreRow } from '@/components/exams/ExamScorePanel';
+import SearchablePicker from '@/components/shared/SearchablePicker';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -47,6 +49,7 @@ const ExamForm: React.FC<Props> = ({ exam }) => {
   const [done, setDone] = useState(false);
   const [scoreRow, setScoreRow] = useState<ExamScoreRow | null>(null);
   const [scoreOpen, setScoreOpen] = useState(false);
+  const driverNameOptions = useMemo(() => tmaDriverPickerOptions(), []);
 
   const setAnswer = (id: string, value: string) => {
     setAnswers((prev) => ({ ...prev, [id]: value }));
@@ -184,7 +187,19 @@ const ExamForm: React.FC<Props> = ({ exam }) => {
                 {q.required ? <span className="text-destructive ml-0.5">*</span> : null}
               </Label>
 
-              {q.type === 'text' ? (
+              {q.type === 'text' && q.id === 'driver_name' ? (
+                <SearchablePicker
+                  value={answers[q.id] ?? ''}
+                  onValueChange={(v) => setAnswer(q.id, v)}
+                  options={driverNameOptions}
+                  placeholder="พิมพ์ชื่อเพื่อค้นหา…"
+                  emptyMessage="ไม่พบชื่อในรายการ"
+                  inputClassName="h-10 text-sm"
+                  aria-label={q.label}
+                />
+              ) : null}
+
+              {q.type === 'text' && q.id !== 'driver_name' ? (
                 <Input
                   value={answers[q.id] ?? ''}
                   onChange={(e) => setAnswer(q.id, e.target.value)}
