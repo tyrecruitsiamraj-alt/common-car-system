@@ -106,6 +106,33 @@ function parseLimitOffset(query: Record<string, unknown> | undefined): { limit: 
   return { limit, offset };
 }
 
+/** ตัวกรอง GET ร่วมกัน (status + ค้นหาข้อความ) ใช้ทั้งกับ query หลักและ count สำหรับ pagination */
+function buildEmployeeFilters(query: Record<string, unknown> | undefined): {
+  where: string;
+  params: unknown[];
+} {
+  const clauses: string[] = [];
+  const params: unknown[] = [];
+
+  const statusFilter = getString(query?.status);
+  if (statusFilter && isEmployeeStatus(statusFilter)) {
+    params.push(statusFilter);
+    clauses.push(`status = $${params.length}`);
+  }
+
+  const search = getString(query?.search);
+  if (search) {
+    const escaped = search.replace(/[\\%_]/g, (m) => `\\${m}`);
+    params.push(`%${escaped}%`);
+    const p = `$${params.length}`;
+    clauses.push(
+      `(employee_code ILIKE ${p} ESCAPE '\\' OR first_name ILIKE ${p} ESCAPE '\\' OR last_name ILIKE ${p} ESCAPE '\\' OR phone ILIKE ${p} ESCAPE '\\' OR position ILIKE ${p} ESCAPE '\\')`,
+    );
+  }
+
+  return { where: clauses.length > 0 ? `where ${clauses.join(' and ')}` : '', params };
+}
+
 function todayYmdUtc(): string {
   return new Date().toISOString().slice(0, 10);
 }
@@ -142,25 +169,25 @@ async function employeesHandler(req: AuthedReq, res: ApiRes) {
         return res.status(200).json(toEmployeeResponse(rows[0]));
       }
 
-      const statusFilter = getString(req.query?.status);
-      const statusOk = statusFilter && isEmployeeStatus(statusFilter) ? statusFilter : null;
       const { limit, offset } = parseLimitOffset(req.query);
+      const { where, params } = buildEmployeeFilters(req.query);
 
       const { rows } = await dbQuery<EmployeeRow>(
-        statusOk
-          ? `
-          select * from ${tblEmp}
-          where status = $1
-          order by created_at desc
-          limit $2 offset $3
         `
-          : `
           select * from ${tblEmp}
+          ${where}
           order by created_at desc
-          limit $1 offset $2
+          limit $${params.length + 1} offset $${params.length + 2}
         `,
-        statusOk ? [statusOk, limit, offset] : [limit, offset],
+        [...params, limit, offset],
       );
+
+      const { rows: countRows } = await dbQuery<{ count: number }>(
+        `select count(*)::int as count from ${tblEmp} ${where}`,
+        params,
+      );
+      res.setHeader?.('X-Total-Count', String(countRows[0]?.count ?? rows.length));
+
       return res.status(200).json(rows.map(toEmployeeResponse));
     } catch (e) {
       return handleApiError(res, e, 'employees GET', { userId: req.user.sub });

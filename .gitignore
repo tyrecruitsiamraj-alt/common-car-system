@@ -16,6 +16,9 @@ dist-ssr
 .env
 .env.production
 
+# ไฟล์ข้อมูลพนักงาน/คนขับจริง (ชื่อ เบอร์โทร ฯลฯ) — ห้าม commit
+(Template) TDEM Master File for BI.xlsx
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
