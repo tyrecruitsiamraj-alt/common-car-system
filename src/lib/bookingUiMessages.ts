@@ -1,5 +1,21 @@
 /** ข้อความ UI การจองรถ — แยกความหมาย "ยกเลิก" กับ "ปิดงาน" ให้ชัด */
 
+import type { VehicleBookingJobType } from '@/types';
+
+export const BOOKING_JOB_TYPE_LABELS: Record<VehicleBookingJobType, string> = {
+  trip_sabuy: 'งาน Trip Sabuy',
+  job_order: 'ใบงาน',
+  substitute: 'แทนงาน',
+  standby: 'สแตนบาย',
+};
+
+export const BOOKING_JOB_TYPE_OPTIONS: { value: VehicleBookingJobType; label: string }[] = [
+  { value: 'trip_sabuy', label: BOOKING_JOB_TYPE_LABELS.trip_sabuy },
+  { value: 'job_order', label: BOOKING_JOB_TYPE_LABELS.job_order },
+  { value: 'substitute', label: BOOKING_JOB_TYPE_LABELS.substitute },
+  { value: 'standby', label: BOOKING_JOB_TYPE_LABELS.standby },
+];
+
 export const BOOKING_STATUS_LABELS = {
   inProgress: 'กำลังดำเนินการ',
   completed: 'ปิดงานแล้ว',

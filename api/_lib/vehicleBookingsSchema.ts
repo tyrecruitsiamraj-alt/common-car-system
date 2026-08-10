@@ -5,6 +5,7 @@ import { tableInAppSchema } from './schema.js';
 let completedAtColumnExists: boolean | null = null;
 let workOrderInfrastructureReady: boolean | null = null;
 let documentNoColumnReady: boolean | null = null;
+let jobTypeColumnReady: boolean | null = null;
 
 function vehicleBookingsSchemaTable(): { schema: string; table: string; qualified: string } {
   const qualified = tableInAppSchema('vehicle_bookings');
@@ -78,6 +79,20 @@ export async function ensureVehicleBookingDocumentNo(): Promise<boolean> {
     return true;
   } catch {
     documentNoColumnReady = false;
+    return false;
+  }
+}
+
+/** สร้างคอลัมน์ job_type ถ้ายังไม่มี (migration 035) */
+export async function ensureVehicleBookingJobType(): Promise<boolean> {
+  if (jobTypeColumnReady) return true;
+  try {
+    const tbl = tableInAppSchema('vehicle_bookings');
+    await dbQuery(`alter table ${tbl} add column if not exists job_type text null`);
+    jobTypeColumnReady = true;
+    return true;
+  } catch {
+    jobTypeColumnReady = false;
     return false;
   }
 }

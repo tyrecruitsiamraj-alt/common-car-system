@@ -19,6 +19,7 @@ import {
   bookingEffectiveEndSqlQualified,
   ensureVehicleBookingCompletedAt,
   ensureVehicleBookingDocumentNo,
+  ensureVehicleBookingJobType,
   hasVehicleBookingCompletedAt,
 } from '../_lib/vehicleBookingsSchema.js';
 import { roundDateToMinuteStep } from '../_lib/bookingMinuteStep.js';
@@ -51,6 +52,7 @@ type BookingRow = {
   notes: string | null;
   destination: string | null;
   document_no: string | null;
+  job_type: string | null;
   status: string;
   completed_at: string | Date | null;
   created_at: string | Date;
@@ -83,6 +85,7 @@ function bookingSnapshot(row: BookingRow) {
     notes: row.notes || undefined,
     destination: row.destination || undefined,
     document_no: row.document_no?.trim() || undefined,
+    job_type: row.job_type?.trim() || undefined,
     status: row.status || 'active',
     completed_at: row.completed_at ? toIso(row.completed_at) : undefined,
   };
@@ -90,6 +93,13 @@ function bookingSnapshot(row: BookingRow) {
 
 function optionalText(v: unknown): string | null {
   return typeof v === 'string' && v.trim() ? v.trim() : null;
+}
+
+const VALID_JOB_TYPES = new Set(['trip_sabuy', 'job_order', 'substitute', 'standby']);
+
+function optionalJobType(v: unknown): string | null {
+  const s = optionalText(v);
+  return s && VALID_JOB_TYPES.has(s) ? s : null;
 }
 
 function toBooking(row: BookingRow) {
@@ -102,6 +112,7 @@ function toBooking(row: BookingRow) {
     ends_at: toIso(row.ends_at),
     destination: row.destination || undefined,
     document_no: row.document_no?.trim() || undefined,
+    job_type: row.job_type?.trim() || undefined,
     notes: row.notes || undefined,
     status: row.status === 'cancelled' ? 'cancelled' : 'active',
     completed_at: row.completed_at ? toIso(row.completed_at) : undefined,
@@ -335,6 +346,7 @@ async function handler(req: AuthedReq, res: ApiRes): Promise<void> {
       const ends = bookingTimeFromIso(b.ends_at);
       const destination = optionalText(b.destination);
       const document_no = optionalText(b.document_no);
+      const job_type = optionalJobType(b.job_type);
       const notes = optionalText(b.notes);
       if (!employee_id || !vehicle_id || !starts || !ends) {
         return sendError(res, 400, 'Bad request', 'employee_id, vehicle_id, starts_at, ends_at (ISO) required');
@@ -365,13 +377,14 @@ async function handler(req: AuthedReq, res: ApiRes): Promise<void> {
       }
 
       await ensureVehicleBookingDocumentNo();
+      await ensureVehicleBookingJobType();
       const work_order_no = await allocateVehicleBookingWorkOrderNo();
       const { rows } = await dbQuery<BookingRow>(
         `
         insert into ${tbl} (
-          employee_id, vehicle_id, starts_at, ends_at, destination, document_no, notes, status, work_order_no, updated_at
+          employee_id, vehicle_id, starts_at, ends_at, destination, document_no, job_type, notes, status, work_order_no, updated_at
         )
-        values ($1::uuid, $2::uuid, $3::timestamptz, $4::timestamptz, $5, $6, $7, 'active', $8, now())
+        values ($1::uuid, $2::uuid, $3::timestamptz, $4::timestamptz, $5, $6, $7, $8, 'active', $9, now())
         returning *
       `,
         [
@@ -381,6 +394,7 @@ async function handler(req: AuthedReq, res: ApiRes): Promise<void> {
           ends.toISOString(),
           destination,
           document_no,
+          job_type,
           notes,
           work_order_no,
         ],
@@ -498,6 +512,7 @@ async function handler(req: AuthedReq, res: ApiRes): Promise<void> {
       let notes = cur.notes;
       let destination = cur.destination;
       let document_no = cur.document_no?.trim() || null;
+      let job_type = cur.job_type?.trim() || null;
 
       if (!editCompletedTimes) {
         employee_id = b.employee_id !== undefined ? getString(b.employee_id) ?? cur.employee_id : cur.employee_id;
@@ -506,6 +521,7 @@ async function handler(req: AuthedReq, res: ApiRes): Promise<void> {
         destination = b.destination !== undefined ? optionalText(b.destination) : cur.destination;
         document_no =
           b.document_no !== undefined ? optionalText(b.document_no) : cur.document_no?.trim() || null;
+        job_type = b.job_type !== undefined ? optionalJobType(b.job_type) : cur.job_type?.trim() || null;
       }
 
       let starts =
@@ -586,6 +602,7 @@ async function handler(req: AuthedReq, res: ApiRes): Promise<void> {
       }
 
       await ensureVehicleBookingDocumentNo();
+      await ensureVehicleBookingJobType();
       const { rows } = supportsCompletedAt
         ? await dbQuery<BookingRow>(
             `
@@ -596,8 +613,9 @@ async function handler(req: AuthedReq, res: ApiRes): Promise<void> {
           ends_at = $5::timestamptz,
           destination = $6,
           document_no = $7,
-          notes = $8,
-          completed_at = $9::timestamptz,
+          job_type = $8,
+          notes = $9,
+          completed_at = $10::timestamptz,
           updated_at = now()
         where id = $1::uuid and ${ACTIVE_ONLY}
         returning *
@@ -610,6 +628,7 @@ async function handler(req: AuthedReq, res: ApiRes): Promise<void> {
               ends.toISOString(),
               destination,
               document_no,
+              job_type,
               notes,
               completedAt ? completedAt.toISOString() : null,
             ],
@@ -623,7 +642,8 @@ async function handler(req: AuthedReq, res: ApiRes): Promise<void> {
           ends_at = $5::timestamptz,
           destination = $6,
           document_no = $7,
-          notes = $8,
+          job_type = $8,
+          notes = $9,
           updated_at = now()
         where id = $1::uuid and ${ACTIVE_ONLY}
         returning *
@@ -636,6 +656,7 @@ async function handler(req: AuthedReq, res: ApiRes): Promise<void> {
               ends.toISOString(),
               destination,
               document_no,
+              job_type,
               notes,
             ],
           );

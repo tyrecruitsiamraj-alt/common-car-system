@@ -85,6 +85,7 @@ const DashboardShell: React.FC<Props> = ({
             <DashboardChartSection
               trendSeries={data.trendSeries}
               statusSlices={data.statusSlices}
+              jobTypeSlices={data.jobTypeSlices}
               loading={loading}
             />
 

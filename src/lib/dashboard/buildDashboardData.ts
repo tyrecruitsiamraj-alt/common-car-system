@@ -21,6 +21,7 @@ import type {
   DashboardData,
   DashboardDriverSlice,
   DashboardFilters,
+  DashboardJobTypeSlice,
   DashboardKpi,
   DashboardSlaStatus,
   DashboardStatusSlice,
@@ -28,7 +29,8 @@ import type {
   DashboardTrendPoint,
   DashboardWorkItem,
 } from '@/lib/dashboard/types';
-import type { Employee, Vehicle, VehicleBooking } from '@/types';
+import { BOOKING_JOB_TYPE_LABELS } from '@/lib/bookingUiMessages';
+import type { Employee, Vehicle, VehicleBooking, VehicleBookingJobType } from '@/types';
 
 const STATUS_LABELS: Record<DashboardTaskStatus, string> = {
   pending: 'รอดำเนินการ',
@@ -118,6 +120,7 @@ export function bookingToWorkItem(
     vehicleLabel: veh.label,
     department: doc || 'ทั่วไป',
     site: dest || '—',
+    jobType: b.job_type ?? null,
     status,
     slaStatus: mapSlaStatus(status),
     createdAt: b.created_at,
@@ -268,6 +271,29 @@ function buildStatusSlices(items: DashboardWorkItem[]): DashboardStatusSlice[] {
     .filter((s) => s.count > 0);
 }
 
+const JOB_TYPE_ORDER: VehicleBookingJobType[] = ['trip_sabuy', 'job_order', 'substitute', 'standby'];
+
+function buildJobTypeSlices(items: DashboardWorkItem[]): DashboardJobTypeSlice[] {
+  const total = items.length || 1;
+  const counts = new Map<VehicleBookingJobType | 'unspecified', number>();
+  for (const item of items) {
+    const key = item.jobType ?? 'unspecified';
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  const order: (VehicleBookingJobType | 'unspecified')[] = [...JOB_TYPE_ORDER, 'unspecified'];
+  return order
+    .map((jobType) => {
+      const count = counts.get(jobType) ?? 0;
+      return {
+        jobType,
+        label: jobType === 'unspecified' ? 'ไม่ระบุ' : BOOKING_JOB_TYPE_LABELS[jobType],
+        count,
+        share: Math.round((count / total) * 100),
+      };
+    })
+    .filter((s) => s.count > 0);
+}
+
 function buildDriverSlices(items: DashboardWorkItem[], employees: Employee[]): DashboardDriverSlice[] {
   const counts = new Map<string, { total: number; completed: number; overdue: number }>();
   for (const item of items) {
@@ -343,6 +369,7 @@ export function buildDashboardData(
     kpis: buildKpis(filtered, prevItems),
     trendSeries: buildTrendSeries(inRange, range, inPrevRange),
     statusSlices: buildStatusSlices(filtered),
+    jobTypeSlices: buildJobTypeSlices(filtered),
     driverSlices: buildDriverSlices(filtered, employees),
     workQueue,
   };

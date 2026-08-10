@@ -37,6 +37,7 @@ import {
   BOOKING_AVAILABILITY,
   BOOKING_CONFIRM,
   BOOKING_DIALOG,
+  BOOKING_JOB_TYPE_OPTIONS,
   BOOKING_STATUS_LABELS,
   BOOKING_TOAST,
 } from '@/lib/bookingUiMessages';
@@ -56,7 +57,7 @@ import BookingDetailDialog from '@/components/fleet/BookingDetailDialog';
 import { BOOKING_ROW_STATUS_META } from '@/components/fleet/FleetBookingsDashboard';
 import { apiFetch } from '@/lib/apiFetch';
 import { useAuth } from '@/contexts/AuthContext';
-import type { Employee, Vehicle, VehicleBooking, VehicleBookingAudit } from '@/types';
+import type { Employee, Vehicle, VehicleBooking, VehicleBookingAudit, VehicleBookingJobType } from '@/types';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -457,6 +458,7 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
   const [selVeh, setSelVeh] = useState('');
   const [destination, setDestination] = useState('');
   const [documentNo, setDocumentNo] = useState('');
+  const [jobType, setJobType] = useState<VehicleBookingJobType | ''>('');
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
   /** กรองพนักงาน/รถจาก dropdown — ใช้กับตารางรายวัน/รายชั่วโมงและสรุปด้านล่าง */
@@ -491,6 +493,7 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
   const [editEnd, setEditEnd] = useState('');
   const [editDestination, setEditDestination] = useState('');
   const [editDocumentNo, setEditDocumentNo] = useState('');
+  const [editJobType, setEditJobType] = useState<VehicleBookingJobType | ''>('');
   const [editNotes, setEditNotes] = useState('');
   /** ช่วงเวลาเดิมตอนเปิดแก้ไข — แสดงเทียบกับค่าที่กำลังแก้ */
   const [editTimeBaseline, setEditTimeBaseline] = useState<{ starts: string; ends: string } | null>(null);
@@ -1304,6 +1307,7 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
             ends_at: win.to.toISOString(),
             destination: destination.trim() || undefined,
             document_no: documentNo.trim() || undefined,
+            job_type: jobType || undefined,
             notes: notes.trim() || undefined,
           }),
         });
@@ -1320,6 +1324,7 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
       toast.success(ok === 1 ? 'บันทึกการจองแล้ว' : `สร้างการจอง ${ok} รายการแล้ว`);
       setDestination('');
       setDocumentNo('');
+      setJobType('');
       setNotes('');
       setCreateDialogOpen(false);
       const firstDay = parse(days[0], 'yyyy-MM-dd', new Date());
@@ -1410,6 +1415,7 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
     setEditTimeBaseline({ starts: startLocal, ends: endLocal });
     setEditDestination(b.destination ?? '');
     setEditDocumentNo(b.document_no ?? '');
+    setEditJobType(b.job_type ?? '');
     setEditNotes(b.notes ?? '');
   };
 
@@ -1538,6 +1544,7 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
             ends_at: win.to.toISOString(),
             destination: editDestination.trim() || undefined,
             document_no: editDocumentNo.trim() || undefined,
+            job_type: editJobType || undefined,
             notes: editNotes.trim() || undefined,
             ...(completing ? { mark_completed: true } : {}),
           };
@@ -2872,6 +2879,24 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                 placeholder="ทางเลือก — เลขที่ใบขอใช้รถ / เอกสารอ้างอิง"
               />
             </div>
+            <div className="space-y-0.5">
+              <Label className="text-[10px]">ประเภทงาน</Label>
+              <Select
+                value={jobType}
+                onValueChange={(v) => setJobType(v as VehicleBookingJobType)}
+              >
+                <SelectTrigger className="h-8 text-xs">
+                  <SelectValue placeholder="ทางเลือก — เลือกประเภทงาน" />
+                </SelectTrigger>
+                <SelectContent>
+                  {BOOKING_JOB_TYPE_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             <div className="space-y-1">
               <p className="text-xs font-medium text-foreground">เวลา (ใช้ทุกวันที่เลือก)</p>
               <p className="text-[10px] text-muted-foreground">เวลา 24 ชม. (… น.) — นาทีทุก 10 นาที</p>
@@ -3174,6 +3199,26 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                   className="h-9 text-xs"
                   placeholder="ทางเลือก"
                 />
+              </div>
+              ) : null}
+              {editDialogMode !== 'completedTime' ? (
+              <div className="space-y-1">
+                <Label className="text-xs">ประเภทงาน</Label>
+                <Select
+                  value={editJobType}
+                  onValueChange={(v) => setEditJobType(v as VehicleBookingJobType)}
+                >
+                  <SelectTrigger className="h-9 text-xs">
+                    <SelectValue placeholder="ทางเลือก — เลือกประเภทงาน" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {BOOKING_JOB_TYPE_OPTIONS.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               ) : null}
               <div className="rounded-lg border border-border/70 bg-muted/20 px-3 py-2 text-xs">

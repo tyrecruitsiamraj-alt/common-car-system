@@ -1,6 +1,7 @@
 import { parseISO } from 'date-fns';
 import { formatThaiDateTime } from '@/lib/thaiDateTimeFormat';
-import type { Employee, Vehicle, VehicleBookingAudit } from '@/types';
+import { BOOKING_JOB_TYPE_LABELS } from '@/lib/bookingUiMessages';
+import type { Employee, Vehicle, VehicleBookingAudit, VehicleBookingJobType } from '@/types';
 
 const FIELD_LABELS: Record<string, string> = {
   employee_id: 'ผู้ขับ',
@@ -9,6 +10,7 @@ const FIELD_LABELS: Record<string, string> = {
   ends_at: 'สิ้นสุด',
   destination: 'สถานที่ที่ไป',
   document_no: 'เลขที่เอกสาร',
+  job_type: 'ประเภทงาน',
   notes: 'หมายเหตุ',
   status: 'สถานะ',
 };
@@ -37,6 +39,7 @@ export function formatBookingAuditValue(
     }
   }
   if (key === 'status') return s === 'cancelled' ? 'ยกเลิก' : 'ใช้งาน';
+  if (key === 'job_type') return BOOKING_JOB_TYPE_LABELS[s as VehicleBookingJobType] ?? s;
   return s;
 }
 

@@ -61,6 +61,8 @@ export interface Vehicle {
   updated_at: string;
 }
 
+export type VehicleBookingJobType = 'trip_sabuy' | 'job_order' | 'substitute' | 'standby';
+
 export interface VehicleBooking {
   id: string;
   /** เลขใบงาน — เช่น BK-000042 */
@@ -73,6 +75,8 @@ export interface VehicleBooking {
   destination?: string;
   /** เลขที่เอกสารอ้างอิง (ใบขอใช้รถ ฯลฯ) */
   document_no?: string;
+  /** ประเภทงาน */
+  job_type?: VehicleBookingJobType;
   notes?: string;
   status?: 'active' | 'cancelled';
   /** บันทึกเมื่อกดเสร็จสิ้น — ปิดงานก่อน ends_at ได้ */
