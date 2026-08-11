@@ -15,7 +15,7 @@ import {
   deriveBookingListStatus,
 } from '@/lib/fleetBookingsDashboard';
 import { formatThaiDateTime, formatThaiTimeRange } from '@/lib/thaiDateTimeFormat';
-import { BOOKING_DIALOG, BOOKING_JOB_TYPE_LABELS } from '@/lib/bookingUiMessages';
+import { BOOKING_CANCEL_REASON_LABELS, BOOKING_DIALOG, BOOKING_JOB_TYPE_LABELS } from '@/lib/bookingUiMessages';
 import { cn } from '@/lib/utils';
 import type { Employee, Vehicle, VehicleBooking } from '@/types';
 
@@ -69,6 +69,12 @@ export default function BookingDetailDialog({
                 <div>
                   <p className="text-xs text-muted-foreground">ประเภทงาน</p>
                   <p className="font-medium text-foreground">{BOOKING_JOB_TYPE_LABELS[booking.job_type]}</p>
+                </div>
+              ) : null}
+              {booking.status === 'cancelled' && booking.cancel_reason ? (
+                <div>
+                  <p className="text-xs text-muted-foreground">เหตุผลการยกเลิก</p>
+                  <p className="font-medium text-foreground">{BOOKING_CANCEL_REASON_LABELS[booking.cancel_reason]}</p>
                 </div>
               ) : null}
               <div className="flex items-start justify-between gap-3">

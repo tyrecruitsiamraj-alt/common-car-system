@@ -1,6 +1,6 @@
 /** ข้อความ UI การจองรถ — แยกความหมาย "ยกเลิก" กับ "ปิดงาน" ให้ชัด */
 
-import type { VehicleBookingJobType } from '@/types';
+import type { VehicleBookingCancelReason, VehicleBookingJobType } from '@/types';
 
 export const BOOKING_JOB_TYPE_LABELS: Record<VehicleBookingJobType, string> = {
   trip_sabuy: 'งาน Trip Sabuy',
@@ -14,6 +14,16 @@ export const BOOKING_JOB_TYPE_OPTIONS: { value: VehicleBookingJobType; label: st
   { value: 'job_order', label: BOOKING_JOB_TYPE_LABELS.job_order },
   { value: 'substitute', label: BOOKING_JOB_TYPE_LABELS.substitute },
   { value: 'standby', label: BOOKING_JOB_TYPE_LABELS.standby },
+];
+
+export const BOOKING_CANCEL_REASON_LABELS: Record<VehicleBookingCancelReason, string> = {
+  user_not_using: 'ยกเลิกจาก user ไม่ใช้',
+  employee_no_show: 'ยกเลิกจากพนักงานไม่ไปปฏิบัติงาน',
+};
+
+export const BOOKING_CANCEL_REASON_OPTIONS: { value: VehicleBookingCancelReason; label: string }[] = [
+  { value: 'user_not_using', label: BOOKING_CANCEL_REASON_LABELS.user_not_using },
+  { value: 'employee_no_show', label: BOOKING_CANCEL_REASON_LABELS.employee_no_show },
 ];
 
 export const BOOKING_STATUS_LABELS = {
@@ -32,8 +42,6 @@ export const BOOKING_ACTION_LABELS = {
 } as const;
 
 export const BOOKING_CONFIRM = {
-  cancel:
-    'ยกเลิกการจองนี้?\n\n• ใบจองจะถูกยกเลิก (ไม่ใช่การปิดงาน)\n• รถและพนักงานจะว่างทันทีทั้งช่วงเวลาที่จอง',
   completeNow:
     'ปิดงานตอนนี้?\n\n• ระบบจะบันทึกเวลาปิดเป็นเวลาปัจจุบัน\n• รถและพนักงานจะว่างตั้งแต่เวลาปิดจนถึงเวลาสิ้นสุดที่จอง (ไม่ใช่การยกเลิก)',
   completeWithEdits:
@@ -55,6 +63,7 @@ export const BOOKING_TOAST = {
   invalidCompletedAt: 'เวลาปิดงานไม่ถูกต้อง',
   noPermissionEditCompletedTime: 'คุณไม่มีสิทธิ์แก้เวลาปิดงาน',
   editCompletedTimeSuccess: 'แก้เวลาปิดงานแล้ว',
+  cancelReasonRequired: 'กรุณาเลือกเหตุผลการยกเลิก',
 } as const;
 
 export const BOOKING_DIALOG = {
@@ -68,6 +77,9 @@ export const BOOKING_DIALOG = {
   completedAtHint:
     'เวลานี้กำหนดจุดที่รถและพนักงานว่าง — แนะนำให้อยู่ในช่วงเริ่ม–สิ้นสุดที่จอง',
   detailCompletedAt: (formatted: string) => `ปิดงานเมื่อ ${formatted}`,
+  cancelReasonTitle: 'ยกเลิกการจอง',
+  cancelReasonDescription:
+    'ใบจองจะถูกยกเลิก (ไม่ใช่การปิดงาน) — รถและพนักงานจะว่างทันทีทั้งช่วงเวลาที่จอง กรุณาเลือกเหตุผลการยกเลิกก่อนดำเนินการ',
 } as const;
 
 export const BOOKING_AVAILABILITY = {

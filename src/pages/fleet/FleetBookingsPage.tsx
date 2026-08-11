@@ -35,6 +35,7 @@ import {
 import {
   BOOKING_ACTION_LABELS,
   BOOKING_AVAILABILITY,
+  BOOKING_CANCEL_REASON_OPTIONS,
   BOOKING_CONFIRM,
   BOOKING_DIALOG,
   BOOKING_JOB_TYPE_OPTIONS,
@@ -57,7 +58,14 @@ import BookingDetailDialog from '@/components/fleet/BookingDetailDialog';
 import { BOOKING_ROW_STATUS_META } from '@/components/fleet/FleetBookingsDashboard';
 import { apiFetch } from '@/lib/apiFetch';
 import { useAuth } from '@/contexts/AuthContext';
-import type { Employee, Vehicle, VehicleBooking, VehicleBookingAudit, VehicleBookingJobType } from '@/types';
+import type {
+  Employee,
+  Vehicle,
+  VehicleBooking,
+  VehicleBookingAudit,
+  VehicleBookingCancelReason,
+  VehicleBookingJobType,
+} from '@/types';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -471,6 +479,9 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
   const bookingFormRef = useRef<HTMLFormElement>(null);
   const createVehiclePickerRef = useRef<HTMLInputElement>(null);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [cancelTargetId, setCancelTargetId] = useState<string | null>(null);
+  const [cancelReason, setCancelReason] = useState<VehicleBookingCancelReason | ''>('');
+  const [cancelling, setCancelling] = useState(false);
   const [metricDetailOpen, setMetricDetailOpen] = useState(false);
   const [metricDetailKind, setMetricDetailKind] = useState<DashboardMetricId | null>(null);
   const [summaryDetailOpen, setSummaryDetailOpen] = useState<'free' | 'partial' | 'inUse' | null>(null);
@@ -1372,23 +1383,45 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
     setBookings((prev) => prev.map((x) => (x.id === updated.id ? updated : x)));
   };
 
-  const cancelBooking = async (id: string) => {
+  const requestCancelBooking = (id: string) => {
     if (!canDelete) return;
     const b = bookings.find((x) => x.id === id);
     if (b && !isBookingCancellable(b)) {
       toast.message(BOOKING_TOAST.cannotCancelCompleted);
       return;
     }
-    if (!window.confirm(BOOKING_CONFIRM.cancel)) return;
+    setCancelReason('');
+    setCancelTargetId(id);
+  };
+
+  const closeCancelDialog = () => {
+    setCancelTargetId(null);
+    setCancelReason('');
+  };
+
+  const confirmCancelBooking = async () => {
+    if (!cancelTargetId) return;
+    if (!cancelReason) {
+      toast.error(BOOKING_TOAST.cancelReasonRequired);
+      return;
+    }
+    const id = cancelTargetId;
+    setCancelling(true);
     try {
-      const r = await apiFetch(`/api/vehicle-bookings?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
+      const r = await apiFetch(
+        `/api/vehicle-bookings?id=${encodeURIComponent(id)}&reason=${encodeURIComponent(cancelReason)}`,
+        { method: 'DELETE' },
+      );
       if (!r.ok) throw new Error(await parseApiError(r));
       toast.success(BOOKING_TOAST.cancelSuccess);
+      closeCancelDialog();
       if (editBooking?.id === id) closeEditDialog();
       setEmpDayDialog(null);
       await refresh();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : BOOKING_TOAST.cancelFailed);
+    } finally {
+      setCancelling(false);
     }
   };
 
@@ -1611,7 +1644,7 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
           </button>
         ) : null}
         {canDelete && isBookingCancellable(b) && !isMonitor ? (
-          <button type="button" className="text-[10px] text-destructive hover:underline" onClick={() => void cancelBooking(b.id)}>
+          <button type="button" className="text-[10px] text-destructive hover:underline" onClick={() => requestCancelBooking(b.id)}>
             {BOOKING_ACTION_LABELS.cancelShort}
           </button>
         ) : null}
@@ -2007,7 +2040,7 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                 {showCancel ? (
                   <DropdownMenuItem
                     className="text-destructive focus:text-destructive"
-                    onClick={() => void cancelBooking(b.id)}
+                    onClick={() => requestCancelBooking(b.id)}
                   >
                     {BOOKING_ACTION_LABELS.cancelBooking}
                   </DropdownMenuItem>
@@ -3381,7 +3414,7 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                     type="button"
                     variant="destructive"
                     disabled={saving}
-                    onClick={() => void cancelBooking(editBooking.id)}
+                    onClick={() => requestCancelBooking(editBooking.id)}
                   >
                     {BOOKING_ACTION_LABELS.cancelBooking}
                   </Button>
@@ -3409,6 +3442,48 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
               </div>
             </form>
           ) : null}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={cancelTargetId !== null} onOpenChange={(open) => !open && closeCancelDialog()}>
+        <DialogContent className="sm:max-w-sm rounded-[1.5rem]">
+          <DialogHeader>
+            <DialogTitle>{BOOKING_DIALOG.cancelReasonTitle}</DialogTitle>
+            <DialogDescription className="text-left">
+              {BOOKING_DIALOG.cancelReasonDescription}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-1">
+            <Label className="text-xs">เหตุผลการยกเลิก</Label>
+            <Select
+              value={cancelReason}
+              onValueChange={(v) => setCancelReason(v as VehicleBookingCancelReason)}
+            >
+              <SelectTrigger className="h-9 text-xs">
+                <SelectValue placeholder="เลือกเหตุผลการยกเลิก" />
+              </SelectTrigger>
+              <SelectContent>
+                {BOOKING_CANCEL_REASON_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button type="button" variant="outline" onClick={closeCancelDialog} disabled={cancelling}>
+              ปิด
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={cancelling || !cancelReason}
+              onClick={() => void confirmCancelBooking()}
+            >
+              {BOOKING_ACTION_LABELS.cancelBooking}
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </>

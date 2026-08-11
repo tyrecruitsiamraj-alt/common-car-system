@@ -63,6 +63,8 @@ export interface Vehicle {
 
 export type VehicleBookingJobType = 'trip_sabuy' | 'job_order' | 'substitute' | 'standby';
 
+export type VehicleBookingCancelReason = 'user_not_using' | 'employee_no_show';
+
 export interface VehicleBooking {
   id: string;
   /** เลขใบงาน — เช่น BK-000042 */
@@ -79,6 +81,8 @@ export interface VehicleBooking {
   job_type?: VehicleBookingJobType;
   notes?: string;
   status?: 'active' | 'cancelled';
+  /** เหตุผลการยกเลิก — บันทึกเมื่อยกเลิกใบจอง */
+  cancel_reason?: VehicleBookingCancelReason;
   /** บันทึกเมื่อกดเสร็จสิ้น — ปิดงานก่อน ends_at ได้ */
   completed_at?: string;
   created_at: string;

@@ -1,7 +1,13 @@
 import { parseISO } from 'date-fns';
 import { formatThaiDateTime } from '@/lib/thaiDateTimeFormat';
-import { BOOKING_JOB_TYPE_LABELS } from '@/lib/bookingUiMessages';
-import type { Employee, Vehicle, VehicleBookingAudit, VehicleBookingJobType } from '@/types';
+import { BOOKING_CANCEL_REASON_LABELS, BOOKING_JOB_TYPE_LABELS } from '@/lib/bookingUiMessages';
+import type {
+  Employee,
+  Vehicle,
+  VehicleBookingAudit,
+  VehicleBookingCancelReason,
+  VehicleBookingJobType,
+} from '@/types';
 
 const FIELD_LABELS: Record<string, string> = {
   employee_id: 'ผู้ขับ',
@@ -11,6 +17,7 @@ const FIELD_LABELS: Record<string, string> = {
   destination: 'สถานที่ที่ไป',
   document_no: 'เลขที่เอกสาร',
   job_type: 'ประเภทงาน',
+  cancel_reason: 'เหตุผลการยกเลิก',
   notes: 'หมายเหตุ',
   status: 'สถานะ',
 };
@@ -40,6 +47,7 @@ export function formatBookingAuditValue(
   }
   if (key === 'status') return s === 'cancelled' ? 'ยกเลิก' : 'ใช้งาน';
   if (key === 'job_type') return BOOKING_JOB_TYPE_LABELS[s as VehicleBookingJobType] ?? s;
+  if (key === 'cancel_reason') return BOOKING_CANCEL_REASON_LABELS[s as VehicleBookingCancelReason] ?? s;
   return s;
 }
 
@@ -61,7 +69,11 @@ export function diffBookingAuditEntry(
     if (a.action === 'created') {
       lines.push(`${label}: ${formatBookingAuditValue(k, n, empMap, vehMap)}`);
     } else if (a.action === 'cancelled') {
-      lines.push(`${label}: ${formatBookingAuditValue(k, o, empMap, vehMap)} → ยกเลิก`);
+      if (k === 'cancel_reason') {
+        lines.push(`${label}: ${formatBookingAuditValue(k, n, empMap, vehMap)}`);
+      } else {
+        lines.push(`${label}: ${formatBookingAuditValue(k, o, empMap, vehMap)} → ยกเลิก`);
+      }
     } else {
       lines.push(
         `${label}: ${formatBookingAuditValue(k, o, empMap, vehMap)} → ${formatBookingAuditValue(k, n, empMap, vehMap)}`,

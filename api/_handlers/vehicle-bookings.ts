@@ -17,6 +17,7 @@ import {
   allocateVehicleBookingWorkOrderNo,
   bookingEffectiveEndSql,
   bookingEffectiveEndSqlQualified,
+  ensureVehicleBookingCancelReason,
   ensureVehicleBookingCompletedAt,
   ensureVehicleBookingDocumentNo,
   ensureVehicleBookingJobType,
@@ -53,6 +54,7 @@ type BookingRow = {
   destination: string | null;
   document_no: string | null;
   job_type: string | null;
+  cancel_reason: string | null;
   status: string;
   completed_at: string | Date | null;
   created_at: string | Date;
@@ -86,6 +88,7 @@ function bookingSnapshot(row: BookingRow) {
     destination: row.destination || undefined,
     document_no: row.document_no?.trim() || undefined,
     job_type: row.job_type?.trim() || undefined,
+    cancel_reason: row.cancel_reason?.trim() || undefined,
     status: row.status || 'active',
     completed_at: row.completed_at ? toIso(row.completed_at) : undefined,
   };
@@ -102,6 +105,8 @@ function optionalJobType(v: unknown): string | null {
   return s && VALID_JOB_TYPES.has(s) ? s : null;
 }
 
+const VALID_CANCEL_REASONS = new Set(['user_not_using', 'employee_no_show']);
+
 function toBooking(row: BookingRow) {
   return {
     id: row.id,
@@ -113,6 +118,7 @@ function toBooking(row: BookingRow) {
     destination: row.destination || undefined,
     document_no: row.document_no?.trim() || undefined,
     job_type: row.job_type?.trim() || undefined,
+    cancel_reason: row.cancel_reason?.trim() || undefined,
     notes: row.notes || undefined,
     status: row.status === 'cancelled' ? 'cancelled' : 'active',
     completed_at: row.completed_at ? toIso(row.completed_at) : undefined,
@@ -719,6 +725,10 @@ async function handler(req: AuthedReq, res: ApiRes): Promise<void> {
     try {
       const id = getString(req.query?.id);
       if (!id) return sendError(res, 400, 'Bad request', 'query id required');
+      const reason = getString(req.query?.reason);
+      if (!reason || !VALID_CANCEL_REASONS.has(reason)) {
+        return sendError(res, 400, 'Bad request', 'reason required (user_not_using | employee_no_show)');
+      }
 
       const { rows: curRows } = await dbQuery<BookingRow>(
         `select * from ${tbl} where id = $1::uuid limit 1`,
@@ -733,13 +743,14 @@ async function handler(req: AuthedReq, res: ApiRes): Promise<void> {
         return sendError(res, 409, 'Conflict', 'การจองนี้เสร็จสิ้นแล้ว — ยกเลิกไม่ได้');
       }
 
+      await ensureVehicleBookingCancelReason();
       const { rows } = await dbQuery<BookingRow>(
         `
-        update ${tbl} set status = 'cancelled', updated_at = now()
+        update ${tbl} set status = 'cancelled', cancel_reason = $2, updated_at = now()
         where id = $1::uuid and ${ACTIVE_ONLY}
         returning *
       `,
-        [id],
+        [id, reason],
       );
       const row = rows[0];
       if (!row) {

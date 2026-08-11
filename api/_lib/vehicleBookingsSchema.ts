@@ -6,6 +6,7 @@ let completedAtColumnExists: boolean | null = null;
 let workOrderInfrastructureReady: boolean | null = null;
 let documentNoColumnReady: boolean | null = null;
 let jobTypeColumnReady: boolean | null = null;
+let cancelReasonColumnReady: boolean | null = null;
 
 function vehicleBookingsSchemaTable(): { schema: string; table: string; qualified: string } {
   const qualified = tableInAppSchema('vehicle_bookings');
@@ -93,6 +94,20 @@ export async function ensureVehicleBookingJobType(): Promise<boolean> {
     return true;
   } catch {
     jobTypeColumnReady = false;
+    return false;
+  }
+}
+
+/** สร้างคอลัมน์ cancel_reason ถ้ายังไม่มี (migration 036) */
+export async function ensureVehicleBookingCancelReason(): Promise<boolean> {
+  if (cancelReasonColumnReady) return true;
+  try {
+    const tbl = tableInAppSchema('vehicle_bookings');
+    await dbQuery(`alter table ${tbl} add column if not exists cancel_reason text null`);
+    cancelReasonColumnReady = true;
+    return true;
+  } catch {
+    cancelReasonColumnReady = false;
     return false;
   }
 }
