@@ -17,6 +17,7 @@ import changePasswordHandler from './auth/change-password.js';
 import brandingHandler from './branding.js';
 import vehiclesHandler from './vehicles.js';
 import vehicleBookingsHandler from './vehicle-bookings.js';
+import dashboardReportsHandler from './dashboard-reports.js';
 import fleetExamSubmissionsHandler from './fleet-exam-submissions.js';
 import fleetBookingPermissionsHandler from './fleet-booking-permissions.js';
 import appUsersHandler from './app-users.js';
@@ -33,6 +34,7 @@ export const apiRoutes: Record<string, ApiHandler> = {
   '/api/employees': employeesHandler as ApiHandler,
   '/api/vehicles': vehiclesHandler as ApiHandler,
   '/api/vehicle-bookings': vehicleBookingsHandler as ApiHandler,
+  '/api/dashboard-reports': dashboardReportsHandler as ApiHandler,
   '/api/fleet-exam-submissions': fleetExamSubmissionsHandler as ApiHandler,
   '/api/fleet-booking-permissions': fleetBookingPermissionsHandler as ApiHandler,
   '/api/app-users': appUsersHandler as ApiHandler,

@@ -6,6 +6,7 @@ import DashboardFilterBar from '@/components/dashboard/analytics/DashboardFilter
 import DashboardKpiCard from '@/components/dashboard/analytics/DashboardKpiCard';
 import DashboardChartSection from '@/components/dashboard/analytics/DashboardChartSection';
 import DashboardDriverOverview from '@/components/dashboard/analytics/DashboardDriverOverview';
+import DashboardEmployeeHoursReport from '@/components/dashboard/analytics/DashboardEmployeeHoursReport';
 import DashboardVehicleUsageReport from '@/components/dashboard/analytics/DashboardVehicleUsageReport';
 import DashboardWorkQueueTable from '@/components/dashboard/analytics/DashboardWorkQueueTable';
 import type { DashboardData, DashboardFilters } from '@/lib/dashboard/types';
@@ -17,6 +18,8 @@ type Props = {
   onFiltersChange: (patch: Partial<DashboardFilters>) => void;
   employees: Employee[];
   vehicles: Vehicle[];
+  fromIso: string;
+  toIso: string;
   loading?: boolean;
   onRefresh?: () => void;
   onExport?: () => void;
@@ -28,10 +31,18 @@ const DashboardShell: React.FC<Props> = ({
   onFiltersChange,
   employees,
   vehicles,
+  fromIso,
+  toIso,
   loading,
   onRefresh,
   onExport,
 }) => {
+  const reportFilters = {
+    ownerId: filters.ownerId || undefined,
+    vehicleId: filters.vehicleId || undefined,
+    search: filters.search || undefined,
+    status: filters.status !== 'all' ? filters.status : undefined,
+  };
   return (
     <div className="-mx-4 sm:-mx-5 md:-mx-6 lg:-mx-8 px-4 sm:px-5 md:px-6 lg:px-8 py-4 sm:py-6 bg-[#f8fafc] min-h-[calc(100dvh-3rem)]">
       <div className="max-w-[1400px] mx-auto space-y-6">
@@ -93,9 +104,17 @@ const DashboardShell: React.FC<Props> = ({
 
             <DashboardDriverOverview drivers={data.driverSlices} loading={loading} />
 
-            <DashboardVehicleUsageReport vehicles={data.vehicleUsageSlices} loading={loading} />
+            <DashboardEmployeeHoursReport fromIso={fromIso} toIso={toIso} {...reportFilters} />
 
-            <DashboardWorkQueueTable items={data.workQueue} loading={loading} />
+            <DashboardVehicleUsageReport fromIso={fromIso} toIso={toIso} {...reportFilters} />
+
+            <DashboardWorkQueueTable
+              fromIso={fromIso}
+              toIso={toIso}
+              {...reportFilters}
+              employees={employees}
+              vehicles={vehicles}
+            />
           </div>
         </div>
       </div>

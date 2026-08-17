@@ -1,9 +1,11 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowUpDown, Eye, UserPlus } from 'lucide-react';
+import { Eye, Loader2, UserPlus } from 'lucide-react';
 import { formatThaiDateTime } from '@/lib/thaiDateTimeFormat';
-import type { DashboardSortDir, DashboardSortKey, DashboardWorkItem } from '@/lib/dashboard/types';
+import { bookingToWorkItem } from '@/lib/dashboard/buildDashboardData';
 import { DashboardSlaBadge, DashboardStatusBadge } from '@/components/dashboard/analytics/DashboardStatusBadge';
+import DashboardPaginationFooter from '@/components/dashboard/analytics/DashboardPaginationFooter';
+import { useServerPagedReport } from '@/hooks/useServerPagedReport';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -13,72 +15,66 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { cn } from '@/lib/utils';
+import type { Employee, Vehicle, VehicleBooking } from '@/types';
+
+const PAGE_SIZE = 10;
 
 type Props = {
-  items: DashboardWorkItem[];
-  loading?: boolean;
+  fromIso: string;
+  toIso: string;
+  ownerId?: string;
+  vehicleId?: string;
+  search?: string;
+  status?: string;
+  employees: Employee[];
+  vehicles: Vehicle[];
 };
 
-function sortItems(items: DashboardWorkItem[], key: DashboardSortKey, dir: DashboardSortDir) {
-  const sorted = [...items].sort((a, b) => {
-    if (key === 'priority') return a.priority - b.priority;
-    if (key === 'ownerName') return a.ownerName.localeCompare(b.ownerName, 'th');
-    if (key === 'status') return a.status.localeCompare(b.status);
-    if (key === 'createdAt') return a.createdAt.localeCompare(b.createdAt);
-    return a.updatedAt.localeCompare(b.updatedAt);
-  });
-  return dir === 'desc' ? sorted.reverse() : sorted;
-}
+const DashboardWorkQueueTable: React.FC<Props> = ({
+  fromIso,
+  toIso,
+  ownerId,
+  vehicleId,
+  search,
+  status,
+  employees,
+  vehicles,
+}) => {
+  const { rows: bookings, total, totalPages, page, setPage, loading } = useServerPagedReport<VehicleBooking>(
+    '/api/dashboard-reports',
+    { report: 'work_queue', from: fromIso, to: toIso, ownerId, vehicleId, search, status },
+    PAGE_SIZE,
+  );
 
-const DashboardWorkQueueTable: React.FC<Props> = ({ items, loading }) => {
-  const [sortKey, setSortKey] = useState<DashboardSortKey>('priority');
-  const [sortDir, setSortDir] = useState<DashboardSortDir>('asc');
-
-  const rows = useMemo(() => sortItems(items, sortKey, sortDir), [items, sortKey, sortDir]);
-
-  const toggleSort = (key: DashboardSortKey) => {
-    if (sortKey === key) {
-      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
-    } else {
-      setSortKey(key);
-      setSortDir(key === 'priority' ? 'asc' : 'desc');
-    }
-  };
+  const rows = useMemo(
+    () => bookings.map((b) => bookingToWorkItem(b, employees, vehicles)),
+    [bookings, employees, vehicles],
+  );
 
   return (
     <div className="rounded-xl border border-slate-200/80 bg-white shadow-sm overflow-hidden">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 px-5 py-4 border-b border-slate-100">
-        <div>
-          <h3 className="text-sm font-semibold text-slate-900">Work Queue</h3>
-          <p className="text-xs text-slate-500 mt-0.5">รายการงานที่ต้องติดตาม — เรียงงานล่าช้าก่อน</p>
-        </div>
-        <p className="text-xs text-slate-500">{loading ? '…' : `${rows.length} รายการ`}</p>
+      <div className="px-5 py-4 border-b border-slate-100">
+        <h3 className="text-sm font-semibold text-slate-900">Work Queue</h3>
+        <p className="text-xs text-slate-500 mt-0.5">รายการงานที่ต้องติดตาม — เรียงงานล่าช้าก่อน</p>
       </div>
 
-      <div className="overflow-x-auto">
+      <div className="relative overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow className="hover:bg-transparent">
               <TableHead className="whitespace-nowrap">ใบงาน</TableHead>
-              <TableHead>
-                <button type="button" className="inline-flex items-center gap-1" onClick={() => toggleSort('ownerName')}>
-                  ผู้รับผิดชอบ <ArrowUpDown className="h-3.5 w-3.5" />
-                </button>
-              </TableHead>
+              <TableHead>ผู้รับผิดชอบ</TableHead>
               <TableHead className="hidden md:table-cell">สถานที่</TableHead>
-              <TableHead>
-                <button type="button" className="inline-flex items-center gap-1" onClick={() => toggleSort('status')}>
-                  สถานะ <ArrowUpDown className="h-3.5 w-3.5" />
-                </button>
-              </TableHead>
+              <TableHead>สถานะ</TableHead>
               <TableHead className="hidden lg:table-cell">SLA</TableHead>
               <TableHead className="hidden xl:table-cell">อัปเดตล่าสุด</TableHead>
               <TableHead className="hidden sm:table-cell">Next Action</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
-          <TableBody>
-            {loading ? (
+          <TableBody className={cn(loading && rows.length > 0 && 'opacity-50')}>
+            {loading && rows.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={8} className="h-24 text-center text-slate-500">
                   กำลังโหลด…
@@ -129,7 +125,14 @@ const DashboardWorkQueueTable: React.FC<Props> = ({ items, loading }) => {
             )}
           </TableBody>
         </Table>
+        {loading && rows.length > 0 ? (
+          <div className="absolute inset-0 flex items-center justify-center bg-white/40">
+            <Loader2 className="h-5 w-5 animate-spin text-slate-400" />
+          </div>
+        ) : null}
       </div>
+
+      <DashboardPaginationFooter page={page} totalPages={totalPages} total={total} onPageChange={setPage} loading={loading} />
     </div>
   );
 };

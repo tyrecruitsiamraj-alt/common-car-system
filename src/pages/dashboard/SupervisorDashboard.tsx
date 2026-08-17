@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { format } from 'date-fns';
 import DashboardShell from '@/components/dashboard/analytics/DashboardShell';
-import { buildDashboardData, applyDashboardFilters } from '@/lib/dashboard/buildDashboardData';
+import { buildDashboardData, bookingToWorkItem } from '@/lib/dashboard/buildDashboardData';
 import { exportWorkQueueCsv } from '@/lib/dashboard/exportWorkQueue';
 import { MOCK_DASHBOARD_DATA } from '@/lib/dashboard/mockDashboardData';
 import type { DashboardFilters } from '@/lib/dashboard/types';
@@ -81,8 +81,7 @@ const SupervisorDashboard: React.FC = () => {
 
   const dashboardData = useMemo(() => {
     if (isDemoMode() && bookings.length === 0) {
-      const workQueue = applyDashboardFilters(MOCK_DASHBOARD_DATA.workQueue, filters);
-      return { ...MOCK_DASHBOARD_DATA, workQueue, periodLabel: periodRange.label };
+      return { ...MOCK_DASHBOARD_DATA, periodLabel: periodRange.label };
     }
     return buildDashboardData(bookings, employees, vehicles, periodRange, filters);
   }, [bookings, employees, vehicles, periodRange, filters]);
@@ -95,9 +94,28 @@ const SupervisorDashboard: React.FC = () => {
     setRefreshKey((k) => k + 1);
   }, []);
 
-  const onExport = useCallback(() => {
-    exportWorkQueueCsv(dashboardData.workQueue);
-  }, [dashboardData.workQueue]);
+  /** Export ทั้งหมดที่ตรงตัวกรอง (ไม่ใช่แค่หน้าที่กำลังแสดง) — ดึงตรงจาก server แบบ limit สูง */
+  const onExport = useCallback(async () => {
+    const params = new URLSearchParams({
+      report: 'work_queue',
+      from: periodRange.from.toISOString(),
+      to: periodRange.to.toISOString(),
+      limit: '2000',
+      offset: '0',
+    });
+    if (filters.ownerId) params.set('ownerId', filters.ownerId);
+    if (filters.vehicleId) params.set('vehicleId', filters.vehicleId);
+    if (filters.search) params.set('search', filters.search);
+    if (filters.status !== 'all') params.set('status', filters.status);
+    try {
+      const r = await apiFetch(`/api/dashboard-reports?${params.toString()}`);
+      const data = r.ok ? ((await r.json()) as unknown) : [];
+      const bookingRows = Array.isArray(data) ? (data as VehicleBooking[]) : [];
+      exportWorkQueueCsv(bookingRows.map((b) => bookingToWorkItem(b, employees, vehicles)));
+    } catch {
+      exportWorkQueueCsv([]);
+    }
+  }, [periodRange, filters, employees, vehicles]);
 
   return (
     <DashboardShell
@@ -106,6 +124,8 @@ const SupervisorDashboard: React.FC = () => {
       onFiltersChange={onFiltersChange}
       employees={employees}
       vehicles={vehicles}
+      fromIso={periodRange.from.toISOString()}
+      toIso={periodRange.to.toISOString()}
       loading={loading}
       onRefresh={onRefresh}
       onExport={onExport}

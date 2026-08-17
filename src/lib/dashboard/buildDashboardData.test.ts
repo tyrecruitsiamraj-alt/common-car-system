@@ -47,7 +47,7 @@ describe('buildDashboardData', () => {
     },
   ];
 
-  it('aggregates KPIs and work queue from bookings', () => {
+  it('aggregates KPIs and status slices from bookings', () => {
     const now = new Date('2026-05-15T12:00:00');
     const bookings: VehicleBooking[] = [
       booking({
@@ -75,7 +75,7 @@ describe('buildDashboardData', () => {
       search: '',
     });
     expect(data.kpis.find((k) => k.id === 'total')?.value).toBe('2');
-    expect(data.workQueue).toHaveLength(2);
     expect(data.statusSlices.length).toBeGreaterThan(0);
+    expect(data.statusSlices.find((s) => s.status === 'completed')?.count).toBe(1);
   });
 });

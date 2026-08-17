@@ -43,7 +43,7 @@ const ACTIVE_ONLY = `coalesce(status, 'active') = 'active'`;
 const tblV = tableInAppSchema('vehicles');
 const tblE = tableInAppSchema('employees');
 
-type BookingRow = {
+export type BookingRow = {
   id: string;
   work_order_no: string | null;
   employee_id: string;
@@ -107,7 +107,7 @@ function optionalJobType(v: unknown): string | null {
 
 const VALID_CANCEL_REASONS = new Set(['user_not_using', 'employee_no_show']);
 
-function toBooking(row: BookingRow) {
+export function toBooking(row: BookingRow) {
   return {
     id: row.id,
     ...(row.work_order_no?.trim() ? { work_order_no: row.work_order_no.trim() } : {}),
