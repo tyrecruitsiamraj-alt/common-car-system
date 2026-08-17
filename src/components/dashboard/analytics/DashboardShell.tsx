@@ -6,6 +6,7 @@ import DashboardFilterBar from '@/components/dashboard/analytics/DashboardFilter
 import DashboardKpiCard from '@/components/dashboard/analytics/DashboardKpiCard';
 import DashboardChartSection from '@/components/dashboard/analytics/DashboardChartSection';
 import DashboardDriverOverview from '@/components/dashboard/analytics/DashboardDriverOverview';
+import DashboardVehicleUsageReport from '@/components/dashboard/analytics/DashboardVehicleUsageReport';
 import DashboardWorkQueueTable from '@/components/dashboard/analytics/DashboardWorkQueueTable';
 import type { DashboardData, DashboardFilters } from '@/lib/dashboard/types';
 import type { Employee, Vehicle } from '@/types';
@@ -91,6 +92,8 @@ const DashboardShell: React.FC<Props> = ({
             />
 
             <DashboardDriverOverview drivers={data.driverSlices} loading={loading} />
+
+            <DashboardVehicleUsageReport vehicles={data.vehicleUsageSlices} loading={loading} />
 
             <DashboardWorkQueueTable items={data.workQueue} loading={loading} />
           </div>

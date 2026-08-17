@@ -28,6 +28,7 @@ import type {
   DashboardStatusSlice,
   DashboardTaskStatus,
   DashboardTrendPoint,
+  DashboardVehicleUsageSlice,
   DashboardWorkItem,
 } from '@/lib/dashboard/types';
 import { BOOKING_CANCEL_REASON_LABELS, BOOKING_JOB_TYPE_LABELS } from '@/lib/bookingUiMessages';
@@ -123,6 +124,7 @@ export function bookingToWorkItem(
     title: dest || doc || 'งานขนส่ง/ขับรถ',
     ownerId: b.employee_id,
     ownerName: empName(employees, b.employee_id),
+    vehicleId: b.vehicle_id,
     vehiclePlate: veh.plate,
     vehicleLabel: veh.label,
     department: doc || 'ทั่วไป',
@@ -353,6 +355,25 @@ function buildDriverSlices(items: DashboardWorkItem[], employees: Employee[]): D
     .slice(0, 6);
 }
 
+function buildVehicleUsageSlices(items: DashboardWorkItem[]): DashboardVehicleUsageSlice[] {
+  const counts = new Map<string, { plateNo: string; label: string; count: number }>();
+  for (const item of items) {
+    const cur = counts.get(item.vehicleId) ?? { plateNo: item.vehiclePlate, label: item.vehicleLabel, count: 0 };
+    cur.count += 1;
+    counts.set(item.vehicleId, cur);
+  }
+  const grand = items.length || 1;
+  return [...counts.entries()]
+    .map(([id, v]) => ({
+      id,
+      plateNo: v.plateNo,
+      label: v.label,
+      count: v.count,
+      share: Math.round((v.count / grand) * 100),
+    }))
+    .sort((a, b) => b.count - a.count || a.plateNo.localeCompare(b.plateNo, 'th'));
+}
+
 export function applyDashboardFilters(
   items: DashboardWorkItem[],
   filters: DashboardFilters,
@@ -404,6 +425,7 @@ export function buildDashboardData(
     jobTypeSlices: buildJobTypeSlices(filtered),
     cancelReasonSlices: buildCancelReasonSlices(filtered),
     driverSlices: buildDriverSlices(filtered, employees),
+    vehicleUsageSlices: buildVehicleUsageSlices(filtered),
     workQueue,
   };
 }

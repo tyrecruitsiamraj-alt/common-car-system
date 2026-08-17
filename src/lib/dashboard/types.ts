@@ -40,6 +40,7 @@ export interface DashboardWorkItem {
   title: string;
   ownerId: string;
   ownerName: string;
+  vehicleId: string;
   vehiclePlate: string;
   vehicleLabel: string;
   department: string;
@@ -81,6 +82,14 @@ export interface DashboardCancelReasonSlice {
   share: number;
 }
 
+export interface DashboardVehicleUsageSlice {
+  id: string;
+  plateNo: string;
+  label: string;
+  count: number;
+  share: number;
+}
+
 export interface DashboardDriverSlice {
   id: string;
   name: string;
@@ -108,6 +117,7 @@ export interface DashboardData {
   jobTypeSlices: DashboardJobTypeSlice[];
   cancelReasonSlices: DashboardCancelReasonSlice[];
   driverSlices: DashboardDriverSlice[];
+  vehicleUsageSlices: DashboardVehicleUsageSlice[];
   workQueue: DashboardWorkItem[];
   periodLabel: string;
   generatedAt: string;
