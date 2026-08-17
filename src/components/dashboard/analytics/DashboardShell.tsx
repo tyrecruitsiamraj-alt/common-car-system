@@ -86,6 +86,7 @@ const DashboardShell: React.FC<Props> = ({
               trendSeries={data.trendSeries}
               statusSlices={data.statusSlices}
               jobTypeSlices={data.jobTypeSlices}
+              cancelReasonSlices={data.cancelReasonSlices}
               loading={loading}
             />
 

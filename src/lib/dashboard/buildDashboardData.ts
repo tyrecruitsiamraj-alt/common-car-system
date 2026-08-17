@@ -18,6 +18,7 @@ import {
 } from '@/lib/fleetBookingsDashboard';
 import { bookingsInRange, type DashboardPeriodRange } from '@/lib/fleetDashboardStats';
 import type {
+  DashboardCancelReasonSlice,
   DashboardData,
   DashboardDriverSlice,
   DashboardFilters,
@@ -29,8 +30,14 @@ import type {
   DashboardTrendPoint,
   DashboardWorkItem,
 } from '@/lib/dashboard/types';
-import { BOOKING_JOB_TYPE_LABELS } from '@/lib/bookingUiMessages';
-import type { Employee, Vehicle, VehicleBooking, VehicleBookingJobType } from '@/types';
+import { BOOKING_CANCEL_REASON_LABELS, BOOKING_JOB_TYPE_LABELS } from '@/lib/bookingUiMessages';
+import type {
+  Employee,
+  Vehicle,
+  VehicleBooking,
+  VehicleBookingCancelReason,
+  VehicleBookingJobType,
+} from '@/types';
 
 const STATUS_LABELS: Record<DashboardTaskStatus, string> = {
   pending: 'รอดำเนินการ',
@@ -121,6 +128,7 @@ export function bookingToWorkItem(
     department: doc || 'ทั่วไป',
     site: dest || '—',
     jobType: b.job_type ?? null,
+    cancelReason: b.cancel_reason ?? null,
     status,
     slaStatus: mapSlaStatus(status),
     createdAt: b.created_at,
@@ -294,6 +302,30 @@ function buildJobTypeSlices(items: DashboardWorkItem[]): DashboardJobTypeSlice[]
     .filter((s) => s.count > 0);
 }
 
+const CANCEL_REASON_ORDER: VehicleBookingCancelReason[] = ['user_not_using', 'employee_no_show'];
+
+function buildCancelReasonSlices(items: DashboardWorkItem[]): DashboardCancelReasonSlice[] {
+  const cancelled = items.filter((i) => i.status === 'cancelled');
+  const total = cancelled.length || 1;
+  const counts = new Map<VehicleBookingCancelReason | 'unspecified', number>();
+  for (const item of cancelled) {
+    const key = item.cancelReason ?? 'unspecified';
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  const order: (VehicleBookingCancelReason | 'unspecified')[] = [...CANCEL_REASON_ORDER, 'unspecified'];
+  return order
+    .map((cancelReason) => {
+      const count = counts.get(cancelReason) ?? 0;
+      return {
+        cancelReason,
+        label: cancelReason === 'unspecified' ? 'ไม่ระบุ' : BOOKING_CANCEL_REASON_LABELS[cancelReason],
+        count,
+        share: Math.round((count / total) * 100),
+      };
+    })
+    .filter((s) => s.count > 0);
+}
+
 function buildDriverSlices(items: DashboardWorkItem[], employees: Employee[]): DashboardDriverSlice[] {
   const counts = new Map<string, { total: number; completed: number; overdue: number }>();
   for (const item of items) {
@@ -370,6 +402,7 @@ export function buildDashboardData(
     trendSeries: buildTrendSeries(inRange, range, inPrevRange),
     statusSlices: buildStatusSlices(filtered),
     jobTypeSlices: buildJobTypeSlices(filtered),
+    cancelReasonSlices: buildCancelReasonSlices(filtered),
     driverSlices: buildDriverSlices(filtered, employees),
     workQueue,
   };

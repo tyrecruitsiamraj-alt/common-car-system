@@ -1,5 +1,5 @@
 import type { DashboardPeriodPreset } from '@/lib/fleetDashboardStats';
-import type { VehicleBookingJobType } from '@/types';
+import type { VehicleBookingCancelReason, VehicleBookingJobType } from '@/types';
 
 export type DashboardTaskStatus =
   | 'pending'
@@ -45,6 +45,7 @@ export interface DashboardWorkItem {
   department: string;
   site: string;
   jobType: VehicleBookingJobType | null;
+  cancelReason: VehicleBookingCancelReason | null;
   status: DashboardTaskStatus;
   slaStatus: DashboardSlaStatus;
   createdAt: string;
@@ -68,6 +69,13 @@ export interface DashboardStatusSlice {
 
 export interface DashboardJobTypeSlice {
   jobType: VehicleBookingJobType | 'unspecified';
+  label: string;
+  count: number;
+  share: number;
+}
+
+export interface DashboardCancelReasonSlice {
+  cancelReason: VehicleBookingCancelReason | 'unspecified';
   label: string;
   count: number;
   share: number;
@@ -98,6 +106,7 @@ export interface DashboardData {
   trendSeries: DashboardTrendPoint[];
   statusSlices: DashboardStatusSlice[];
   jobTypeSlices: DashboardJobTypeSlice[];
+  cancelReasonSlices: DashboardCancelReasonSlice[];
   driverSlices: DashboardDriverSlice[];
   workQueue: DashboardWorkItem[];
   periodLabel: string;

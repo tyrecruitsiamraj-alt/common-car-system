@@ -65,6 +65,10 @@ export const MOCK_DASHBOARD_DATA: DashboardData = {
     { jobType: 'substitute', label: 'แทนงาน', count: 8, share: 6 },
     { jobType: 'unspecified', label: 'ไม่ระบุ', count: 4, share: 3 },
   ],
+  cancelReasonSlices: [
+    { cancelReason: 'user_not_using', label: 'ยกเลิกจาก user ไม่ใช้', count: 3, share: 75 },
+    { cancelReason: 'employee_no_show', label: 'ยกเลิกจากพนักงานไม่ไปปฏิบัติงาน', count: 1, share: 25 },
+  ],
   driverSlices: [
     {
       id: 'd1',
@@ -115,6 +119,7 @@ export const MOCK_DASHBOARD_DATA: DashboardData = {
       department: 'ฝ่ายบริหาร',
       site: 'สำนักงานใหญ่',
       jobType: 'job_order',
+      cancelReason: null,
       status: 'overdue',
       slaStatus: 'breached',
       createdAt: new Date(Date.now() - 86_400_000 * 2).toISOString(),
@@ -133,6 +138,7 @@ export const MOCK_DASHBOARD_DATA: DashboardData = {
       department: 'ฝ่ายบริหาร',
       site: 'สนามบินสุวรรณภูมิ',
       jobType: 'trip_sabuy',
+      cancelReason: null,
       status: 'at_risk',
       slaStatus: 'at_risk',
       createdAt: new Date(Date.now() - 86_400_000).toISOString(),
@@ -151,6 +157,7 @@ export const MOCK_DASHBOARD_DATA: DashboardData = {
       department: 'ฝ่ายคลัง',
       site: 'คลังบางนา',
       jobType: 'standby',
+      cancelReason: null,
       status: 'in_progress',
       slaStatus: 'on_track',
       createdAt: new Date(Date.now() - 7_200_000).toISOString(),
@@ -169,6 +176,7 @@ export const MOCK_DASHBOARD_DATA: DashboardData = {
       department: 'ฝ่ายบริหาร',
       site: 'โรงแรมแบงค็อก',
       jobType: 'substitute',
+      cancelReason: null,
       status: 'completed',
       slaStatus: 'on_track',
       createdAt: new Date(Date.now() - 86_400_000 * 3).toISOString(),
