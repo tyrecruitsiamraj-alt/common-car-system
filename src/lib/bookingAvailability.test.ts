@@ -2,6 +2,7 @@ import { parseISO } from 'date-fns';
 import { describe, expect, it } from 'vitest';
 import { bookingEffectiveEnd } from '@/lib/fleetBookingsDashboard';
 import {
+  BOOKABLE_DRIVER_POSITION,
   bookingBlocksWindow,
   computeBookingAvailability,
   hasEmployeeBookingConflict,
@@ -41,7 +42,7 @@ const EMPLOYEE_1: Employee = {
   last_name: 'ใจดี',
   phone: '0800000001',
   status: 'active',
-  position: 'พนักงานขับรถ',
+  position: BOOKABLE_DRIVER_POSITION,
   join_date: '2024-01-01',
   reliability_score: 100,
   utilization_rate: 0,
@@ -226,6 +227,15 @@ describe('booking form options', () => {
   it('falls back to all active resources only when availability is not calculated', () => {
     expect(resolveBookVehicleOptions(null, [VEHICLE_A, VEHICLE_B])).toHaveLength(2);
     expect(resolveBookEmployeeOptions(null, [EMPLOYEE_1, EMPLOYEE_2])).toHaveLength(2);
+  });
+
+  it('excludes employees whose position is not Common Driver', () => {
+    const otherPosition: Employee = { ...EMPLOYEE_2, id: 'emp-3', position: 'Support Driver' };
+    expect(resolveBookEmployeeOptions(null, [EMPLOYEE_1, otherPosition])).toHaveLength(1);
+
+    const { from, to } = window('08:00', '17:00');
+    const avail = computeBookingAvailability(from, to, [], [EMPLOYEE_1, otherPosition], [VEHICLE_A]);
+    expect(avail.availableEmployees.map((e) => e.id)).toEqual([EMPLOYEE_1.id]);
   });
 });
 

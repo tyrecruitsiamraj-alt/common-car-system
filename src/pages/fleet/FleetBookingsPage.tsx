@@ -27,6 +27,7 @@ import {
 import { fetchFleetBookingPermissions } from '@/lib/fleetBookingPermissions';
 import { formatBookingWorkOrderNo } from '@/lib/bookingWorkOrder';
 import {
+  BOOKABLE_DRIVER_POSITION,
   computeBookingAvailability,
   resolveBookEmployeeOptions,
   resolveBookVehicleOptions,
@@ -1703,12 +1704,14 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
   }, [bookVehOptions]);
 
   const editEmpPickerOptions = useMemo((): SearchablePickerOption[] => {
-    return Array.from(empMap.values()).map((e) => ({
-      value: e.id,
-      label: formatEmployeeDisplayName(e),
-      keywords: [e.employee_code, e.phone, e.first_name, e.last_name].filter(Boolean).join(' '),
-    }));
-  }, [empMap]);
+    return Array.from(empMap.values())
+      .filter((e) => e.position === BOOKABLE_DRIVER_POSITION || e.id === editEmp)
+      .map((e) => ({
+        value: e.id,
+        label: formatEmployeeDisplayName(e),
+        keywords: [e.employee_code, e.phone, e.first_name, e.last_name].filter(Boolean).join(' '),
+      }));
+  }, [empMap, editEmp]);
 
   const editVehPickerOptions = useMemo((): SearchablePickerOption[] => {
     return Array.from(vehMap.values()).map((v) => ({

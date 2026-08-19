@@ -24,6 +24,7 @@
     "db:ensure:document-no": "node scripts/ensure-vehicle-bookings-document-no.mjs",
     "db:seed": "node scripts/seed.mjs",
     "db:import:tdem-drivers": "node scripts/import-tdem-drivers.mjs",
+    "db:sync:employee-positions": "node scripts/sync-employee-positions-from-json.mjs",
     "sync:ms-forms-exams": "node scripts/sync-ms-forms-exams.mjs",
     "db:init": "npm run db:ping && npm run db:migrate && npm run db:seed",
     "db:seed:demo": "tsx scripts/seed-demo-data.ts",

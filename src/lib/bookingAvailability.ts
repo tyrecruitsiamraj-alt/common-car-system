@@ -2,6 +2,9 @@ import { parseISO } from 'date-fns';
 import { bookingEffectiveEnd } from '@/lib/fleetBookingsDashboard';
 import type { Employee, Vehicle, VehicleBooking } from '@/types';
 
+/** เฉพาะ position นี้เท่านั้นที่จองผ่านหน้า /fleet/bookings ได้ */
+export const BOOKABLE_DRIVER_POSITION = 'Common Driver';
+
 export type AvailabilityPayload = {
   from: string;
   to: string;
@@ -68,7 +71,7 @@ export function computeBookingAvailability(
     bookingRows.filter((b) => bookingBlocksWindow(b, from, to)).map((b) => b.vehicle_id),
   );
   const availableEmployees = employees
-    .filter((e) => e.status === 'active' && !busyEmp.has(e.id))
+    .filter((e) => e.status === 'active' && e.position === BOOKABLE_DRIVER_POSITION && !busyEmp.has(e.id))
     .map((e) => ({
       id: e.id,
       first_name: e.first_name,
@@ -102,7 +105,9 @@ export function resolveBookEmployeeOptions(
     return displayAvailability.availableEmployees;
   }
   return employees
-    .filter((e) => e.status !== 'inactive' && e.status !== 'suspended')
+    .filter(
+      (e) => e.status !== 'inactive' && e.status !== 'suspended' && e.position === BOOKABLE_DRIVER_POSITION,
+    )
     .map((e) => ({
       id: e.id,
       first_name: e.first_name,
