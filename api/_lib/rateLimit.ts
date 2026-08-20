@@ -39,29 +39,28 @@ export function checkRateLimit(key: string, max: number, windowMs: number): bool
   return true;
 }
 
+export type RateLimitedEndpoint = 'login' | 'dev-role' | 'forgot-password' | 'accident-report';
+
 export function readRateLimitConfig(
-  endpoint: 'login' | 'dev-role' | 'forgot-password',
+  endpoint: RateLimitedEndpoint,
 ): { max: number; windowMs: number } {
-  const defaults: Record<typeof endpoint, { max: number; windowMs: number }> = {
+  const defaults: Record<RateLimitedEndpoint, { max: number; windowMs: number }> = {
     login: { max: 10, windowMs: 15 * 60 * 1000 },
     'dev-role': { max: 5, windowMs: 15 * 60 * 1000 },
     'forgot-password': { max: 5, windowMs: 60 * 60 * 1000 },
+    'accident-report': { max: 10, windowMs: 60 * 60 * 1000 },
   };
   const d = defaults[endpoint];
-  const maxKey =
+  const envPrefix =
     endpoint === 'login'
-      ? 'AUTH_RATE_LIMIT_LOGIN_MAX'
+      ? 'AUTH_RATE_LIMIT_LOGIN'
       : endpoint === 'dev-role'
-        ? 'AUTH_RATE_LIMIT_DEV_ROLE_MAX'
-        : 'AUTH_RATE_LIMIT_FORGOT_PASSWORD_MAX';
-  const windowKey =
-    endpoint === 'login'
-      ? 'AUTH_RATE_LIMIT_LOGIN_WINDOW_MS'
-      : endpoint === 'dev-role'
-        ? 'AUTH_RATE_LIMIT_DEV_ROLE_WINDOW_MS'
-        : 'AUTH_RATE_LIMIT_FORGOT_PASSWORD_WINDOW_MS';
-  const maxRaw = Number(process.env[maxKey]);
-  const windowRaw = Number(process.env[windowKey]);
+        ? 'AUTH_RATE_LIMIT_DEV_ROLE'
+        : endpoint === 'forgot-password'
+          ? 'AUTH_RATE_LIMIT_FORGOT_PASSWORD'
+          : 'AUTH_RATE_LIMIT_ACCIDENT_REPORT';
+  const maxRaw = Number(process.env[`${envPrefix}_MAX`]);
+  const windowRaw = Number(process.env[`${envPrefix}_WINDOW_MS`]);
   return {
     max: Number.isFinite(maxRaw) && maxRaw > 0 ? maxRaw : d.max,
     windowMs: Number.isFinite(windowRaw) && windowRaw > 0 ? windowRaw : d.windowMs,
@@ -71,7 +70,7 @@ export function readRateLimitConfig(
 export function enforceRateLimit(
   req: ApiReq,
   res: ApiRes,
-  endpoint: 'login' | 'dev-role' | 'forgot-password',
+  endpoint: RateLimitedEndpoint,
 ): boolean {
   const { max, windowMs } = readRateLimitConfig(endpoint);
   const ip = getClientIp(req);

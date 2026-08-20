@@ -8,6 +8,8 @@ export type ServerPagedReport<T> = {
   page: number;
   setPage: (p: number) => void;
   loading: boolean;
+  /** โหลดหน้าปัจจุบันใหม่ — ไม่รีเซ็ตกลับหน้า 1 (ต่างจากตอน params เปลี่ยน) */
+  refetch: () => void;
 };
 
 /** ดึงข้อมูลแบบแบ่งหน้าฝั่ง server — อ่านจำนวนรวมจาก header X-Total-Count (แบบเดียวกับ /api/employees) */
@@ -20,6 +22,7 @@ export function useServerPagedReport<T>(
   const [rows, setRows] = useState<T[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [refreshToken, setRefreshToken] = useState(0);
 
   const paramsKey = JSON.stringify({ baseUrl, params, pageSize });
 
@@ -71,9 +74,10 @@ export function useServerPagedReport<T>(
     };
     // paramsKey ครอบคลุม baseUrl/params/pageSize ทั้งหมดแล้ว — ไม่ต้องใส่ params ซ้ำ
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [paramsKey, page]);
+  }, [paramsKey, page, refreshToken]);
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const refetch = () => setRefreshToken((t) => t + 1);
 
-  return { rows, total, totalPages, page, setPage, loading };
+  return { rows, total, totalPages, page, setPage, loading, refetch };
 }

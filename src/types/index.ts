@@ -317,6 +317,42 @@ export const JOB_CATEGORY_LABELS: Record<JobCategory, string> = {
   bank: 'ธนาคาร',
 };
 
+export interface AccidentCase {
+  id: string;
+  /** วันที่เกิดเคส — yyyy-mm-dd */
+  case_date: string;
+  employee_name: string;
+  /** สถานะพนักงานขับรถ เช่น ประจำ */
+  driver_status?: string;
+  /** ลักษณะงาน */
+  job_type?: string;
+  province?: string;
+  /** อายุงาน — ข้อความอิสระ เช่น "4 ปี" */
+  years_of_service?: string;
+  /** อายุพนักงาน — ข้อความอิสระ เช่น "57 ปี" */
+  employee_age?: string;
+  /** สถานะเคส เช่น ฝ่ายผิด / ฝ่ายถูก */
+  case_status?: string;
+  /** ช่วงเวลาที่เกิดเหตุ */
+  time_range?: string;
+  /** วันทำงาน / วันหยุด */
+  work_day_type?: string;
+  vehicle_model?: string;
+  case_detail?: string;
+  accident_type?: string;
+  movement_detail?: string;
+  location_name?: string;
+  location_detail?: string;
+  root_cause?: string;
+  cause_detail?: string;
+  /** บทลงโทษ — มักทราบหลังสอบสวน ไม่บังคับตอนแจ้งเหตุ */
+  penalty?: string;
+  reporter_name?: string;
+  reporter_phone?: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export const CANDIDATE_STATUS_LABELS: Record<CandidateStatus, string> = {
   inprocess: 'In Process',
   drop: 'Drop',
