@@ -54,3 +54,72 @@ export function isSameMonthAsNow(caseDate: string, now = new Date()): boolean {
   const d = parseISO(caseDate);
   return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
 }
+
+export type TopValueSummary = { label: string; count: number; percent: number };
+
+/** ค่าที่พบมากสุดในลิสต์ + จำนวน + % เทียบกับ total (ค่าว่าง/undefined จะไม่ถูกนับเป็นตัวเลือก) */
+export function mostCommonValue(
+  values: (string | null | undefined)[],
+  total = values.length,
+): TopValueSummary | null {
+  const counts = new Map<string, number>();
+  for (const raw of values) {
+    const v = (raw ?? '').trim();
+    if (!v) continue;
+    counts.set(v, (counts.get(v) ?? 0) + 1);
+  }
+  if (counts.size === 0) return null;
+  const [label, count] = [...counts.entries()].sort((a, b) => b[1] - a[1])[0];
+  const percent = total > 0 ? Math.round((count / total) * 100) : 0;
+  return { label, count, percent };
+}
+
+/** ดึงจำนวนปีจากข้อความช่วงเวลา เช่น "3 ปี 7 เดือน" -> 3, "5 เดือน" -> 0; คืน null ถ้าอ่านไม่ได้ */
+function parseWholeYears(raw?: string | null): number | null {
+  const s = (raw ?? '').trim();
+  if (!s) return null;
+  const yearMatch = /(\d+)\s*ปี/.exec(s);
+  if (yearMatch) return parseInt(yearMatch[1], 10);
+  if (/เดือน|สัปดาห์|วัน/.test(s)) return 0;
+  return null;
+}
+
+const YEARS_OF_SERVICE_BANDS: { max: number; label: string }[] = [
+  { max: 0, label: 'น้อยกว่า 1 ปี' },
+  { max: 3, label: '1 - 3 ปี' },
+  { max: 6, label: '4 - 6 ปี' },
+  { max: Infinity, label: 'มากกว่า 7 ปี' },
+];
+
+/** ช่วงอายุงานที่พบมากสุด (เช่น "มากกว่า 7 ปี") จากฟิลด์ years_of_service แบบข้อความอิสระ */
+export function bucketYearsOfService(values: (string | null | undefined)[]): TopValueSummary | null {
+  const labels = values.map((raw) => {
+    const years = parseWholeYears(raw);
+    if (years == null) return null;
+    return YEARS_OF_SERVICE_BANDS.find((b) => years <= b.max)?.label ?? null;
+  });
+  return mostCommonValue(labels, values.length);
+}
+
+const EMPLOYEE_AGE_BANDS: { max: number; label: string }[] = [
+  { max: 29, label: 'น้อยกว่า 30 ปี' },
+  { max: 39, label: '30 - 39 ปี' },
+  { max: 49, label: '40 - 49 ปี' },
+  { max: 59, label: '50 - 59 ปี' },
+  { max: Infinity, label: '60 ปีขึ้นไป' },
+];
+
+/** ช่วงอายุพนักงานที่พบมากสุด (เช่น "50 - 59 ปี") จากฟิลด์ employee_age แบบข้อความอิสระ */
+export function bucketEmployeeAge(values: (string | null | undefined)[]): TopValueSummary | null {
+  const labels = values.map((raw) => {
+    const age = parseWholeYears(raw);
+    if (age == null) return null;
+    return EMPLOYEE_AGE_BANDS.find((b) => age <= b.max)?.label ?? null;
+  });
+  return mostCommonValue(labels, values.length);
+}
+
+/** จำนวนพนักงานที่ไม่ซ้ำกันที่เกิดเคส */
+export function countDistinctEmployees(cases: AccidentCase[]): number {
+  return new Set(cases.map((c) => c.employee_name.trim()).filter(Boolean)).size;
+}

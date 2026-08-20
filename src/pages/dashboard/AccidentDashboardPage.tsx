@@ -2,20 +2,24 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ExternalLink, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import AccidentKpiCard from '@/components/dashboard/accidents/AccidentKpiCard';
+import AccidentTopStatCard from '@/components/dashboard/accidents/AccidentTopStatCard';
 import AccidentBreakdownChart from '@/components/dashboard/accidents/AccidentBreakdownChart';
 import AccidentTrendChart from '@/components/dashboard/accidents/AccidentTrendChart';
 import AccidentCaseTable from '@/components/dashboard/accidents/AccidentCaseTable';
 import { apiFetch } from '@/lib/apiFetch';
-import { bucketTopCategories, buildMonthlyTrend, isSameMonthAsNow } from '@/lib/accidentCasesReport';
+import {
+  bucketEmployeeAge,
+  bucketTopCategories,
+  bucketYearsOfService,
+  buildMonthlyTrend,
+  countDistinctEmployees,
+  mostCommonValue,
+  type TopValueSummary,
+} from '@/lib/accidentCasesReport';
 import type { AccidentCase } from '@/types';
 
-/** ค่า "สถานะเคส" ที่นับเป็นฝ่ายผิด/ฝ่ายถูก — ข้อความอิสระจากฟอร์ม จับคู่แบบ includes ให้ครอบคลุมคำที่ใกล้เคียง */
-function isAtFault(caseStatus?: string): boolean {
-  return (caseStatus ?? '').includes('ผิด');
-}
-function isNotAtFault(caseStatus?: string): boolean {
-  return (caseStatus ?? '').includes('ถูก');
+function formatTopValue(top: TopValueSummary | null, unit = 'เคส'): string {
+  return top ? `${top.label} (${top.count} ${unit}, ${top.percent}%)` : 'ไม่มีข้อมูล';
 }
 
 const AccidentDashboardPage: React.FC = () => {
@@ -47,12 +51,22 @@ const AccidentDashboardPage: React.FC = () => {
     };
   }, [refreshKey]);
 
-  const kpis = useMemo(() => {
+  const topStats = useMemo(() => {
     const total = cases.length;
-    const thisMonth = cases.filter((c) => isSameMonthAsNow(c.case_date)).length;
-    const atFault = cases.filter((c) => isAtFault(c.case_status)).length;
-    const notAtFault = cases.filter((c) => isNotAtFault(c.case_status)).length;
-    return { total, thisMonth, atFault, notAtFault };
+    return {
+      total,
+      distinctEmployees: countDistinctEmployees(cases),
+      accidentType: mostCommonValue(cases.map((c) => c.accident_type), total),
+      rootCause: mostCommonValue(cases.map((c) => c.root_cause), total),
+      yearsOfService: bucketYearsOfService(cases.map((c) => c.years_of_service)),
+      employeeAge: bucketEmployeeAge(cases.map((c) => c.employee_age)),
+      timeRange: mostCommonValue(cases.map((c) => c.time_range), total),
+      workDayType: mostCommonValue(cases.map((c) => c.work_day_type), total),
+      locationDetail: mostCommonValue(cases.map((c) => c.location_detail), total),
+      vehicleModel: mostCommonValue(cases.map((c) => c.vehicle_model), total),
+      jobType: mostCommonValue(cases.map((c) => c.job_type), total),
+      causeDetail: mostCommonValue(cases.map((c) => c.cause_detail), total),
+    };
   }, [cases]);
 
   const accidentTypeBuckets = useMemo(
@@ -92,16 +106,84 @@ const AccidentDashboardPage: React.FC = () => {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-          <AccidentKpiCard label="เคสทั้งหมด" value={String(kpis.total)} hint="ทุกเคสที่มีการแจ้ง" loading={loading} />
-          <AccidentKpiCard label="เคสเดือนนี้" value={String(kpis.thisMonth)} hint="นับตามวันที่เกิดเคส" loading={loading} />
-          <AccidentKpiCard
-            label="ฝ่ายผิด"
-            value={String(kpis.atFault)}
-            hint="จากสถานะเคสที่ระบุ"
+          <AccidentTopStatCard index={1} title="เคสทั้งหมด" value={String(topStats.total)} loading={loading} emphasize />
+          <AccidentTopStatCard
+            index={2}
+            title="พนักงานที่เกิดเคส (คน)"
+            value={String(topStats.distinctEmployees)}
             loading={loading}
-            tone="danger"
+            emphasize
           />
-          <AccidentKpiCard label="ฝ่ายถูก" value={String(kpis.notAtFault)} hint="จากสถานะเคสที่ระบุ" loading={loading} />
+          <AccidentTopStatCard
+            index={3}
+            title="ประเภทอุบัติเหตุสูงสุด"
+            value={formatTopValue(topStats.accidentType)}
+            loading={loading}
+            tone="red"
+          />
+          <AccidentTopStatCard
+            index={4}
+            title="ต้นเหตุหลัก"
+            value={formatTopValue(topStats.rootCause)}
+            loading={loading}
+            tone="orange"
+          />
+          <AccidentTopStatCard
+            index={5}
+            title="ช่วงอายุงานที่พบมากสุด"
+            value={formatTopValue(topStats.yearsOfService)}
+            loading={loading}
+            tone="blue"
+          />
+          <AccidentTopStatCard
+            index={6}
+            title="ช่วงอายุพนักงานที่พบมากสุด"
+            value={formatTopValue(topStats.employeeAge, 'คน')}
+            loading={loading}
+            tone="blue"
+          />
+          <AccidentTopStatCard
+            index={7}
+            title="ช่วงเวลาที่พบมากสุด"
+            value={formatTopValue(topStats.timeRange)}
+            loading={loading}
+            tone="blue"
+          />
+          <AccidentTopStatCard
+            index={8}
+            title="วันที่เกิดเหตุมากสุด"
+            value={formatTopValue(topStats.workDayType)}
+            loading={loading}
+            tone="blue"
+          />
+          <AccidentTopStatCard
+            index={9}
+            title="จุดเกิดเหตุพบมากสุด"
+            value={formatTopValue(topStats.locationDetail)}
+            loading={loading}
+            tone="green"
+          />
+          <AccidentTopStatCard
+            index={10}
+            title="รุ่นรถที่พบมากสุด"
+            value={formatTopValue(topStats.vehicleModel)}
+            loading={loading}
+            tone="red"
+          />
+          <AccidentTopStatCard
+            index={11}
+            title="ลักษณะงานที่พบมากสุด"
+            value={formatTopValue(topStats.jobType)}
+            loading={loading}
+            tone="green"
+          />
+          <AccidentTopStatCard
+            index={12}
+            title="รายละเอียดที่พบมากสุด"
+            value={formatTopValue(topStats.causeDetail)}
+            loading={loading}
+            tone="yellow"
+          />
         </div>
 
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
