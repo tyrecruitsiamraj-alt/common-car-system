@@ -22,8 +22,13 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import {
   ACCIDENT_TYPE_OPTIONS,
   CASE_STATUS_OPTIONS,
+  CAUSE_DETAIL_OPTIONS,
   JOB_TYPE_OPTIONS,
+  LOCATION_DETAIL_OPTIONS,
   MOVEMENT_DETAIL_OPTIONS,
+  PENALTY_OPTIONS,
+  ROOT_CAUSE_OPTIONS,
+  TIME_RANGE_OPTIONS,
   VEHICLE_MODEL_OPTIONS,
 } from '@/lib/accidentCaseOptions';
 import { getProvinceOptions } from '@/lib/thaiAddressCascade';
@@ -211,11 +216,18 @@ const AccidentCaseEditDialog: React.FC<Props> = ({ caseData, open, onOpenChange,
               )}
               {fieldBlock(
                 'ช่วงเวลาที่เกิดเหตุ',
-                <Input
-                  value={form.time_range}
-                  onChange={(e) => set('time_range', e.target.value)}
-                  className="h-9 text-sm"
-                />,
+                <Select value={form.time_range} onValueChange={(v) => set('time_range', v)}>
+                  <SelectTrigger className="h-9 text-sm">
+                    <SelectValue placeholder="เลือกช่วงเวลาที่เกิดเหตุ" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {TIME_RANGE_OPTIONS.map((t) => (
+                      <SelectItem key={t} value={t}>
+                        {t}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>,
               )}
               {fieldBlock(
                 'จังหวัดที่เกิดเหตุ',
@@ -263,11 +275,18 @@ const AccidentCaseEditDialog: React.FC<Props> = ({ caseData, open, onOpenChange,
               )}
               {fieldBlock(
                 'รายละเอียดจุดเกิดเหตุ',
-                <Input
-                  value={form.location_detail}
-                  onChange={(e) => set('location_detail', e.target.value)}
-                  className="h-9 text-sm"
-                />,
+                <Select value={form.location_detail} onValueChange={(v) => set('location_detail', v)}>
+                  <SelectTrigger className="h-9 text-sm">
+                    <SelectValue placeholder="เลือกรายละเอียดจุดเกิดเหตุ" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {LOCATION_DETAIL_OPTIONS.map((l) => (
+                      <SelectItem key={l} value={l}>
+                        {l}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>,
               )}
               {fieldBlock(
                 'รุ่นรถ',
@@ -327,19 +346,33 @@ const AccidentCaseEditDialog: React.FC<Props> = ({ caseData, open, onOpenChange,
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {fieldBlock(
                 'ต้นเหตุของการเกิดเคส',
-                <Input
-                  value={form.root_cause}
-                  onChange={(e) => set('root_cause', e.target.value)}
-                  className="h-9 text-sm"
-                />,
+                <Select value={form.root_cause} onValueChange={(v) => set('root_cause', v)}>
+                  <SelectTrigger className="h-9 text-sm">
+                    <SelectValue placeholder="เลือกต้นเหตุของการเกิดเคส" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ROOT_CAUSE_OPTIONS.map((r) => (
+                      <SelectItem key={r} value={r}>
+                        {r}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>,
               )}
               {fieldBlock(
                 'รายละเอียดการเกิดเคส',
-                <Input
-                  value={form.cause_detail}
-                  onChange={(e) => set('cause_detail', e.target.value)}
-                  className="h-9 text-sm"
-                />,
+                <Select value={form.cause_detail} onValueChange={(v) => set('cause_detail', v)}>
+                  <SelectTrigger className="h-9 text-sm">
+                    <SelectValue placeholder="เลือกรายละเอียดการเกิดเคส" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CAUSE_DETAIL_OPTIONS.map((c) => (
+                      <SelectItem key={c} value={c}>
+                        {c}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>,
               )}
             </div>
 
@@ -361,11 +394,18 @@ const AccidentCaseEditDialog: React.FC<Props> = ({ caseData, open, onOpenChange,
               )}
               {fieldBlock(
                 'บทลงโทษ',
-                <Input
-                  value={form.penalty}
-                  onChange={(e) => set('penalty', e.target.value)}
-                  className="h-9 text-sm"
-                />,
+                <Select value={form.penalty} onValueChange={(v) => set('penalty', v)}>
+                  <SelectTrigger className="h-9 text-sm">
+                    <SelectValue placeholder="เลือกบทลงโทษ" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PENALTY_OPTIONS.map((p) => (
+                      <SelectItem key={p} value={p}>
+                        {p}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>,
               )}
             </div>
 

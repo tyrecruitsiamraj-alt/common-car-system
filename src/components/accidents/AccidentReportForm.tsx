@@ -21,8 +21,13 @@ import { formatEmployeeDisplayName } from '@/lib/titlePrefixOptions';
 import {
   ACCIDENT_TYPE_OPTIONS,
   CASE_STATUS_OPTIONS,
+  CAUSE_DETAIL_OPTIONS,
   JOB_TYPE_OPTIONS,
+  LOCATION_DETAIL_OPTIONS,
   MOVEMENT_DETAIL_OPTIONS,
+  PENALTY_OPTIONS,
+  ROOT_CAUSE_OPTIONS,
+  TIME_RANGE_OPTIONS,
   VEHICLE_MODEL_OPTIONS,
 } from '@/lib/accidentCaseOptions';
 import { toast } from 'sonner';
@@ -296,12 +301,18 @@ const AccidentReportForm: React.FC = () => {
           {fieldBlock(
             'ช่วงเวลาที่เกิดเหตุ',
             false,
-            <Input
-              value={form.time_range}
-              onChange={(e) => set('time_range', e.target.value)}
-              placeholder="เช่น 12.00 - 17.00 น."
-              className="h-10 text-sm"
-            />,
+            <Select value={form.time_range} onValueChange={(v) => set('time_range', v)}>
+              <SelectTrigger className="h-10 text-sm">
+                <SelectValue placeholder="เลือกช่วงเวลาที่เกิดเหตุ" />
+              </SelectTrigger>
+              <SelectContent>
+                {TIME_RANGE_OPTIONS.map((t) => (
+                  <SelectItem key={t} value={t}>
+                    {t}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>,
           )}
         </div>
         {fieldBlock(
@@ -351,12 +362,18 @@ const AccidentReportForm: React.FC = () => {
         {fieldBlock(
           'รายละเอียดจุดเกิดเหตุ',
           false,
-          <Input
-            value={form.location_detail}
-            onChange={(e) => set('location_detail', e.target.value)}
-            placeholder="เช่น พื้นที่จอดรถที่พักนาย"
-            className="h-10 text-sm"
-          />,
+          <Select value={form.location_detail} onValueChange={(v) => set('location_detail', v)}>
+            <SelectTrigger className="h-10 text-sm">
+              <SelectValue placeholder="เลือกรายละเอียดจุดเกิดเหตุ" />
+            </SelectTrigger>
+            <SelectContent>
+              {LOCATION_DETAIL_OPTIONS.map((l) => (
+                <SelectItem key={l} value={l}>
+                  {l}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>,
         )}
       </div>
 
@@ -425,22 +442,34 @@ const AccidentReportForm: React.FC = () => {
         {fieldBlock(
           'ต้นเหตุของการเกิดเคส',
           false,
-          <Input
-            value={form.root_cause}
-            onChange={(e) => set('root_cause', e.target.value)}
-            placeholder="เช่น การกะระยะ"
-            className="h-10 text-sm"
-          />,
+          <Select value={form.root_cause} onValueChange={(v) => set('root_cause', v)}>
+            <SelectTrigger className="h-10 text-sm">
+              <SelectValue placeholder="เลือกต้นเหตุของการเกิดเคส" />
+            </SelectTrigger>
+            <SelectContent>
+              {ROOT_CAUSE_OPTIONS.map((r) => (
+                <SelectItem key={r} value={r}>
+                  {r}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>,
         )}
         {fieldBlock(
           'รายละเอียดการเกิดเคส',
           false,
-          <Input
-            value={form.cause_detail}
-            onChange={(e) => set('cause_detail', e.target.value)}
-            placeholder="เช่น Skill"
-            className="h-10 text-sm"
-          />,
+          <Select value={form.cause_detail} onValueChange={(v) => set('cause_detail', v)}>
+            <SelectTrigger className="h-10 text-sm">
+              <SelectValue placeholder="เลือกรายละเอียดการเกิดเคส" />
+            </SelectTrigger>
+            <SelectContent>
+              {CAUSE_DETAIL_OPTIONS.map((c) => (
+                <SelectItem key={c} value={c}>
+                  {c}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>,
         )}
       </div>
 
@@ -468,12 +497,18 @@ const AccidentReportForm: React.FC = () => {
           {fieldBlock(
             'บทลงโทษ',
             false,
-            <Input
-              value={form.penalty}
-              onChange={(e) => set('penalty', e.target.value)}
-              placeholder="เช่น หนังสือเตือน และพักงาน"
-              className="h-10 text-sm"
-            />,
+            <Select value={form.penalty} onValueChange={(v) => set('penalty', v)}>
+              <SelectTrigger className="h-10 text-sm">
+                <SelectValue placeholder="เลือกบทลงโทษ" />
+              </SelectTrigger>
+              <SelectContent>
+                {PENALTY_OPTIONS.map((p) => (
+                  <SelectItem key={p} value={p}>
+                    {p}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>,
           )}
         </div>
       </div>
