@@ -4,6 +4,7 @@ import type { Employee, Vehicle, VehicleBooking } from '@/types';
 
 /** เฉพาะ position นี้เท่านั้นที่จองผ่านหน้า /fleet/bookings ได้ */
 export const BOOKABLE_DRIVER_POSITION = 'Common Driver';
+export const BOOKABLE_DRIVER_POSITIONS = new Set(['Common Driver', 'Support Driver']);
 
 export type AvailabilityPayload = {
   from: string;
@@ -71,7 +72,7 @@ export function computeBookingAvailability(
     bookingRows.filter((b) => bookingBlocksWindow(b, from, to)).map((b) => b.vehicle_id),
   );
   const availableEmployees = employees
-    .filter((e) => e.status === 'active' && e.position === BOOKABLE_DRIVER_POSITION && !busyEmp.has(e.id))
+    .filter((e) => e.status === 'active' && BOOKABLE_DRIVER_POSITIONS.has(e.position) && !busyEmp.has(e.id))
     .map((e) => ({
       id: e.id,
       first_name: e.first_name,
@@ -106,7 +107,7 @@ export function resolveBookEmployeeOptions(
   }
   return employees
     .filter(
-      (e) => e.status !== 'inactive' && e.status !== 'suspended' && e.position === BOOKABLE_DRIVER_POSITION,
+      (e) => e.status !== 'inactive' && e.status !== 'suspended' && BOOKABLE_DRIVER_POSITIONS.has(e.position),
     )
     .map((e) => ({
       id: e.id,

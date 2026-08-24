@@ -270,7 +270,7 @@ async function handler(req: AuthedReq, res: ApiRes): Promise<void> {
           select e.*
           from ${tblE} e
           where e.status = 'active'
-            and e.position = 'Common Driver'
+            and (e.position = 'Common Driver' or e.position = 'Support Driver')
             and not exists (
               select 1 from ${tbl} vb
               where vb.employee_id = e.id
