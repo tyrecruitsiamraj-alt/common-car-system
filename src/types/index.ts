@@ -22,6 +22,7 @@ export interface Employee {
   first_name: string;
   last_name: string;
   nickname?: string;
+  english_name?: string;
   phone: string;
   status: EmployeeStatus;
   position: string;

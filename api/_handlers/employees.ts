@@ -26,6 +26,7 @@ type EmployeeRow = {
   first_name: string;
   last_name: string;
   nickname: string | null;
+  english_name: string | null;
   phone: string;
   status: string;
   position: string;
@@ -82,6 +83,7 @@ function toEmployeeResponse(row: EmployeeRow) {
     first_name: row.first_name,
     last_name: row.last_name,
     nickname: row.nickname || undefined,
+    english_name: row.english_name || undefined,
     phone: row.phone,
     status: row.status,
     position: row.position,
@@ -222,6 +224,7 @@ async function employeesHandler(req: AuthedReq, res: ApiRes) {
       const status = isEmployeeStatus(raw.status) ? raw.status : 'active';
 
       const nickname = getString(raw.nickname);
+      const english_name = getString(raw.english_name);
       const address = getString(raw.address);
 
       const lat = parseFloatOrNull(raw.lat);
@@ -238,7 +241,7 @@ async function employeesHandler(req: AuthedReq, res: ApiRes) {
       const { rows } = await dbQuery<EmployeeRow>(
         `
           insert into ${tblEmp} (
-            employee_code, title_prefix, first_name, last_name, nickname,
+            employee_code, title_prefix, first_name, last_name, nickname, english_name,
             phone, status, position, join_date,
             address, lat, lng,
             reliability_score, utilization_rate,
@@ -246,11 +249,11 @@ async function employeesHandler(req: AuthedReq, res: ApiRes) {
             avatar_url
           )
           values (
-            $1, $2, $3, $4, $5,
-            $6, $7, $8, $9,
-            $10, $11, $12,
-            $13, $14,
-            $15, $16, $17, $18, $19
+            $1, $2, $3, $4, $5, $6,
+            $7, $8, $9, $10,
+            $11, $12, $13,
+            $14, $15,
+            $16, $17, $18, $19, $20
           )
           returning *
         `,
@@ -260,6 +263,7 @@ async function employeesHandler(req: AuthedReq, res: ApiRes) {
           first_name,
           last_name,
           nickname,
+          english_name,
           phone,
           status,
           position,
@@ -305,6 +309,8 @@ async function employeesHandler(req: AuthedReq, res: ApiRes) {
       const first_name = raw.first_name !== undefined ? getString(raw.first_name) : cur.first_name;
       const last_name = raw.last_name !== undefined ? getString(raw.last_name) : cur.last_name;
       const nickname = raw.nickname !== undefined ? getString(raw.nickname) : cur.nickname;
+      const english_name =
+        raw.english_name !== undefined ? getString(raw.english_name) : cur.english_name;
       const phone = raw.phone !== undefined ? getString(raw.phone) : cur.phone;
       const status =
         raw.status !== undefined
@@ -350,11 +356,12 @@ async function employeesHandler(req: AuthedReq, res: ApiRes) {
         `
         update ${tblEmp} set
           employee_code = $2, title_prefix = $3, first_name = $4, last_name = $5, nickname = $6,
-          phone = $7, status = $8, position = $9, join_date = $10::date,
-          address = $11, lat = $12, lng = $13,
-          reliability_score = $14, utilization_rate = $15,
-          total_days_worked = $16, total_income = $17, total_cost = $18, total_issues = $19,
-          avatar_url = $20
+          english_name = $7,
+          phone = $8, status = $9, position = $10, join_date = $11::date,
+          address = $12, lat = $13, lng = $14,
+          reliability_score = $15, utilization_rate = $16,
+          total_days_worked = $17, total_income = $18, total_cost = $19, total_issues = $20,
+          avatar_url = $21
         where id = $1
         returning *
       `,
@@ -365,6 +372,7 @@ async function employeesHandler(req: AuthedReq, res: ApiRes) {
           first_name,
           last_name,
           nickname,
+          english_name,
           phone,
           status,
           position,

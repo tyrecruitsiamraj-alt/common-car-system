@@ -39,6 +39,7 @@ import {
   BOOKING_CANCEL_REASON_OPTIONS,
   BOOKING_CONFIRM,
   BOOKING_DIALOG,
+  BOOKING_JOB_TYPE_LABELS,
   BOOKING_JOB_TYPE_OPTIONS,
   BOOKING_STATUS_LABELS,
   BOOKING_TOAST,
@@ -127,7 +128,7 @@ import {
 import { Checkbox } from '@/components/ui/checkbox';
 import { MoreHorizontal } from 'lucide-react';
 
-type ViewMode = 'month' | 'week' | 'day' | 'hour';
+type ViewMode = 'month' | 'week' | 'day' | 'hour' | 'calendar';
 
 export type FleetBookingsMode = 'book' | 'monitor';
 
@@ -148,7 +149,7 @@ function computeListRange(
   bookEnd: string,
 ): { from: Date; to: Date } | null {
   try {
-    if (viewMode === 'month') {
+    if (viewMode === 'month' || viewMode === 'calendar') {
       const d = parse(`${monthValue}-01`, 'yyyy-MM-dd', new Date());
       if (Number.isNaN(d.getTime())) return null;
       return { from: startOfMonth(d), to: endOfMonth(d) };
@@ -334,6 +335,36 @@ function bookingDetailSuffix(b: VehicleBooking): string {
 function plateShort(id: string, vehMap: Map<string, Vehicle>): string {
   const p = vehMap.get(id)?.plate_no?.trim();
   return p || '?';
+}
+
+/** รหัสงานที่แสดงในตารางเวลา · ปฏิทินคนขับ — เลขใบงาน/เอกสารตามปกติ หรือป้ายประเภทงานเมื่อเป็นแทนงาน/สแตนบาย */
+function bookingRosterCode(b: VehicleBooking): string {
+  if (b.job_type === 'substitute') return BOOKING_JOB_TYPE_LABELS.substitute;
+  if (b.job_type === 'standby') {
+    const dest = (b.destination || '').trim();
+    return dest ? `${BOOKING_JOB_TYPE_LABELS.standby} ${dest}` : BOOKING_JOB_TYPE_LABELS.standby;
+  }
+  const workOrder = (b.work_order_no || '').trim();
+  if (workOrder) return workOrder;
+  const docNo = (b.document_no || '').trim();
+  if (docNo) return docNo;
+  return b.job_type ? BOOKING_JOB_TYPE_LABELS[b.job_type] : '-';
+}
+
+/** จำนวนงาน (active) ของพนักงานที่ทับช่วงวันที่ที่กำหนด — ใช้เป็นคอลัมน์ "Count" ในตารางเวลา · ปฏิทินคนขับ */
+function countActiveBookingsInRange(
+  bookings: VehicleBooking[],
+  empId: string,
+  from: Date,
+  to: Date,
+): number {
+  return bookings.filter(
+    (b) =>
+      b.employee_id === empId &&
+      isBookingActive(b) &&
+      bookingEffectiveEnd(b) > from &&
+      parseISO(b.starts_at) < to,
+  ).length;
 }
 
 function toDatetimeLocalValue(d: Date): string {
@@ -2057,15 +2088,15 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
 
         <details
           className="relative z-0 mt-2 rounded-3xl border border-white/70 bg-white/85 overflow-hidden shadow-sm backdrop-blur"
-          defaultOpen
+          open
         >
           <summary className="cursor-pointer select-none px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50/80 list-none marker:content-none [&::-webkit-details-marker]:hidden">
-            {isMonitor ? 'ตารางเวลา · มุมมองรายวัน / รายชั่วโมง' : 'Daily calendar'}
+            {isMonitor ? 'ตารางเวลา · มุมมองรายวัน / รายชั่วโมง / ปฏิทินคนขับ' : 'Daily calendar'}
           </summary>
           <div className="flex flex-col gap-2 p-2 sm:p-3 border-t border-slate-100">
         {isMonitor ? (
         <div className="flex flex-wrap items-center gap-2 shrink-0">
-          {(['month', 'week', 'day', 'hour'] as const).map((m) => (
+          {(['month', 'week', 'day', 'hour', 'calendar'] as const).map((m) => (
             <button
               key={m}
               type="button"
@@ -2085,9 +2116,11 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                     ? isMonitor
                       ? 'รายวัน'
                       : 'ว่างทั้งวัน'
-                    : isMonitor
-                      ? 'รายชั่วโมง'
-                      : 'ว่างรายชั่วโมง'}
+                    : m === 'hour'
+                      ? isMonitor
+                        ? 'รายชั่วโมง'
+                        : 'ว่างรายชั่วโมง'
+                      : 'ปฏิทินคนขับ'}
             </button>
           ))}
         </div>
@@ -2095,7 +2128,7 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
 
         <div className="glass-card rounded-lg border border-border p-2 sm:p-3 shrink-0 space-y-2">
           <div className="flex flex-wrap gap-3 items-end">
-            {viewMode === 'month' ? (
+            {viewMode === 'month' || viewMode === 'calendar' ? (
               <div className="space-y-1 min-w-[10rem]">
                 <Label className="text-xs">เดือน</Label>
                 <Input
@@ -2130,7 +2163,11 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
               <p className="text-xs text-destructive">ช่วงวันที่ไม่ถูกต้อง</p>
             )}
           </div>
-          {viewMode === 'hour' ? (
+          {viewMode === 'calendar' ? (
+            <p className="text-[10px] text-muted-foreground leading-snug">
+              ปฏิทินคนขับ: ตารางคนขับ × วัน ทั้งเดือน — แต่ละช่องแสดงเลขงาน/ประเภทงาน และทะเบียนรถ คลิกช่องที่มีงานเพื่อดูรายละเอียด
+            </p>
+          ) : viewMode === 'hour' ? (
             <p className="text-[10px] text-muted-foreground leading-snug">
               รายชั่วโมง: ตารางพนักงาน × 24 ชม. — ช่องเขียว = ว่าง · น้ำเงิน = มีจอง (ดูทะเบียนในเซลล์) · ส้ม = มีคำว่าอุบัติเหตุในหมายเหตุ — คลิกช่องว่างแล้วเลือกรถในฟอร์ม (รองรับจองย้อนหลัง)
             </p>
@@ -2367,6 +2404,129 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                     </table>
                   )}
                 </div>
+              </div>
+            </div>
+          ) : null}
+
+          {viewMode === 'calendar' ? (
+            <div className="flex-1 min-h-0 flex flex-col">
+              <div className="flex flex-wrap items-center justify-between gap-2 shrink-0 px-1 pb-1">
+                <p className="text-[10px] font-medium text-foreground">
+                  ปฏิทินคนขับ ({format(monthAnchor, 'MMMM yyyy', { locale: th })})
+                </p>
+                <p className="text-[8px] text-muted-foreground">
+                  แต่ละช่อง: บรรทัดบน = เลขงาน/ประเภทงาน · บรรทัดล่าง = ทะเบียนรถ — คลิกเพื่อดูรายละเอียด
+                </p>
+              </div>
+              <div className="flex-1 min-h-0 overflow-auto">
+                {employeesForPlanner.length === 0 ? (
+                  <p className="text-[10px] text-muted-foreground p-2">ไม่มีพนักงานในระบบ</p>
+                ) : (
+                  <table className="border-collapse text-[9px] min-w-max">
+                    <thead className="sticky top-0 z-[1] bg-card shadow-sm">
+                      <tr>
+                        <th className="sticky left-0 z-[2] bg-card border border-border p-1 text-center w-8 min-w-8">No.</th>
+                        <th className="sticky left-8 z-[2] bg-card border border-border p-1 text-left w-[5rem] min-w-[5rem]">
+                          Driver ID
+                        </th>
+                        <th className="sticky left-28 z-[2] bg-card border border-border p-1 text-left w-[8rem] min-w-[8rem]">
+                          Name TH
+                        </th>
+                        <th className="border border-border p-1 text-left w-[8rem] min-w-[8rem]">Name EN</th>
+                        <th className="border border-border p-1 text-left w-[6rem] min-w-[6rem]">Tel</th>
+                        <th className="border border-border p-1 text-left w-[6rem] min-w-[6rem]">Remark</th>
+                        <th className="border border-border p-1 text-center w-8 min-w-8">Count</th>
+                        {daysInSelectedMonth.map((d) => (
+                          <th
+                            key={format(d, 'yyyy-MM-dd')}
+                            className={cn(
+                              'border border-border p-1 font-medium text-center w-[4.5rem] min-w-[4.5rem]',
+                              isSameDay(d, new Date())
+                                ? 'bg-primary/15 text-primary'
+                                : 'text-muted-foreground',
+                            )}
+                          >
+                            {format(d, 'dd-MMM-yy')}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {employeesForPlanner.map((emp, idx) => {
+                        const empBookings = bookings.filter(
+                          (b) => b.employee_id === emp.id && isBookingActive(b),
+                        );
+                        const count = countActiveBookingsInRange(
+                          empBookings,
+                          emp.id,
+                          startOfMonth(monthAnchor),
+                          endOfMonth(monthAnchor),
+                        );
+                        return (
+                          <tr key={emp.id}>
+                            <td className="sticky left-0 z-[1] bg-card border border-border p-1 text-center text-muted-foreground">
+                              {idx + 1}
+                            </td>
+                            <td className="sticky left-8 z-[1] bg-card border border-border p-1 text-left font-medium">
+                              {emp.employee_code}
+                            </td>
+                            <td
+                              className="sticky left-28 z-[1] bg-card border border-border p-1 text-left max-w-[8rem] truncate"
+                              title={`${emp.first_name} ${emp.last_name}`}
+                            >
+                              {emp.first_name} {emp.last_name}
+                            </td>
+                            <td className="border border-border p-1 text-left max-w-[8rem] truncate" title={emp.english_name || ''}>
+                              {emp.english_name || '-'}
+                            </td>
+                            <td className="border border-border p-1 text-left whitespace-nowrap">{emp.phone || '-'}</td>
+                            <td className="border border-border p-1 text-left max-w-[6rem] truncate" title={emp.position}>
+                              {emp.position || '-'}
+                            </td>
+                            <td className="border border-border p-1 text-center font-medium">{count}</td>
+                            {daysInSelectedMonth.map((d) => {
+                              const dayList = bookingsOverlappingDay(empBookings, d);
+                              const incident = dayList.some(isIncidentBooking);
+                              const openDetails = () => {
+                                if (dayList.length === 0) return;
+                                setEmpDayDialog({ employee: emp, day: d, rows: dayList });
+                              };
+                              return (
+                                <td
+                                  key={format(d, 'yyyy-MM-dd')}
+                                  className={cn(
+                                    'border border-border/70 p-0.5 align-top text-center',
+                                    dayList.length === 0 && 'bg-muted/10',
+                                    incident && 'bg-amber-500/15',
+                                  )}
+                                >
+                                  {dayList.length === 0 ? null : (
+                                    <button
+                                      type="button"
+                                      onClick={openDetails}
+                                      className="w-full space-y-0.5 rounded-sm px-0.5 py-0.5 hover:bg-primary/10 cursor-pointer"
+                                    >
+                                      {dayList.map((b) => (
+                                        <span key={b.id} className="block leading-tight">
+                                          <span className="block font-semibold text-foreground truncate">
+                                            {bookingRosterCode(b)}
+                                          </span>
+                                          <span className="block text-muted-foreground truncate">
+                                            {plateShort(b.vehicle_id, vehMap)}
+                                          </span>
+                                        </span>
+                                      ))}
+                                    </button>
+                                  )}
+                                </td>
+                              );
+                            })}
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                )}
               </div>
             </div>
           ) : null}

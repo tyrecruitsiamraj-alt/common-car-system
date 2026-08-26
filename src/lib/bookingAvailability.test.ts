@@ -229,13 +229,22 @@ describe('booking form options', () => {
     expect(resolveBookEmployeeOptions(null, [EMPLOYEE_1, EMPLOYEE_2])).toHaveLength(2);
   });
 
-  it('excludes employees whose position is not Common Driver', () => {
-    const otherPosition: Employee = { ...EMPLOYEE_2, id: 'emp-3', position: 'Support Driver' };
+  it('excludes employees whose position is neither Common Driver nor Support Driver', () => {
+    const otherPosition: Employee = { ...EMPLOYEE_2, id: 'emp-3', position: 'Temp Driver' };
     expect(resolveBookEmployeeOptions(null, [EMPLOYEE_1, otherPosition])).toHaveLength(1);
 
     const { from, to } = window('08:00', '17:00');
     const avail = computeBookingAvailability(from, to, [], [EMPLOYEE_1, otherPosition], [VEHICLE_A]);
     expect(avail.availableEmployees.map((e) => e.id)).toEqual([EMPLOYEE_1.id]);
+  });
+
+  it('includes employees whose position is Support Driver', () => {
+    const supportDriver: Employee = { ...EMPLOYEE_2, id: 'emp-3', position: 'Support Driver' };
+    expect(resolveBookEmployeeOptions(null, [EMPLOYEE_1, supportDriver])).toHaveLength(2);
+
+    const { from, to } = window('08:00', '17:00');
+    const avail = computeBookingAvailability(from, to, [], [EMPLOYEE_1, supportDriver], [VEHICLE_A]);
+    expect(avail.availableEmployees.map((e) => e.id).sort()).toEqual([EMPLOYEE_1.id, supportDriver.id].sort());
   });
 });
 
