@@ -21,7 +21,7 @@ const TONE_CLASSES: Record<Tone, { header: string; value: string }> = {
   yellow: { header: 'bg-yellow-600 text-white', value: 'bg-yellow-50 text-yellow-800' },
 };
 
-const AccidentTopStatCard: React.FC<Props> = ({ index, title, value, loading, tone = 'neutral', emphasize }) => {
+const TopStatCard: React.FC<Props> = ({ index, title, value, loading, tone = 'neutral', emphasize }) => {
   const classes = TONE_CLASSES[tone];
   return (
     <div className="rounded-xl border border-slate-200/80 overflow-hidden shadow-sm">
@@ -37,4 +37,4 @@ const AccidentTopStatCard: React.FC<Props> = ({ index, title, value, loading, to
   );
 };
 
-export default AccidentTopStatCard;
+export default TopStatCard;

@@ -27,6 +27,7 @@
     "db:sync:employee-positions": "node scripts/sync-employee-positions-from-json.mjs",
     "db:sync:employee-english-name": "node scripts/sync-employee-english-name-from-json.mjs",
     "db:seed:accident-cases": "tsx scripts/seed-accident-cases-from-json.ts",
+    "db:seed:complaints": "tsx scripts/seed-complaints-from-json.ts",
     "sync:ms-forms-exams": "node scripts/sync-ms-forms-exams.mjs",
     "db:init": "npm run db:ping && npm run db:migrate && npm run db:seed",
     "db:seed:demo": "tsx scripts/seed-demo-data.ts",

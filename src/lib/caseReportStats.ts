@@ -1,6 +1,6 @@
-import { format, parseISO } from 'date-fns';
+import { format } from 'date-fns';
 import { th } from 'date-fns/locale';
-import type { AccidentCase } from '@/types';
+import { parseISO } from 'date-fns';
 
 export type CategoryBucket = {
   label: string;
@@ -27,11 +27,12 @@ export function bucketTopCategories(
   return buckets;
 }
 
-export function monthKey(caseDate: string): string {
-  return caseDate.slice(0, 7);
+export function monthKey(dateYmd: string): string {
+  return dateYmd.slice(0, 7);
 }
 
-export function buildMonthlyTrend(cases: AccidentCase[], months = 6): { label: string; count: number }[] {
+/** เคสรายเดือน N เดือนล่าสุด (รวมเดือนปัจจุบัน) จากลิสต์วันที่ (yyyy-MM-dd) */
+export function buildMonthlyTrend(dates: string[], months = 6): { label: string; count: number }[] {
   const now = new Date();
   const keys: string[] = [];
   for (let i = months - 1; i >= 0; i--) {
@@ -39,8 +40,8 @@ export function buildMonthlyTrend(cases: AccidentCase[], months = 6): { label: s
     keys.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
   }
   const counts = new Map<string, number>();
-  for (const c of cases) {
-    const key = monthKey(c.case_date);
+  for (const dateYmd of dates) {
+    const key = monthKey(dateYmd);
     counts.set(key, (counts.get(key) ?? 0) + 1);
   }
   return keys.map((key) => {
@@ -50,8 +51,8 @@ export function buildMonthlyTrend(cases: AccidentCase[], months = 6): { label: s
   });
 }
 
-export function isSameMonthAsNow(caseDate: string, now = new Date()): boolean {
-  const d = parseISO(caseDate);
+export function isSameMonthAsNow(dateYmd: string, now = new Date()): boolean {
+  const d = parseISO(dateYmd);
   return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
 }
 
@@ -91,7 +92,7 @@ const YEARS_OF_SERVICE_BANDS: { max: number; label: string }[] = [
   { max: Infinity, label: 'มากกว่า 7 ปี' },
 ];
 
-/** ช่วงอายุงานที่พบมากสุด (เช่น "มากกว่า 7 ปี") จากฟิลด์ years_of_service แบบข้อความอิสระ */
+/** ช่วงอายุงานที่พบมากสุด (เช่น "มากกว่า 7 ปี") จากฟิลด์อายุงานแบบข้อความอิสระ */
 export function bucketYearsOfService(values: (string | null | undefined)[]): TopValueSummary | null {
   const labels = values.map((raw) => {
     const years = parseWholeYears(raw);
@@ -109,7 +110,7 @@ const EMPLOYEE_AGE_BANDS: { max: number; label: string }[] = [
   { max: Infinity, label: '60 ปีขึ้นไป' },
 ];
 
-/** ช่วงอายุพนักงานที่พบมากสุด (เช่น "50 - 59 ปี") จากฟิลด์ employee_age แบบข้อความอิสระ */
+/** ช่วงอายุพนักงานที่พบมากสุด (เช่น "50 - 59 ปี") จากฟิลด์อายุพนักงานแบบข้อความอิสระ */
 export function bucketEmployeeAge(values: (string | null | undefined)[]): TopValueSummary | null {
   const labels = values.map((raw) => {
     const age = parseWholeYears(raw);
@@ -119,7 +120,7 @@ export function bucketEmployeeAge(values: (string | null | undefined)[]): TopVal
   return mostCommonValue(labels, values.length);
 }
 
-/** จำนวนพนักงานที่ไม่ซ้ำกันที่เกิดเคส */
-export function countDistinctEmployees(cases: AccidentCase[]): number {
-  return new Set(cases.map((c) => c.employee_name.trim()).filter(Boolean)).size;
+/** จำนวนค่าที่ไม่ซ้ำกันในลิสต์ (เช่น จำนวนพนักงานไม่ซ้ำที่เกิดเคส) */
+export function countDistinctValues(values: (string | null | undefined)[]): number {
+  return new Set(values.map((v) => (v ?? '').trim()).filter(Boolean)).size;
 }

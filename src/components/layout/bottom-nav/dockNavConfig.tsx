@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
-import { CalendarPlus, LayoutGrid, Car, Users, BarChart3, AlertTriangle } from 'lucide-react';
+import { CalendarPlus, LayoutGrid, Car, Users, BarChart3, AlertTriangle, MessageSquareWarning } from 'lucide-react';
 
 export type DockNavItem = {
   path: string;
@@ -15,6 +15,7 @@ export const DOCK_NAV_ITEMS: DockNavItem[] = [
   { path: '/fleet/drivers', label: 'Drivers', icon: Users },
   { path: '/dashboard', label: 'Dashboard', icon: BarChart3 },
   { path: '/accidents', label: 'Accidents', icon: AlertTriangle },
+  { path: '/complaints', label: 'Complaints', icon: MessageSquareWarning },
 ];
 
 export function isDockPathActive(path: string, pathname: string): boolean {
@@ -25,6 +26,7 @@ export function isDockPathActive(path: string, pathname: string): boolean {
   if (path === '/fleet/drivers') return p.startsWith('/fleet/drivers');
   if (path === '/dashboard') return p.startsWith('/dashboard');
   if (path === '/accidents') return p.startsWith('/accidents');
+  if (path === '/complaints') return p.startsWith('/complaints');
   return false;
 }
 

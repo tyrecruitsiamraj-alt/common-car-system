@@ -1,7 +1,7 @@
 import React from 'react';
 import { Bar, BarChart, CartesianGrid, Cell, XAxis, YAxis } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
-import type { CategoryBucket } from '@/lib/accidentCasesReport';
+import type { CategoryBucket } from '@/lib/caseReportStats';
 
 /** สีตามลำดับหมวดหมู่คงที่ — ไม่หมุนสี ส่วนที่เกิน 6 อันดับถูกรวมเป็น "อื่นๆ" แล้วในข้อมูล (bucketTopCategories) */
 const CATEGORY_COLORS = [
@@ -21,7 +21,7 @@ type Props = {
   loading?: boolean;
 };
 
-const AccidentBreakdownChart: React.FC<Props> = ({ title, subtitle, buckets, loading }) => {
+const CategoryBreakdownChart: React.FC<Props> = ({ title, subtitle, buckets, loading }) => {
   const barData = buckets.map((b, i) => ({
     name: b.label,
     count: b.count,
@@ -61,4 +61,4 @@ const AccidentBreakdownChart: React.FC<Props> = ({ title, subtitle, buckets, loa
   );
 };
 
-export default AccidentBreakdownChart;
+export default CategoryBreakdownChart;

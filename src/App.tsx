@@ -23,6 +23,8 @@ import AddEmployeePage from "@/pages/wl/AddEmployeePage";
 import SupervisorDashboard from "@/pages/dashboard/SupervisorDashboard";
 import AccidentDashboardPage from "@/pages/dashboard/AccidentDashboardPage";
 import AccidentReportPage from "@/pages/accidents/AccidentReportPage";
+import ComplaintDashboardPage from "@/pages/dashboard/ComplaintDashboardPage";
+import ComplaintReportPage from "@/pages/complaints/ComplaintReportPage";
 import ChangePasswordPage from "@/pages/ChangePasswordPage";
 import AppearanceSettingsPage from "@/pages/settings/AppearanceSettingsPage";
 import UserPermissionsSettingsPage from "@/pages/settings/UserPermissionsSettingsPage";
@@ -59,6 +61,7 @@ function AppRoutes() {
       <Route path="/exams/:examKey" element={<ExamTakePage />} />
       <Route path="/fleet/forms" element={<Navigate to="/exams" replace />} />
       <Route path="/accidents/report" element={<AccidentReportPage />} />
+      <Route path="/complaints/report" element={<ComplaintReportPage />} />
       <Route path="/register" element={isAuthenticated ? <Navigate to="/" replace /> : <RegisterPage />} />
       <Route path="/forgot-password" element={isAuthenticated ? <Navigate to="/" replace /> : <ForgotPasswordPage />} />
 
@@ -75,6 +78,7 @@ function AppRoutes() {
         <Route path="/fleet/drivers/:id" element={<EmployeeProfile />} />
         <Route path="/dashboard" element={<SupervisorDashboard />} />
         <Route path="/accidents" element={<AccidentDashboardPage />} />
+        <Route path="/complaints" element={<ComplaintDashboardPage />} />
         <Route path="/account/change-password" element={<ChangePasswordPage />} />
         <Route
           path="/settings"

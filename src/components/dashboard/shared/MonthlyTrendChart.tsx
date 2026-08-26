@@ -3,6 +3,8 @@ import { CartesianGrid, Line, LineChart, XAxis, YAxis } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 
 type Props = {
+  title: string;
+  subtitle: string;
   data: { label: string; count: number }[];
   loading?: boolean;
 };
@@ -11,15 +13,15 @@ const trendConfig = {
   count: { label: 'จำนวนเคส', color: 'hsl(0 84% 60%)' },
 };
 
-const AccidentTrendChart: React.FC<Props> = ({ data, loading }) => {
+const MonthlyTrendChart: React.FC<Props> = ({ title, subtitle, data, loading }) => {
   const total = data.reduce((sum, p) => sum + p.count, 0);
 
   return (
     <div className="rounded-xl border border-slate-200/80 bg-white p-5 shadow-sm">
       <div className="flex items-start justify-between gap-2 mb-4">
         <div>
-          <h3 className="text-sm font-semibold text-slate-900">แนวโน้มเคสรายเดือน</h3>
-          <p className="text-xs text-slate-500 mt-0.5">จำนวนเคสอุบัติเหตุ 6 เดือนล่าสุด</p>
+          <h3 className="text-sm font-semibold text-slate-900">{title}</h3>
+          <p className="text-xs text-slate-500 mt-0.5">{subtitle}</p>
         </div>
         <p className="text-lg font-semibold text-slate-900 tabular-nums">{loading ? '…' : total}</p>
       </div>
@@ -40,4 +42,4 @@ const AccidentTrendChart: React.FC<Props> = ({ data, loading }) => {
   );
 };
 
-export default AccidentTrendChart;
+export default MonthlyTrendChart;

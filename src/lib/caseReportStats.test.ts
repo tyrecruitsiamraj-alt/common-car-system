@@ -4,22 +4,10 @@ import {
   bucketTopCategories,
   bucketYearsOfService,
   buildMonthlyTrend,
-  countDistinctEmployees,
+  countDistinctValues,
   isSameMonthAsNow,
   mostCommonValue,
-} from '@/lib/accidentCasesReport';
-import type { AccidentCase } from '@/types';
-
-function makeCase(partial: Partial<AccidentCase>): AccidentCase {
-  return {
-    id: partial.id ?? 'c1',
-    case_date: partial.case_date ?? '2026-01-10',
-    employee_name: partial.employee_name ?? 'ทดสอบ',
-    created_at: '2026-01-10T00:00:00.000Z',
-    updated_at: '2026-01-10T00:00:00.000Z',
-    ...partial,
-  };
-}
+} from '@/lib/caseReportStats';
 
 describe('bucketTopCategories', () => {
   it('groups by value and sorts descending by count', () => {
@@ -52,11 +40,10 @@ describe('bucketTopCategories', () => {
 });
 
 describe('buildMonthlyTrend', () => {
-  it('returns one bucket per month in range, counting matching cases', () => {
+  it('returns one bucket per month in range, counting matching dates', () => {
     const now = new Date();
     const thisMonthYmd = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-05`;
-    const cases = [makeCase({ case_date: thisMonthYmd }), makeCase({ case_date: thisMonthYmd })];
-    const trend = buildMonthlyTrend(cases, 3);
+    const trend = buildMonthlyTrend([thisMonthYmd, thisMonthYmd], 3);
     expect(trend).toHaveLength(3);
     expect(trend[trend.length - 1].count).toBe(2);
     expect(trend[0].count).toBe(0);
@@ -109,13 +96,8 @@ describe('bucketEmployeeAge', () => {
   });
 });
 
-describe('countDistinctEmployees', () => {
-  it('counts unique, trimmed employee names', () => {
-    const cases = [
-      makeCase({ employee_name: 'สมชาย ใจดี' }),
-      makeCase({ employee_name: 'สมหญิง รักดี' }),
-      makeCase({ employee_name: 'สมชาย ใจดี' }),
-    ];
-    expect(countDistinctEmployees(cases)).toBe(2);
+describe('countDistinctValues', () => {
+  it('counts unique, trimmed values', () => {
+    expect(countDistinctValues(['สมชาย ใจดี', 'สมหญิง รักดี', 'สมชาย ใจดี'])).toBe(2);
   });
 });

@@ -354,6 +354,38 @@ export interface AccidentCase {
   updated_at: string;
 }
 
+export interface Complaint {
+  id: string;
+  /** วันที่ร้องเรียน — yyyy-mm-dd */
+  complaint_date: string;
+  driver_name: string;
+  customer_account?: string;
+  /** รหัสพนักงาน เช่น SR 0589 */
+  employee_id?: string;
+  /** อายุงาน — ข้อความอิสระ เช่น "4 ปี" */
+  years_of_service?: string;
+  /** อายุพนักงาน — ข้อความอิสระ เช่น "57 ปี" */
+  employee_age?: string;
+  category?: string;
+  complaint_type?: string;
+  complaint_details?: string;
+  /** ตำแหน่ง/ประเภทผู้ขับ ณ วันที่เกิดเรื่อง */
+  position?: string;
+  root_cause?: string;
+  /** บทลงโทษ — มักทราบหลังสอบสวน ไม่บังคับตอนแจ้งเรื่อง */
+  penalty?: string;
+  /** จำนวนครั้งที่เกิดเรื่องซ้ำ เช่น "ครั้งที่ 1" */
+  occurrence_count?: string;
+  corrective_action?: string;
+  employee_status?: string;
+  /** เหตุการณ์ใหม่ / เหตุเดิม */
+  case_type?: string;
+  reporter_name?: string;
+  reporter_phone?: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export const CANDIDATE_STATUS_LABELS: Record<CandidateStatus, string> = {
   inprocess: 'In Process',
   drop: 'Drop',
