@@ -40,6 +40,54 @@ export interface Employee {
   created_at: string;
 }
 
+/** ข้อมูลเสริมของคนขับ จากฐานข้อมูล "Database TMA.xlsx" (Toyota Motor Asia) — ผูกกับ Employee แบบ 1:1 ด้วย employee_id */
+export interface DriverTmaProfile {
+  id: string;
+  employee_id?: string;
+  tma_driver_code?: string;
+  driver_name_eng?: string;
+  driver_name_th?: string;
+  driver_tel?: string;
+  line_id?: string;
+  site?: string;
+  sub_site?: string;
+  tma_status?: string;
+  start_date?: string;
+  end_date?: string;
+  resignation_reason?: string;
+  experience_years?: number;
+  driver_type?: string;
+  under_driver_co?: string;
+  boss_type?: string;
+  assigned_user_name?: string;
+  assigned_user_tel?: string;
+  apartment?: string;
+  car_model?: string;
+  car_color?: string;
+  car_no?: string;
+  car_sticker?: string;
+  driver_movement?: string;
+  car_movement?: string;
+  driver_picture_url?: string;
+  driver_license_image_url?: string;
+  defensive_safety_driving?: string;
+  tdem_card_id?: string;
+  card_last5?: string;
+  birthdate?: string;
+  age?: number;
+  english_first_name?: string;
+  english_last_name?: string;
+  exam_score_2025?: number;
+  supervisor_score_2025?: number;
+  complain_score?: number;
+  accident_score?: number;
+  total_score?: number;
+  source_file?: string;
+  imported_at: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface TrainingRecord {
   id: string;
   employee_id: string;

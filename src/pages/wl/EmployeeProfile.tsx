@@ -5,7 +5,13 @@ import AppPage from '@/components/layout/AppPage';
 import { mockEmployees } from '@/data/mockData';
 import { formatCandidateDisplayName } from '@/lib/formatCandidateName';
 import { formatThaiDate, formatThaiTimeRange } from '@/lib/thaiDateTimeFormat';
-import type { Candidate, Employee, Vehicle, VehicleBooking } from '@/types';
+import type {
+  Candidate,
+  DriverTmaProfile,
+  Employee,
+  Vehicle,
+  VehicleBooking,
+} from '@/types';
 import { isDemoMode } from '@/lib/demoMode';
 import { apiFetch } from '@/lib/apiFetch';
 import { parseWlEmployeeCandidateId, isWlStaffingTrack } from '@/lib/wlFromCandidate';
@@ -58,12 +64,117 @@ function HistorySection({
   );
 }
 
+function TmaField({ label, value }: { label: string; value?: string | number | null }) {
+  if (value === undefined || value === null || value === '') return null;
+  return (
+    <div>
+      <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">{label}</p>
+      <p className="text-sm text-foreground">{value}</p>
+    </div>
+  );
+}
+
+/** ข้อมูลเสริมของผู้ขับจากฐานข้อมูล TMA (Toyota Motor Asia) — รถที่ได้รับมอบหมาย บัตร TDEM และคะแนนประเมิน */
+function TmaProfileSection({ profile: p }: { profile: DriverTmaProfile }) {
+  const car = [p.car_model, p.car_color].filter(Boolean).join(' · ');
+  const hasScores =
+    p.exam_score_2025 !== undefined ||
+    p.supervisor_score_2025 !== undefined ||
+    p.complain_score !== undefined ||
+    p.accident_score !== undefined ||
+    p.total_score !== undefined;
+
+  return (
+    <section className="rounded-2xl border border-border/80 bg-white/80 p-4 shadow-sm space-y-3">
+      <h3 className="text-sm font-semibold text-foreground">ข้อมูลเสริม TMA</h3>
+
+      <div className="grid grid-cols-2 gap-x-3 gap-y-2.5">
+        <TmaField label="รหัสผู้ขับ (TMA)" value={p.tma_driver_code} />
+        <TmaField label="ประเภทผู้ขับ" value={p.driver_type} />
+        <TmaField label="ไซต์" value={[p.site, p.sub_site].filter(Boolean).join(' / ') || undefined} />
+        <TmaField label="สถานะ (TMA)" value={p.tma_status} />
+        <TmaField label="รถที่ได้รับมอบหมาย" value={car || undefined} />
+        <TmaField label="ทะเบียนรถ" value={p.car_no} />
+        <TmaField label="เลขสติกเกอร์รถ" value={p.car_sticker} />
+        <TmaField label="ผู้ใช้บริการ" value={p.assigned_user_name} />
+        <TmaField label="ประเภทผู้บังคับบัญชา" value={p.boss_type} />
+        <TmaField label="เบอร์ผู้ใช้บริการ" value={p.assigned_user_tel} />
+        <TmaField label="ที่พัก" value={p.apartment} />
+        <TmaField label="Line ID" value={p.line_id} />
+        <TmaField label="บัตร TDEM" value={p.tdem_card_id} />
+        <TmaField label="เลข 5 ตัวท้าย" value={p.card_last5} />
+        <TmaField label="วันเริ่มงาน" value={p.start_date ? formatThaiDate(p.start_date) : undefined} />
+        <TmaField label="วันเกิด" value={p.birthdate ? formatThaiDate(p.birthdate) : undefined} />
+        {p.end_date ? (
+          <TmaField label="วันสิ้นสุดงาน" value={formatThaiDate(p.end_date)} />
+        ) : null}
+        {p.resignation_reason ? (
+          <TmaField label="เหตุผลลาออก" value={p.resignation_reason} />
+        ) : null}
+      </div>
+
+      {hasScores ? (
+        <div className="grid grid-cols-5 gap-2 pt-1">
+          <div className="rounded-xl bg-slate-50/80 border border-border/60 p-2 text-center">
+            <p className="text-sm font-bold tabular-nums text-foreground">{p.exam_score_2025 ?? '—'}</p>
+            <p className="text-[9px] text-muted-foreground mt-0.5">คะแนนสอบ</p>
+          </div>
+          <div className="rounded-xl bg-slate-50/80 border border-border/60 p-2 text-center">
+            <p className="text-sm font-bold tabular-nums text-foreground">{p.supervisor_score_2025 ?? '—'}</p>
+            <p className="text-[9px] text-muted-foreground mt-0.5">นายประเมิน</p>
+          </div>
+          <div className="rounded-xl bg-slate-50/80 border border-border/60 p-2 text-center">
+            <p className="text-sm font-bold tabular-nums text-foreground">{p.complain_score ?? '—'}</p>
+            <p className="text-[9px] text-muted-foreground mt-0.5">ร้องเรียน</p>
+          </div>
+          <div className="rounded-xl bg-slate-50/80 border border-border/60 p-2 text-center">
+            <p className="text-sm font-bold tabular-nums text-foreground">{p.accident_score ?? '—'}</p>
+            <p className="text-[9px] text-muted-foreground mt-0.5">อุบัติเหตุ</p>
+          </div>
+          <div className="rounded-xl bg-primary/10 border border-primary/20 p-2 text-center">
+            <p className="text-sm font-bold tabular-nums text-primary">{p.total_score ?? '—'}</p>
+            <p className="text-[9px] text-primary/80 mt-0.5">รวม</p>
+          </div>
+        </div>
+      ) : null}
+
+      {(p.driver_picture_url || p.driver_license_image_url) && (
+        <div className="flex flex-wrap gap-3 pt-1 text-xs">
+          {p.driver_picture_url ? (
+            <a
+              href={p.driver_picture_url}
+              target="_blank"
+              rel="noreferrer"
+              className="text-primary underline underline-offset-2"
+            >
+              รูปผู้ขับ
+            </a>
+          ) : null}
+          {p.driver_license_image_url ? (
+            <a
+              href={p.driver_license_image_url}
+              target="_blank"
+              rel="noreferrer"
+              className="text-primary underline underline-offset-2"
+            >
+              รูปใบขับขี่
+            </a>
+          ) : null}
+        </div>
+      )}
+
+      <p className="text-[10px] text-muted-foreground/70">ที่มา: {p.source_file || 'Database TMA.xlsx'}</p>
+    </section>
+  );
+}
+
 const EmployeeProfile: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const [employee, setEmployee] = useState<Employee | null>(null);
   const [wlCandidate, setWlCandidate] = useState<Candidate | null>(null);
   const [bookings, setBookings] = useState<VehicleBooking[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [tmaProfile, setTmaProfile] = useState<DriverTmaProfile | null>(null);
   const [loading, setLoading] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
@@ -201,6 +312,28 @@ const EmployeeProfile: React.FC = () => {
     if (!id || parseWlEmployeeCandidateId(id) || !employee) return;
     void loadFleetHistory(employee.id);
   }, [id, employee, loadFleetHistory]);
+
+  useEffect(() => {
+    if (!id || parseWlEmployeeCandidateId(id) || !employee || isDemoMode()) {
+      setTmaProfile(null);
+      return;
+    }
+    let cancelled = false;
+    apiFetch(`/api/driver-tma-profiles?employee_id=${encodeURIComponent(employee.id)}`)
+      .then(async (r) => {
+        if (!r.ok) return null;
+        return r.json() as Promise<DriverTmaProfile>;
+      })
+      .then((data) => {
+        if (!cancelled) setTmaProfile(data);
+      })
+      .catch(() => {
+        if (!cancelled) setTmaProfile(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [id, employee]);
 
   const vehMap = useMemo(() => new Map(vehicles.map((v) => [v.id, v])), [vehicles]);
   const vehLabel = useCallback(
@@ -364,6 +497,8 @@ const EmployeeProfile: React.FC = () => {
         <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">เบอร์โทร</p>
         <p className="text-lg text-foreground tabular-nums">{employee.phone?.trim() || '—'}</p>
       </div>
+
+      {tmaProfile ? <TmaProfileSection profile={tmaProfile} /> : null}
 
       <div className="grid grid-cols-2 gap-3">
         <div className="rounded-2xl border border-red-200 bg-red-50/80 p-4 text-center">
