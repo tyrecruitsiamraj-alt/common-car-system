@@ -28,6 +28,7 @@ import { formatEmployeeDisplayName } from '@/lib/titlePrefixOptions';
 import { readJsonSafe } from '@/lib/api';
 import { isDemoMode } from '@/lib/demoMode';
 import { apiFetch } from '@/lib/apiFetch';
+import { DRIVER_LIST_POSITIONS_PARAM, isDriverListPosition } from '@/lib/driverListPositions';
 
 const PAGE_SIZE = 20;
 const SEARCH_DEBOUNCE_MS = 350;
@@ -68,6 +69,7 @@ function buildEmployeesQuery(filter: EmployeeStatus | 'all', search: string, lim
   params.set('offset', String(offset));
   if (filter !== 'all') params.set('status', filter);
   if (search) params.set('search', search);
+  params.set('position', DRIVER_LIST_POSITIONS_PARAM);
   return `/api/employees?${params.toString()}`;
 }
 
@@ -115,6 +117,7 @@ const WLEmployees: React.FC = () => {
   useEffect(() => {
     if (!isDemoMode()) return;
     const all = demoEmployeeSource()
+      .filter((e) => isDriverListPosition(e.position))
       .filter((e) => filter === 'all' || e.status === filter)
       .filter((e) => matchesSearch(e, search));
     setTotal(all.length);
@@ -173,6 +176,7 @@ const WLEmployees: React.FC = () => {
     let rows: Employee[];
     if (isDemoMode()) {
       rows = demoEmployeeSource()
+        .filter((e) => isDriverListPosition(e.position))
         .filter((e) => filter === 'all' || e.status === filter)
         .filter((e) => matchesSearch(e, search));
     } else {

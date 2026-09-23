@@ -41,7 +41,8 @@ export async function createEmployeeSimple(input: SimpleEmployeeInput): Promise<
       last_name,
       phone,
       status: 'active',
-      position: 'ผู้ขับ',
+      // หน้า Drivers กรองให้เห็นเฉพาะ Common Driver / Temp Driver — ตั้งค่าเริ่มต้นให้ยังเห็นคนที่เพิ่งเพิ่ม
+      position: 'Common Driver',
       join_date: toYmdLocal(new Date()),
     });
   }
@@ -53,6 +54,8 @@ export async function createEmployeeSimple(input: SimpleEmployeeInput): Promise<
       first_name,
       last_name,
       phone,
+      // หน้า Drivers กรองให้เห็นเฉพาะ Common Driver / Temp Driver — ตั้งค่าเริ่มต้นให้ยังเห็นคนที่เพิ่งเพิ่ม
+      position: 'Common Driver',
       ...(title_prefix ? { title_prefix } : {}),
     }),
   });

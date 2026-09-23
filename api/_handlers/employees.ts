@@ -132,6 +132,19 @@ function buildEmployeeFilters(query: Record<string, unknown> | undefined): {
     );
   }
 
+  // ตำแหน่ง (position) — รับหลายค่าคั่นด้วย comma เช่น "Common Driver,Temp Driver"
+  const positionFilter = getString(query?.position);
+  if (positionFilter) {
+    const positions = positionFilter
+      .split(',')
+      .map((p) => p.trim())
+      .filter(Boolean);
+    if (positions.length > 0) {
+      params.push(positions);
+      clauses.push(`position = ANY($${params.length}::text[])`);
+    }
+  }
+
   return { where: clauses.length > 0 ? `where ${clauses.join(' and ')}` : '', params };
 }
 

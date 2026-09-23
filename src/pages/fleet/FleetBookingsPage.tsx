@@ -59,6 +59,7 @@ import DestinationField from '@/components/fleet/DestinationField';
 import BookingDetailDialog from '@/components/fleet/BookingDetailDialog';
 import { BOOKING_ROW_STATUS_META } from '@/components/fleet/FleetBookingsDashboard';
 import { apiFetch } from '@/lib/apiFetch';
+import { isDriverListPosition } from '@/lib/driverListPositions';
 import { useAuth } from '@/contexts/AuthContext';
 import type {
   Employee,
@@ -837,8 +838,10 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
   const employeesForPlanner = useMemo(() => {
     return Array.from(empMap.values())
       .filter((e) => e.status !== 'inactive' && e.status !== 'suspended')
+      // หน้า Monitor (ปฏิทิน/ตารางเวลาต่างๆ) แสดงเฉพาะ Common Driver กับ Temp Driver — โหมดจองรถยังเห็นทุกตำแหน่งตามเดิม
+      .filter((e) => !isMonitor || isDriverListPosition(e.position))
       .sort((a, b) => `${a.first_name} ${a.last_name}`.localeCompare(`${b.first_name} ${b.last_name}`, 'th'));
-  }, [empMap]);
+  }, [empMap, isMonitor]);
 
   const filteredEmployeesForPlanner = useMemo(
     () => employeesForPlanner.filter((e) => employeeMatchesPlannerFilterId(e, plannerFilterEmpId)),
