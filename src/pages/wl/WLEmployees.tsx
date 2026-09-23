@@ -16,7 +16,7 @@ import { exportDriversExcel } from '@/lib/fleetExcelExport';
 import { deleteEmployee } from '@/lib/createEmployeeSimple';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
-import type { Employee, EmployeeStatus } from '@/types';
+import type { DriverTmaProfile, Employee, EmployeeStatus } from '@/types';
 import { Pencil, Search, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -25,10 +25,85 @@ import { DEMO_CANDIDATES_CHANGED_EVENT, getCandidates, getEmployees } from '@/li
 import { mergeCandidateSources } from '@/lib/mergeCandidates';
 import { candidateToWlEmployeeRow, isWlStaffingTrack, WL_FROM_CANDIDATE_PREFIX } from '@/lib/wlFromCandidate';
 import { formatEmployeeDisplayName } from '@/lib/titlePrefixOptions';
+import { formatThaiDate } from '@/lib/thaiDateTimeFormat';
 import { readJsonSafe } from '@/lib/api';
 import { isDemoMode } from '@/lib/demoMode';
 import { apiFetch } from '@/lib/apiFetch';
 import { DRIVER_LIST_POSITIONS_PARAM, isDriverListPosition } from '@/lib/driverListPositions';
+
+const TMA_DASH = '—';
+
+function tmaText(v: string | number | null | undefined): React.ReactNode {
+  return v === undefined || v === null || v === '' ? TMA_DASH : v;
+}
+
+function tmaDate(v: string | undefined): React.ReactNode {
+  return v ? formatThaiDate(v) : TMA_DASH;
+}
+
+function tmaLink(url: string | undefined, label: string): React.ReactNode {
+  if (!url) return TMA_DASH;
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noreferrer"
+      onClick={(e) => e.stopPropagation()}
+      className="text-primary underline underline-offset-2 whitespace-nowrap"
+    >
+      {label}
+    </a>
+  );
+}
+
+/**
+ * คอลัมน์ข้อมูลเสริมจากไฟล์ "Database TMA.xlsx" ที่ seed เข้า driver_tma_profiles (ดู migrations/040_driver_tma_profiles.sql)
+ * ไม่รวม: id/employee_id/created_at/updated_at/imported_at/source_file (ข้อมูลระบบ ไม่ใช่ข้อมูลคนขับ),
+ * driver_name_th/english_first_name/english_last_name (ซ้ำกับชื่อ-สกุลที่แสดงอยู่แล้ว),
+ * driver_movement/car_movement/defensive_safety_driving (ในไฟล์ต้นทางว่างทั้งหมด ไม่มีข้อมูลจริง)
+ */
+const TMA_COLUMNS: {
+  key: string;
+  label: string;
+  render: (p: DriverTmaProfile | undefined) => React.ReactNode;
+}[] = [
+  { key: 'site', label: 'ไซต์', render: (p) => tmaText([p?.site, p?.sub_site].filter(Boolean).join(' / ') || undefined) },
+  { key: 'tma_driver_code', label: 'รหัส TMA', render: (p) => tmaText(p?.tma_driver_code) },
+  { key: 'driver_name_eng', label: 'ชื่อ (อังกฤษ)', render: (p) => tmaText(p?.driver_name_eng) },
+  { key: 'tma_status', label: 'สถานะ (TMA)', render: (p) => tmaText(p?.tma_status) },
+  { key: 'line_id', label: 'Line ID', render: (p) => tmaText(p?.line_id) },
+  {
+    key: 'car',
+    label: 'รถที่มอบหมาย',
+    render: (p) => tmaText([p?.car_model, p?.car_color].filter(Boolean).join(' · ') || undefined),
+  },
+  { key: 'car_no', label: 'ทะเบียนรถ', render: (p) => tmaText(p?.car_no) },
+  { key: 'car_sticker', label: 'เลขสติกเกอร์', render: (p) => tmaText(p?.car_sticker) },
+  { key: 'assigned_user_name', label: 'ผู้บังคับบัญชา', render: (p) => tmaText(p?.assigned_user_name) },
+  { key: 'boss_type', label: 'ประเภทผู้บังคับบัญชา', render: (p) => tmaText(p?.boss_type) },
+  { key: 'assigned_user_tel', label: 'เบอร์ผู้บังคับบัญชา', render: (p) => tmaText(p?.assigned_user_tel) },
+  { key: 'under_driver_co', label: 'ผู้ดูแล', render: (p) => tmaText(p?.under_driver_co) },
+  { key: 'apartment', label: 'ที่พัก', render: (p) => tmaText(p?.apartment) },
+  { key: 'tdem_card_id', label: 'บัตร TDEM', render: (p) => tmaText(p?.tdem_card_id) },
+  { key: 'card_last5', label: '5 ตัวท้าย', render: (p) => tmaText(p?.card_last5) },
+  { key: 'start_date', label: 'วันเริ่มงาน (TMA)', render: (p) => tmaDate(p?.start_date) },
+  { key: 'end_date', label: 'วันสิ้นสุดงาน', render: (p) => tmaDate(p?.end_date) },
+  { key: 'resignation_reason', label: 'เหตุผลลาออก', render: (p) => tmaText(p?.resignation_reason) },
+  { key: 'experience_years', label: 'ประสบการณ์ (ปี)', render: (p) => tmaText(p?.experience_years) },
+  { key: 'birthdate', label: 'วันเกิด', render: (p) => tmaDate(p?.birthdate) },
+  { key: 'age', label: 'อายุ', render: (p) => tmaText(p?.age) },
+  { key: 'exam_score_2025', label: 'คะแนนสอบ 2025', render: (p) => tmaText(p?.exam_score_2025) },
+  { key: 'supervisor_score_2025', label: 'นายประเมิน 2025', render: (p) => tmaText(p?.supervisor_score_2025) },
+  { key: 'complain_score', label: 'คะแนนร้องเรียน', render: (p) => tmaText(p?.complain_score) },
+  { key: 'accident_score', label: 'คะแนนอุบัติเหตุ', render: (p) => tmaText(p?.accident_score) },
+  { key: 'total_score', label: 'คะแนนรวม', render: (p) => tmaText(p?.total_score) },
+  { key: 'driver_picture_url', label: 'รูปผู้ขับ', render: (p) => tmaLink(p?.driver_picture_url, 'เปิดรูป') },
+  {
+    key: 'driver_license_image_url',
+    label: 'รูปใบขับขี่',
+    render: (p) => tmaLink(p?.driver_license_image_url, 'เปิดรูป'),
+  },
+];
 
 const PAGE_SIZE = 20;
 const SEARCH_DEBOUNCE_MS = 350;
@@ -92,6 +167,7 @@ const WLEmployees: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
   const [demoVersion, setDemoVersion] = useState(0);
+  const [tmaProfiles, setTmaProfiles] = useState<Map<string, DriverTmaProfile>>(new Map());
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
@@ -160,6 +236,33 @@ const WLEmployees: React.FC = () => {
       cancelled = true;
     };
   }, [filter, search, page, reloadToken]);
+
+  // ข้อมูลเสริมจาก Database TMA.xlsx ที่ seed ไว้ (driver_tma_profiles) — โหลดทั้งชุดครั้งเดียวมาทำ map ด้วย employee_id
+  // ไม่ผูกกับ pagination ของตารางพนักงาน (คนละ query กัน) โหมดสาธิตไม่มีข้อมูลชุดนี้
+  useEffect(() => {
+    if (isDemoMode()) {
+      setTmaProfiles(new Map());
+      return;
+    }
+    let cancelled = false;
+    apiFetch('/api/driver-tma-profiles')
+      .then(async (r) => {
+        if (cancelled || !r.ok) return;
+        const data = await readJsonSafe<DriverTmaProfile[]>(r);
+        const list = Array.isArray(data) ? data : [];
+        const map = new Map<string, DriverTmaProfile>();
+        for (const p of list) {
+          if (p.employee_id) map.set(p.employee_id, p);
+        }
+        if (!cancelled) setTmaProfiles(map);
+      })
+      .catch(() => {
+        if (!cancelled) setTmaProfiles(new Map());
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [reloadToken]);
 
   // ลบแถวสุดท้ายของหน้าสุดท้ายแล้วหน้าว่าง → ถอยกลับหนึ่งหน้าอัตโนมัติ
   useEffect(() => {
@@ -397,59 +500,90 @@ const WLEmployees: React.FC = () => {
             })}
           </div>
         ) : (
-          <div className="glass-card rounded-xl border border-border overflow-hidden">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border bg-secondary/30">
-                  <th className="px-4 py-3 text-left text-muted-foreground font-medium">รหัส</th>
-                  <th className="px-4 py-3 text-left text-muted-foreground font-medium">ชื่อ-สกุล</th>
-                  <th className="px-4 py-3 text-left text-muted-foreground font-medium">เบอร์โทร</th>
-                  <th className="px-4 py-3 text-left text-muted-foreground font-medium">ตำแหน่ง</th>
-                  <th className="px-4 py-3 text-center text-muted-foreground font-medium">สถานะ</th>
-                  {canEdit ? (
-                    <th className="px-4 py-3 text-center text-muted-foreground font-medium w-24">จัดการ</th>
-                  ) : null}
-                </tr>
-              </thead>
-
-              <tbody>
-                {employees.map((emp) => (
-                  <tr
-                    key={emp.id}
-                    onClick={() => navigate(`/fleet/drivers/${emp.id}`)}
-                    className="border-b border-border/50 hover:bg-secondary/20 cursor-pointer"
-                  >
-                    <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{emp.employee_code}</td>
-                    <td className="px-4 py-3 font-medium text-foreground">
-                      {formatEmployeeDisplayName(emp)}
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground tabular-nums">{emp.phone}</td>
-                    <td className="px-4 py-3 text-muted-foreground">{emp.position}</td>
-                    <td className="px-4 py-3 text-center">
-                      <span
-                        className={cn(
-                          'text-xs px-2 py-0.5 rounded-full',
-                          emp.status === 'active'
-                            ? 'bg-success/15 text-success'
-                            : emp.status === 'suspended'
-                              ? 'bg-destructive/15 text-destructive'
-                              : 'bg-muted text-muted-foreground',
-                        )}
+          <div className="space-y-1.5">
+            <p className="text-[11px] text-muted-foreground">
+              เลื่อนตารางไปทางขวาเพื่อดูข้อมูลเสริมจาก Database TMA.xlsx (รถที่มอบหมาย บัตร TDEM คะแนนประเมิน ฯลฯ)
+            </p>
+            <div className="glass-card rounded-xl border border-border overflow-x-auto">
+              <table className="text-sm min-w-max">
+                <thead>
+                  <tr className="border-b border-border bg-secondary/30">
+                    <th className="sticky left-0 z-[2] bg-slate-50 w-24 min-w-[6rem] px-4 py-3 text-left text-muted-foreground font-medium">
+                      รหัส
+                    </th>
+                    <th className="sticky left-24 z-[2] bg-slate-50 w-40 min-w-[10rem] px-4 py-3 text-left text-muted-foreground font-medium">
+                      ชื่อ-สกุล
+                    </th>
+                    <th className="px-4 py-3 text-left text-muted-foreground font-medium whitespace-nowrap">เบอร์โทร</th>
+                    <th className="px-4 py-3 text-left text-muted-foreground font-medium whitespace-nowrap">ตำแหน่ง</th>
+                    <th className="px-4 py-3 text-center text-muted-foreground font-medium whitespace-nowrap">สถานะ</th>
+                    {TMA_COLUMNS.map((col) => (
+                      <th
+                        key={col.key}
+                        className="px-4 py-3 text-left text-muted-foreground font-medium whitespace-nowrap"
                       >
-                        {emp.status === 'active'
-                          ? 'ใช้งาน'
-                          : emp.status === 'suspended'
-                            ? 'ระงับ'
-                            : 'ไม่ใช้งาน'}
-                      </span>
-                    </td>
+                        {col.label}
+                      </th>
+                    ))}
                     {canEdit ? (
-                      <td className="px-4 py-3 text-center">{renderDriverActions(emp)}</td>
+                      <th className="sticky right-0 z-[2] bg-slate-50 px-4 py-3 text-center text-muted-foreground font-medium w-24">
+                        จัดการ
+                      </th>
                     ) : null}
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+
+                <tbody>
+                  {employees.map((emp) => {
+                    const profile = tmaProfiles.get(emp.id);
+                    return (
+                      <tr
+                        key={emp.id}
+                        onClick={() => navigate(`/fleet/drivers/${emp.id}`)}
+                        className="border-b border-border/50 hover:bg-secondary/20 cursor-pointer"
+                      >
+                        <td className="sticky left-0 z-[1] bg-white w-24 min-w-[6rem] px-4 py-3 font-mono text-xs text-muted-foreground">
+                          {emp.employee_code}
+                        </td>
+                        <td className="sticky left-24 z-[1] bg-white w-40 min-w-[10rem] px-4 py-3 font-medium text-foreground">
+                          {formatEmployeeDisplayName(emp)}
+                        </td>
+                        <td className="px-4 py-3 text-muted-foreground tabular-nums whitespace-nowrap">{emp.phone}</td>
+                        <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">{emp.position}</td>
+                        <td className="px-4 py-3 text-center whitespace-nowrap">
+                          <span
+                            className={cn(
+                              'text-xs px-2 py-0.5 rounded-full',
+                              emp.status === 'active'
+                                ? 'bg-success/15 text-success'
+                                : emp.status === 'suspended'
+                                  ? 'bg-destructive/15 text-destructive'
+                                  : 'bg-muted text-muted-foreground',
+                            )}
+                          >
+                            {emp.status === 'active'
+                              ? 'ใช้งาน'
+                              : emp.status === 'suspended'
+                                ? 'ระงับ'
+                                : 'ไม่ใช้งาน'}
+                          </span>
+                        </td>
+                        {TMA_COLUMNS.map((col) => (
+                          <td key={col.key} className="px-4 py-3 text-muted-foreground whitespace-nowrap">
+                            {col.render(profile)}
+                          </td>
+                        ))}
+                        {canEdit ? (
+                          <td className="sticky right-0 z-[1] bg-white px-4 py-3 text-center">
+                            {renderDriverActions(emp)}
+                          </td>
+                        ) : null}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 
