@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { BarChart3 } from 'lucide-react';
 import AuthPageShell from '@/components/auth/AuthPageShell';
 import ExamScoresContent from '@/components/exams/ExamScoresContent';
+import ExamDailyDashboard from '@/components/exams/ExamDailyDashboard';
 import { useAuth } from '@/contexts/AuthContext';
 import { BrandMark, BrandTitle } from '@/components/shared/BrandMark';
 
@@ -53,7 +54,11 @@ const ExamResultsPage: React.FC = () => {
           </p>
         </div>
 
-        <ExamScoresContent />
+        <ExamDailyDashboard />
+
+        <div className="border-t border-border/70 pt-5">
+          <ExamScoresContent />
+        </div>
       </div>
     </AuthPageShell>
   );

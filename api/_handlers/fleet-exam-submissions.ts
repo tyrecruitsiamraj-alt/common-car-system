@@ -134,6 +134,73 @@ function toPublicRow(row: Row) {
   };
 }
 
+type DailyCountRow = {
+  day_ymd: string;
+  exam_key: string;
+  submission_count: number;
+  people_count: number;
+};
+
+function parseIso(v: unknown): string | null {
+  const s = typeof v === 'string' ? v.trim() : '';
+  if (!s) return null;
+  const d = new Date(s);
+  return Number.isNaN(d.getTime()) ? null : d.toISOString();
+}
+
+/**
+ * สรุปจำนวนต่อวันต่อประเภทข้อสอบ — ใช้กับแดชบอร์ด /exams/results (คนละ query กับรายการดิบที่ cap ไว้ 50 แถว)
+ * คืน 1 แถวต่อ (วัน, exam_key) ไม่ว่าจะมีการส่งข้อสอบกี่พันครั้งก็ตาม — เบาพอจะดึงทั้งช่วงได้โดยไม่ต้อง paginate
+ * people_count = จำนวนคนไม่ซ้ำกัน (นับจาก submitter_name แบบ trim+lowercase), submission_count = จำนวนครั้งที่ส่งทั้งหมด
+ */
+async function handleDailyCounts(
+  req: ApiReq,
+  res: ApiRes,
+  examKey: string | null,
+): Promise<void> {
+  const fromIso = parseIso(req.query?.from);
+  const toIso = parseIso(req.query?.to);
+
+  const where: string[] = [];
+  const params: unknown[] = [];
+  if (fromIso) {
+    params.push(fromIso);
+    where.push(`created_at >= $${params.length}`);
+  }
+  if (toIso) {
+    params.push(toIso);
+    where.push(`created_at < $${params.length}`);
+  }
+  if (examKey && VALID_EXAM_KEYS.has(examKey)) {
+    params.push(examKey);
+    where.push(`exam_key = $${params.length}`);
+  }
+
+  const { rows } = await dbQuery<DailyCountRow>(
+    `
+    select
+      to_char((created_at at time zone 'Asia/Bangkok')::date, 'YYYY-MM-DD') as day_ymd,
+      exam_key,
+      count(*)::int as submission_count,
+      count(distinct nullif(trim(lower(submitter_name)), ''))::int as people_count
+    from ${tbl}
+    ${where.length > 0 ? `where ${where.join(' and ')}` : ''}
+    group by 1, 2
+    order by 1, 2
+    `,
+    params,
+  );
+  return res.status(200).json(
+    rows.map((r) => ({
+      day: r.day_ymd,
+      exam_key: r.exam_key,
+      exam_title: EXAM_TITLES[r.exam_key] ?? r.exam_key,
+      submission_count: r.submission_count,
+      people_count: r.people_count,
+    })),
+  );
+}
+
 async function handleGet(req: ApiReq, res: ApiRes): Promise<void> {
   if (!(await ensureFleetExamSubmissionsTable())) {
     return sendError(res, 503, 'Schema not ready', 'ยังไม่มีตาราง fleet_exam_submissions');
@@ -144,8 +211,13 @@ async function handleGet(req: ApiReq, res: ApiRes): Promise<void> {
   const vehiclePlate = getString(req.query?.vehicle_plate);
   const examKey = getString(req.query?.exam_key);
   const recent = getString(req.query?.recent);
+  const dailyCounts = getString(req.query?.daily_counts);
 
   try {
+    if (dailyCounts) {
+      return await handleDailyCounts(req, res, examKey);
+    }
+
     if (id) {
       const { rows } = await dbQuery<Row>(`select * from ${tbl} where id = $1::uuid limit 1`, [id]);
       const row = rows[0];
