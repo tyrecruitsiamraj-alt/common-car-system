@@ -69,6 +69,16 @@ const AccidentDashboardPage: React.FC = () => {
     };
   }, [cases]);
 
+  /** แยกจำนวนเคสตาม "สถานะเคส" — นับตรงตัว (ไม่จัดกลุ่ม top-N) เพราะเป็นค่าคงที่จำกัดจำนวน ไม่ใช่ free text หางยาว */
+  const caseStatusCounts = useMemo(() => {
+    const countOf = (status: string) => cases.filter((c) => (c.case_status ?? '').trim() === status).length;
+    return {
+      atFault: countOf('ฝ่ายผิด'),
+      atFaultUncounted: countOf('ฝ่ายผิดไม่นับเคส'),
+      notAtFault: countOf('ฝ่ายถูก'),
+    };
+  }, [cases]);
+
   const accidentTypeBuckets = useMemo(
     () => bucketTopCategories(cases.map((c) => c.accident_type)),
     [cases],
@@ -183,6 +193,27 @@ const AccidentDashboardPage: React.FC = () => {
             value={formatTopValue(topStats.causeDetail)}
             loading={loading}
             tone="yellow"
+          />
+          <TopStatCard
+            index={13}
+            title="จำนวนเคสฝ่ายผิด"
+            value={String(caseStatusCounts.atFault)}
+            loading={loading}
+            tone="red"
+          />
+          <TopStatCard
+            index={14}
+            title="จำนวนเคสฝ่ายผิด (ไม่นับเคส)"
+            value={String(caseStatusCounts.atFaultUncounted)}
+            loading={loading}
+            tone="neutral"
+          />
+          <TopStatCard
+            index={15}
+            title="จำนวนเคสฝ่ายถูก"
+            value={String(caseStatusCounts.notAtFault)}
+            loading={loading}
+            tone="green"
           />
         </div>
 

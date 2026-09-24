@@ -2,7 +2,7 @@
 
 export const JOB_TYPE_OPTIONS = ['ขับรถผู้บริหาร', 'ส่วนกลาง', 'Valet'];
 
-export const CASE_STATUS_OPTIONS = ['ฝ่ายผิด', 'ฝ่ายถูก', 'สุดวิสัย', 'ประมาทร่วม'];
+export const CASE_STATUS_OPTIONS = ['ฝ่ายผิด', 'ฝ่ายผิดไม่นับเคส', 'ฝ่ายถูก', 'สุดวิสัย', 'ประมาทร่วม'];
 
 export const MOVEMENT_DETAIL_OPTIONS = ['เลี้ยวซ้าย', 'ทางเบี่ยง', 'เลี้ยวขวา', 'U-turn', 'จอดสนิท', 'ทางตรง'];
 

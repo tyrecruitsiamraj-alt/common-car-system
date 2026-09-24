@@ -129,7 +129,7 @@ import {
 import { Checkbox } from '@/components/ui/checkbox';
 import { MoreHorizontal } from 'lucide-react';
 
-type ViewMode = 'month' | 'week' | 'day' | 'hour' | 'calendar';
+type ViewMode = 'month' | 'week' | 'day' | 'hour' | 'calendar' | 'vehicle_calendar';
 
 export type FleetBookingsMode = 'book' | 'monitor';
 
@@ -150,7 +150,7 @@ function computeListRange(
   bookEnd: string,
 ): { from: Date; to: Date } | null {
   try {
-    if (viewMode === 'month' || viewMode === 'calendar') {
+    if (viewMode === 'month' || viewMode === 'calendar' || viewMode === 'vehicle_calendar') {
       const d = parse(`${monthValue}-01`, 'yyyy-MM-dd', new Date());
       if (Number.isNaN(d.getTime())) return null;
       return { from: startOfMonth(d), to: endOfMonth(d) };
@@ -368,6 +368,22 @@ function countActiveBookingsInRange(
   ).length;
 }
 
+/** จำนวนงาน (active) ของรถที่ทับช่วงวันที่ที่กำหนด — ใช้เป็นคอลัมน์ "Count" ในตารางเวลา · ปฏิทินรถ */
+function countActiveVehicleBookingsInRange(
+  bookings: VehicleBooking[],
+  vehId: string,
+  from: Date,
+  to: Date,
+): number {
+  return bookings.filter(
+    (b) =>
+      b.vehicle_id === vehId &&
+      isBookingActive(b) &&
+      bookingEffectiveEnd(b) > from &&
+      parseISO(b.starts_at) < to,
+  ).length;
+}
+
 function toDatetimeLocalValue(d: Date): string {
   return format(d, "yyyy-MM-dd'T'HH:mm");
 }
@@ -522,6 +538,11 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
 
   const [empDayDialog, setEmpDayDialog] = useState<{
     employee: Employee;
+    day: Date;
+    rows: VehicleBooking[];
+  } | null>(null);
+  const [vehDayDialog, setVehDayDialog] = useState<{
+    vehicle: Vehicle;
     day: Date;
     rows: VehicleBooking[];
   } | null>(null);
@@ -1408,6 +1429,7 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
       setBookings((prev) => prev.map((x) => (x.id === updated.id ? updated : x)));
       toast.success(BOOKING_TOAST.completeSuccess);
       setEmpDayDialog(null);
+      setVehDayDialog(null);
       await refresh();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : BOOKING_TOAST.completeFailed);
@@ -1452,6 +1474,7 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
       closeCancelDialog();
       if (editBooking?.id === id) closeEditDialog();
       setEmpDayDialog(null);
+      setVehDayDialog(null);
       await refresh();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : BOOKING_TOAST.cancelFailed);
@@ -1641,6 +1664,7 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
       }
       closeEditDialog();
       setEmpDayDialog(null);
+      setVehDayDialog(null);
       await refresh();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'แก้ไขไม่สำเร็จ');
@@ -2094,12 +2118,12 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
           open
         >
           <summary className="cursor-pointer select-none px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50/80 list-none marker:content-none [&::-webkit-details-marker]:hidden">
-            {isMonitor ? 'ตารางเวลา · มุมมองรายวัน / รายชั่วโมง / ปฏิทินคนขับ' : 'Daily calendar'}
+            {isMonitor ? 'ตารางเวลา · มุมมองรายวัน / รายชั่วโมง / ปฏิทินคนขับ / ปฏิทินรถ' : 'Daily calendar'}
           </summary>
           <div className="flex flex-col gap-2 p-2 sm:p-3 border-t border-slate-100">
         {isMonitor ? (
         <div className="flex flex-wrap items-center gap-2 shrink-0">
-          {(['month', 'week', 'day', 'hour', 'calendar'] as const).map((m) => (
+          {(['month', 'week', 'day', 'hour', 'calendar', 'vehicle_calendar'] as const).map((m) => (
             <button
               key={m}
               type="button"
@@ -2123,7 +2147,9 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                       ? isMonitor
                         ? 'รายชั่วโมง'
                         : 'ว่างรายชั่วโมง'
-                      : 'ปฏิทินคนขับ'}
+                      : m === 'calendar'
+                        ? 'ปฏิทินคนขับ'
+                        : 'ปฏิทินรถ'}
             </button>
           ))}
         </div>
@@ -2131,7 +2157,7 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
 
         <div className="glass-card rounded-lg border border-border p-2 sm:p-3 shrink-0 space-y-2">
           <div className="flex flex-wrap gap-3 items-end">
-            {viewMode === 'month' || viewMode === 'calendar' ? (
+            {viewMode === 'month' || viewMode === 'calendar' || viewMode === 'vehicle_calendar' ? (
               <div className="space-y-1 min-w-[10rem]">
                 <Label className="text-xs">เดือน</Label>
                 <Input
@@ -2169,6 +2195,10 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
           {viewMode === 'calendar' ? (
             <p className="text-[10px] text-muted-foreground leading-snug">
               ปฏิทินคนขับ: ตารางคนขับ × วัน ทั้งเดือน — แต่ละช่องแสดงเลขงาน/ประเภทงาน และทะเบียนรถ คลิกช่องที่มีงานเพื่อดูรายละเอียด
+            </p>
+          ) : viewMode === 'vehicle_calendar' ? (
+            <p className="text-[10px] text-muted-foreground leading-snug">
+              ปฏิทินรถ: ตารางรถ × วัน ทั้งเดือน — แต่ละช่องแสดงเลขงาน/ประเภทงาน และชื่อคนขับ คลิกช่องที่มีงานเพื่อดูรายละเอียด
             </p>
           ) : viewMode === 'hour' ? (
             <p className="text-[10px] text-muted-foreground leading-snug">
@@ -2516,6 +2546,125 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                                           </span>
                                           <span className="block text-muted-foreground truncate">
                                             {plateShort(b.vehicle_id, vehMap)}
+                                          </span>
+                                        </span>
+                                      ))}
+                                    </button>
+                                  )}
+                                </td>
+                              );
+                            })}
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            </div>
+          ) : null}
+
+          {viewMode === 'vehicle_calendar' ? (
+            <div className="flex-1 min-h-0 flex flex-col">
+              <div className="flex flex-wrap items-center justify-between gap-2 shrink-0 px-1 pb-1">
+                <p className="text-[10px] font-medium text-foreground">
+                  ปฏิทินรถ ({format(monthAnchor, 'MMMM yyyy', { locale: th })})
+                </p>
+                <p className="text-[8px] text-muted-foreground">
+                  แต่ละช่อง: บรรทัดบน = เลขงาน/ประเภทงาน · บรรทัดล่าง = ชื่อคนขับ — คลิกเพื่อดูรายละเอียด
+                </p>
+              </div>
+              <div className="flex-1 min-h-0 overflow-auto">
+                {vehiclesForGrid.length === 0 ? (
+                  <p className="text-[10px] text-muted-foreground p-2">ไม่มีรถในระบบ</p>
+                ) : (
+                  <table className="border-collapse text-[9px] min-w-max">
+                    <thead className="sticky top-0 z-[1] bg-card shadow-sm">
+                      <tr>
+                        <th className="sticky left-0 z-[2] bg-card border border-border p-1 text-center w-8 min-w-8">No.</th>
+                        <th className="sticky left-8 z-[2] bg-card border border-border p-1 text-left w-[5rem] min-w-[5rem]">
+                          ทะเบียน
+                        </th>
+                        <th className="sticky left-28 z-[2] bg-card border border-border p-1 text-left w-[8rem] min-w-[8rem]">
+                          รุ่นรถ
+                        </th>
+                        <th className="border border-border p-1 text-center w-[4rem] min-w-[4rem]">ที่นั่ง</th>
+                        <th className="border border-border p-1 text-left w-[8rem] min-w-[8rem]">หมายเหตุ</th>
+                        <th className="border border-border p-1 text-center w-8 min-w-8">Count</th>
+                        {daysInSelectedMonth.map((d) => (
+                          <th
+                            key={format(d, 'yyyy-MM-dd')}
+                            className={cn(
+                              'border border-border p-1 font-medium text-center w-[4.5rem] min-w-[4.5rem]',
+                              isSameDay(d, new Date())
+                                ? 'bg-primary/15 text-primary'
+                                : 'text-muted-foreground',
+                            )}
+                          >
+                            {format(d, 'dd-MMM-yy')}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {vehiclesForGrid.map((veh, idx) => {
+                        const vehBookings = bookings.filter(
+                          (b) => b.vehicle_id === veh.id && isBookingActive(b),
+                        );
+                        const count = countActiveVehicleBookingsInRange(
+                          vehBookings,
+                          veh.id,
+                          startOfMonth(monthAnchor),
+                          endOfMonth(monthAnchor),
+                        );
+                        return (
+                          <tr key={veh.id}>
+                            <td className="sticky left-0 z-[1] bg-card border border-border p-1 text-center text-muted-foreground">
+                              {idx + 1}
+                            </td>
+                            <td className="sticky left-8 z-[1] bg-card border border-border p-1 text-left font-medium">
+                              {veh.plate_no}
+                            </td>
+                            <td
+                              className="sticky left-28 z-[1] bg-card border border-border p-1 text-left max-w-[8rem] truncate"
+                              title={veh.label || ''}
+                            >
+                              {veh.label || '-'}
+                            </td>
+                            <td className="border border-border p-1 text-center tabular-nums">{veh.seats}</td>
+                            <td className="border border-border p-1 text-left max-w-[8rem] truncate" title={veh.notes || ''}>
+                              {veh.notes || '-'}
+                            </td>
+                            <td className="border border-border p-1 text-center font-medium">{count}</td>
+                            {daysInSelectedMonth.map((d) => {
+                              const dayList = bookingsOverlappingDay(vehBookings, d);
+                              const incident = dayList.some(isIncidentBooking);
+                              const openDetails = () => {
+                                if (dayList.length === 0) return;
+                                setVehDayDialog({ vehicle: veh, day: d, rows: dayList });
+                              };
+                              return (
+                                <td
+                                  key={format(d, 'yyyy-MM-dd')}
+                                  className={cn(
+                                    'border border-border/70 p-0.5 align-top text-center',
+                                    dayList.length === 0 && 'bg-muted/10',
+                                    incident && 'bg-amber-500/15',
+                                  )}
+                                >
+                                  {dayList.length === 0 ? null : (
+                                    <button
+                                      type="button"
+                                      onClick={openDetails}
+                                      className="w-full space-y-0.5 rounded-sm px-0.5 py-0.5 hover:bg-primary/10 cursor-pointer"
+                                    >
+                                      {dayList.map((b) => (
+                                        <span key={b.id} className="block leading-tight">
+                                          <span className="block font-semibold text-foreground truncate">
+                                            {bookingRosterCode(b)}
+                                          </span>
+                                          <span className="block text-muted-foreground truncate">
+                                            {driverShort(b.employee_id, empMap)}
                                           </span>
                                         </span>
                                       ))}
@@ -3334,6 +3483,76 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                               {formatBookingWorkOrderNo(b)}
                             </span>
                             <span className="font-medium text-foreground">{vehLabel(b.vehicle_id)}</span>
+                          </div>
+                          <div className="text-xs tabular-nums text-muted-foreground">
+                            {format(parseISO(b.starts_at), 'dd/MM/yyyy HH:mm')} — {format(parseISO(b.ends_at), 'HH:mm')}
+                          </div>
+                          {b.document_no?.trim() ? (
+                            <div className="text-xs text-foreground/90">
+                              <span className="text-muted-foreground">เลขที่เอกสาร: </span>
+                              {b.document_no.trim()}
+                            </div>
+                          ) : null}
+                          {b.destination?.trim() ? (
+                            <div className="text-xs text-foreground/90">
+                              <span className="text-muted-foreground">สถานที่ที่ไป: </span>
+                              {b.destination.trim()}
+                            </div>
+                          ) : null}
+                          {b.notes?.trim() ? (
+                            <div className="text-xs text-foreground/90 pt-1 border-t border-border/60">
+                              <span className="text-muted-foreground">หมายเหตุ: </span>
+                              {b.notes.trim()}
+                            </div>
+                          ) : null}
+                        </button>
+                        <div className="pt-1 px-1">{renderBookingActions(b)}</div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </>
+          ) : null}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={vehDayDialog !== null} onOpenChange={(open) => !open && setVehDayDialog(null)}>
+        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-md">
+          {vehDayDialog ? (
+            <>
+              <DialogHeader>
+                <DialogTitle>รายละเอียดการจอง</DialogTitle>
+                <DialogDescription className="text-left space-y-1">
+                  <span className="block">
+                    <span className="font-medium text-foreground">{vehDayDialog.vehicle.plate_no}</span>
+                    {vehDayDialog.vehicle.label?.trim() ? (
+                      <span className="text-muted-foreground"> · {vehDayDialog.vehicle.label.trim()}</span>
+                    ) : null}
+                  </span>
+                  <span className="block">วันที่ {format(vehDayDialog.day, 'EEEE d MMMM yyyy', { locale: th })}</span>
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-2 text-sm">
+                {vehDayDialog.rows.length === 0 ? (
+                  <p className="text-muted-foreground text-xs">ไม่มีรายการในวันนี้</p>
+                ) : (
+                  <ul className="space-y-2">
+                    {vehDayDialog.rows.map((b) => (
+                      <li key={b.id}>
+                        <button
+                          type="button"
+                          className="w-full rounded-lg border border-border bg-muted/30 p-3 space-y-1 text-left cursor-pointer hover:bg-muted/50 transition-colors"
+                          onClick={() => {
+                            setVehDayDialog(null);
+                            openBookingDetail(b);
+                          }}
+                        >
+                          <div className="flex flex-wrap items-baseline justify-between gap-2">
+                            <span className="font-mono text-xs font-semibold text-primary">
+                              {formatBookingWorkOrderNo(b)}
+                            </span>
+                            <span className="font-medium text-foreground">{empLabel(b.employee_id)}</span>
                           </div>
                           <div className="text-xs tabular-nums text-muted-foreground">
                             {format(parseISO(b.starts_at), 'dd/MM/yyyy HH:mm')} — {format(parseISO(b.ends_at), 'HH:mm')}
