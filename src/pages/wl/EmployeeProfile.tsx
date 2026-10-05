@@ -6,12 +6,15 @@ import { mockEmployees } from '@/data/mockData';
 import { formatCandidateDisplayName } from '@/lib/formatCandidateName';
 import { formatThaiDate, formatThaiTimeRange } from '@/lib/thaiDateTimeFormat';
 import type {
+  AccidentCase,
   Candidate,
+  Complaint,
   DriverTmaProfile,
   Employee,
   Vehicle,
   VehicleBooking,
 } from '@/types';
+import { accidentsForEmployee, complaintsForEmployee } from '@/lib/driverIncidentMatch';
 import { isDemoMode } from '@/lib/demoMode';
 import { apiFetch } from '@/lib/apiFetch';
 import { parseWlEmployeeCandidateId, isWlStaffingTrack } from '@/lib/wlFromCandidate';
@@ -175,6 +178,8 @@ const EmployeeProfile: React.FC = () => {
   const [bookings, setBookings] = useState<VehicleBooking[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [tmaProfile, setTmaProfile] = useState<DriverTmaProfile | null>(null);
+  const [allComplaints, setAllComplaints] = useState<Complaint[]>([]);
+  const [allAccidents, setAllAccidents] = useState<AccidentCase[]>([]);
   const [loading, setLoading] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
@@ -334,6 +339,43 @@ const EmployeeProfile: React.FC = () => {
       cancelled = true;
     };
   }, [id, employee]);
+
+  // ประวัติการร้องเรียน/อุบัติเหตุ — ตารางต้นทางไม่มี employee_id แบบ FK จริง จึงดึงทั้งชุด (ข้อมูลน้อย ~100 แถวรวม)
+  // แล้วจับคู่กับพนักงานคนนี้ฝั่ง client ด้วย src/lib/driverIncidentMatch.ts (รหัสพนักงาน แล้ว fallback ชื่อ-สกุล)
+  useEffect(() => {
+    if (!id || parseWlEmployeeCandidateId(id) || !employee || isDemoMode()) {
+      setAllComplaints([]);
+      setAllAccidents([]);
+      return;
+    }
+    let cancelled = false;
+    Promise.all([apiFetch('/api/complaints'), apiFetch('/api/accident-cases')])
+      .then(async ([rC, rA]) => {
+        const complaintsData = rC.ok ? ((await rC.json()) as unknown) : [];
+        const accidentsData = rA.ok ? ((await rA.json()) as unknown) : [];
+        if (cancelled) return;
+        setAllComplaints(Array.isArray(complaintsData) ? (complaintsData as Complaint[]) : []);
+        setAllAccidents(Array.isArray(accidentsData) ? (accidentsData as AccidentCase[]) : []);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setAllComplaints([]);
+          setAllAccidents([]);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [id, employee]);
+
+  const driverComplaints = useMemo(
+    () => (employee ? complaintsForEmployee(allComplaints, employee) : []),
+    [allComplaints, employee],
+  );
+  const driverAccidents = useMemo(
+    () => (employee ? accidentsForEmployee(allAccidents, employee) : []),
+    [allAccidents, employee],
+  );
 
   const vehMap = useMemo(() => new Map(vehicles.map((v) => [v.id, v])), [vehicles]);
   const vehLabel = useCallback(
@@ -512,6 +554,106 @@ const EmployeeProfile: React.FC = () => {
           <p className="text-[10px] text-emerald-800/70 mt-0.5">กดเสร็จสิ้นก่อนเวลาสิ้นสุดที่จอง</p>
         </div>
       </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <div className="rounded-2xl border border-amber-200 bg-amber-50/80 p-4 text-center">
+          <p className="text-3xl font-bold tabular-nums text-amber-800">{driverComplaints.length}</p>
+          <p className="text-xs font-medium text-amber-900/80 mt-1">ถูกร้องเรียน</p>
+          <p className="text-[10px] text-amber-800/70 mt-0.5">จำนวนครั้งที่มีเคสร้องเรียน</p>
+        </div>
+        <div className="rounded-2xl border border-rose-200 bg-rose-50/80 p-4 text-center">
+          <p className="text-3xl font-bold tabular-nums text-rose-800">{driverAccidents.length}</p>
+          <p className="text-xs font-medium text-rose-900/80 mt-1">เกิดอุบัติเหตุ</p>
+          <p className="text-[10px] text-rose-800/70 mt-0.5">จำนวนครั้งที่มีเคสอุบัติเหตุ</p>
+        </div>
+      </div>
+
+      <HistorySection title="ประวัติการร้องเรียน" empty="ไม่พบเคสร้องเรียนของผู้ขับคนนี้">
+        {driverComplaints.length > 0 ? (
+          <ul className="space-y-2">
+            {driverComplaints.map((c) => (
+              <li
+                key={c.id}
+                className="rounded-xl border border-amber-200/80 bg-amber-50/50 px-3 py-2.5 space-y-1"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-sm font-semibold tabular-nums text-foreground">
+                    {formatThaiDate(c.complaint_date)}
+                  </span>
+                  {c.category || c.complaint_type ? (
+                    <span className="text-[10px] font-semibold rounded-full px-2 py-0.5 ring-1 bg-amber-500/15 text-amber-800 ring-amber-600/25">
+                      {[c.category, c.complaint_type].filter(Boolean).join(' · ')}
+                    </span>
+                  ) : null}
+                </div>
+                {c.complaint_details?.trim() ? (
+                  <p className="text-sm text-foreground/90">{c.complaint_details.trim()}</p>
+                ) : null}
+                {c.root_cause?.trim() ? (
+                  <p className="text-xs text-foreground/80">
+                    <span className="text-muted-foreground">ต้นเหตุ </span>
+                    {c.root_cause.trim()}
+                  </p>
+                ) : null}
+                {c.penalty?.trim() ? (
+                  <p className="text-xs text-foreground/80">
+                    <span className="text-muted-foreground">บทลงโทษ </span>
+                    {c.penalty.trim()}
+                  </p>
+                ) : null}
+                {c.occurrence_count?.trim() ? (
+                  <p className="text-[10px] text-muted-foreground">{c.occurrence_count.trim()}</p>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        ) : null}
+      </HistorySection>
+
+      <HistorySection title="ประวัติอุบัติเหตุ" empty="ไม่พบเคสอุบัติเหตุของผู้ขับคนนี้">
+        {driverAccidents.length > 0 ? (
+          <ul className="space-y-2">
+            {driverAccidents.map((a) => (
+              <li
+                key={a.id}
+                className="rounded-xl border border-rose-200/80 bg-rose-50/50 px-3 py-2.5 space-y-1"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-sm font-semibold tabular-nums text-foreground">
+                    {formatThaiDate(a.case_date)}
+                  </span>
+                  {a.accident_type || a.case_status ? (
+                    <span className="text-[10px] font-semibold rounded-full px-2 py-0.5 ring-1 bg-rose-500/15 text-rose-800 ring-rose-600/25">
+                      {[a.accident_type, a.case_status].filter(Boolean).join(' · ')}
+                    </span>
+                  ) : null}
+                </div>
+                {a.case_detail?.trim() ? (
+                  <p className="text-sm text-foreground/90">{a.case_detail.trim()}</p>
+                ) : null}
+                {a.location_detail?.trim() || a.location_name?.trim() ? (
+                  <p className="text-xs text-foreground/80">
+                    <span className="text-muted-foreground">สถานที่ </span>
+                    {[a.location_name, a.location_detail].filter(Boolean).join(' · ')}
+                  </p>
+                ) : null}
+                {a.root_cause?.trim() ? (
+                  <p className="text-xs text-foreground/80">
+                    <span className="text-muted-foreground">ต้นเหตุ </span>
+                    {a.root_cause.trim()}
+                  </p>
+                ) : null}
+                {a.penalty?.trim() ? (
+                  <p className="text-xs text-foreground/80">
+                    <span className="text-muted-foreground">บทลงโทษ </span>
+                    {a.penalty.trim()}
+                  </p>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        ) : null}
+      </HistorySection>
 
       {historyLoading ? <p className="text-sm text-muted-foreground">กำลังโหลดประวัติการจอง…</p> : null}
 
