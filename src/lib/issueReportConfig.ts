@@ -85,9 +85,9 @@ export const ISSUE_REPORT_TYPES: IssueReportConfig[] = [
   {
     slug: 'supervisor-absent',
     path: '/complaints/supervisor-absent',
-    label: 'นายไม่อยู่',
+    label: 'นายบิน',
     icon: UserX,
-    description: 'แจ้งกรณีผู้บังคับบัญชา/นายไม่อยู่ปฏิบัติงาน',
+    description: 'แจ้งกรณีผู้บังคับบัญชา/นายบินปฏิบัติงาน',
     primaryDateField: 'start_date',
     fields: [
       { key: 'employee_id', label: 'รหัส ID', type: 'text', placeholder: 'เติมอัตโนมัติเมื่อเลือกชื่อ' },

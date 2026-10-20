@@ -874,7 +874,7 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
     return [...filteredEmployeesForPlanner].sort((a, b) => {
       const busyA = employeeBusyPlannerSlots(bookings, a.id, timelineDay);
       const busyB = employeeBusyPlannerSlots(bookings, b.id, timelineDay);
-      if (busyA !== busyB) return busyA - busyB;
+      if (busyA !== busyB) return busyB - busyA;
       return `${a.first_name} ${a.last_name}`.localeCompare(`${b.first_name} ${b.last_name}`, 'th');
     });
   }, [filteredEmployeesForPlanner, isMonitor, bookings, timelineDay]);
@@ -2208,7 +2208,7 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
             <p className="text-[10px] text-muted-foreground leading-snug">
               {isMonitor
                 ? 'รายวัน: เลือกวันที่แล้วดูว่าใครมีจอง / ใครว่างทั้งวัน — ด้านล่างมีตารางรถ×ชั่วโมง'
-                : 'Pick a date — green = available, red = in use (08.00–23.00). Sorted free → busy. Click a green slot to book.'}
+                : 'Pick a date — green = available, red = in use (08.00–23.00). Sorted busy → free. Click a green slot to book.'}
             </p>
           ) : null}
           {(viewMode === 'day' || viewMode === 'hour') && (

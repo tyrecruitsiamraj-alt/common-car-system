@@ -207,7 +207,7 @@ const ComplaintsOverviewPage: React.FC = () => {
   const panelMeta = useMemo(
     () => ({
       vehicleService: { title: 'รถเข้าศูนย์', people: data.vehicleService.people },
-      supervisorAbsent: { title: 'นายไม่อยู่', people: data.supervisorAbsent.people },
+      supervisorAbsent: { title: 'นายบิน', people: data.supervisorAbsent.people },
       leave: { title: 'การลา', people: data.leave.people },
       speed: { title: 'ความเร็ว', people: data.speed.people },
     }),
@@ -227,7 +227,7 @@ const ComplaintsOverviewPage: React.FC = () => {
             </Link>
             <h1 className="mt-2 text-2xl font-bold tracking-tight text-slate-950">ภาพรวม Complaints</h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              สรุปข้อมูล 4 หมวด — รถเข้าศูนย์, นายไม่อยู่, การลา, ความเร็ว
+              สรุปข้อมูล 4 หมวด — รถเข้าศูนย์, นายบิน, การลา, ความเร็ว
               {loading ? ' · กำลังโหลด…' : usingMockData ? ' (ข้อมูลตัวอย่าง)' : ''}
             </p>
           </div>
@@ -268,7 +268,7 @@ const ComplaintsOverviewPage: React.FC = () => {
 
           <PanelCard
             icon={UserX}
-            title="นายไม่อยู่"
+            title="นายบิน"
             headline={data.supervisorAbsent.totalPeople}
             headlineLabel="คนที่บิน"
             extraStats={[
