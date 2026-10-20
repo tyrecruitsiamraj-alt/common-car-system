@@ -20,6 +20,7 @@ import vehicleBookingsHandler from './vehicle-bookings.js';
 import dashboardReportsHandler from './dashboard-reports.js';
 import accidentCasesHandler from './accident-cases.js';
 import complaintsHandler from './complaints.js';
+import issueReportsHandler from './issue-reports.js';
 import driverDirectoryHandler from './driver-directory.js';
 import driverTmaProfilesHandler from './driver-tma-profiles.js';
 import fleetExamSubmissionsHandler from './fleet-exam-submissions.js';
@@ -41,6 +42,7 @@ export const apiRoutes: Record<string, ApiHandler> = {
   '/api/dashboard-reports': dashboardReportsHandler as ApiHandler,
   '/api/accident-cases': accidentCasesHandler as ApiHandler,
   '/api/complaints': complaintsHandler as ApiHandler,
+  '/api/issue-reports': issueReportsHandler as ApiHandler,
   '/api/driver-directory': driverDirectoryHandler as ApiHandler,
   '/api/driver-tma-profiles': driverTmaProfilesHandler as ApiHandler,
   '/api/fleet-exam-submissions': fleetExamSubmissionsHandler as ApiHandler,

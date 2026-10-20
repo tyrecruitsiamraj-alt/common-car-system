@@ -44,7 +44,8 @@ export type RateLimitedEndpoint =
   | 'dev-role'
   | 'forgot-password'
   | 'accident-report'
-  | 'complaint-report';
+  | 'complaint-report'
+  | 'issue-report';
 
 export function readRateLimitConfig(
   endpoint: RateLimitedEndpoint,
@@ -55,6 +56,7 @@ export function readRateLimitConfig(
     'forgot-password': { max: 5, windowMs: 60 * 60 * 1000 },
     'accident-report': { max: 10, windowMs: 60 * 60 * 1000 },
     'complaint-report': { max: 10, windowMs: 60 * 60 * 1000 },
+    'issue-report': { max: 10, windowMs: 60 * 60 * 1000 },
   };
   const d = defaults[endpoint];
   const envPrefix =
@@ -66,7 +68,9 @@ export function readRateLimitConfig(
           ? 'AUTH_RATE_LIMIT_FORGOT_PASSWORD'
           : endpoint === 'accident-report'
             ? 'AUTH_RATE_LIMIT_ACCIDENT_REPORT'
-            : 'AUTH_RATE_LIMIT_COMPLAINT_REPORT';
+            : endpoint === 'complaint-report'
+              ? 'AUTH_RATE_LIMIT_COMPLAINT_REPORT'
+              : 'AUTH_RATE_LIMIT_ISSUE_REPORT';
   const maxRaw = Number(process.env[`${envPrefix}_MAX`]);
   const windowRaw = Number(process.env[`${envPrefix}_WINDOW_MS`]);
   return {

@@ -82,7 +82,7 @@ const IssueReportForm: React.FC<Props> = ({ config, cancelHref }) => {
 
   const setField = (key: string, value: string) => setValues((prev) => ({ ...prev, [key]: value }));
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     const missing = config.fields.find((f) => {
       if (f.required && !(values[f.key] ?? '').trim()) return true;
@@ -95,19 +95,48 @@ const IssueReportForm: React.FC<Props> = ({ config, cancelHref }) => {
       toast.error(`กรุณากรอก ${missingOtherLabel}`);
       return;
     }
+
+    const data: Record<string, string> = { ...values };
+    for (const f of config.fields) {
+      if (f.type === 'computed-days' && f.computeDaysFrom) {
+        data[f.key] = computeDaysInclusive(values[f.computeDaysFrom.startKey], values[f.computeDaysFrom.endKey]);
+      }
+    }
+
     setSaving(true);
-    window.setTimeout(() => {
-      setSaving(false);
-      toast.success('บันทึกข้อมูลแล้ว (ตัวอย่างฟอร์ม — ยังไม่เชื่อมระบบบันทึกจริง)');
+    try {
+      const r = await apiFetch('/api/issue-reports', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          category: config.slug,
+          report_date: values[config.primaryDateField] || null,
+          employee_id: values.employee_id || null,
+          employee_name: values.employee_name || null,
+          position: values.position || null,
+          reporter_name: reporterName || null,
+          reporter_phone: reporterPhone || null,
+          data,
+        }),
+      });
+      if (!r.ok) {
+        const j = (await r.json().catch(() => ({}))) as { message?: string };
+        throw new Error(j.message || `HTTP ${r.status}`);
+      }
+      toast.success('บันทึกข้อมูลแล้ว');
       setValues({});
       setPickerIds({});
       setReporterName('');
       setReporterPhone('');
-    }, 300);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'บันทึกไม่สำเร็จ');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
-    <form onSubmit={submit} className="space-y-5">
+    <form onSubmit={(e) => void submit(e)} className="space-y-5">
       <div className="rounded-2xl border border-border/80 bg-card p-4 sm:p-6 space-y-4">
         {config.fields.map((f) => {
           let input: React.ReactNode;

@@ -1,10 +1,12 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, Wrench, UserX, CalendarOff, Gauge, type LucideIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
+import { apiFetch } from '@/lib/apiFetch';
+import { isDemoMode } from '@/lib/demoMode';
 import {
   COMPLAINTS_OVERVIEW_MOCK,
   PERIOD_LABELS,
@@ -12,6 +14,7 @@ import {
   type BreakdownItem,
   type PersonCaseSummary,
 } from '@/lib/complaintsOverviewMockData';
+import { computeComplaintsOverview, type IssueReportRow } from '@/lib/issueReportStats';
 
 const PERIODS: PeriodKey[] = ['day', 'week', 'month', 'year'];
 
@@ -125,18 +128,20 @@ function PeopleDialog({
   onOpenChange,
   title,
   people,
+  usingMockData,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   title: string;
   people: PersonCaseSummary[];
+  usingMockData: boolean;
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-xl rounded-[1.5rem]">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>เรียงจากจำนวนครั้งมากไปน้อย — ข้อมูลตัวอย่าง</DialogDescription>
+          <DialogDescription>เรียงจากจำนวนครั้งมากไปน้อย{usingMockData ? ' — ข้อมูลตัวอย่าง' : ''}</DialogDescription>
         </DialogHeader>
         <Table>
           <TableHeader>
@@ -166,7 +171,38 @@ function PeopleDialog({
 const ComplaintsOverviewPage: React.FC = () => {
   const [period, setPeriod] = useState<PeriodKey>('month');
   const [activePanel, setActivePanel] = useState<PanelKey | null>(null);
-  const data = COMPLAINTS_OVERVIEW_MOCK[period];
+  const [rows, setRows] = useState<IssueReportRow[]>([]);
+  const [loading, setLoading] = useState(!isDemoMode());
+
+  useEffect(() => {
+    if (isDemoMode()) {
+      setLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setLoading(true);
+    apiFetch('/api/issue-reports')
+      .then(async (r) => {
+        if (cancelled || !r.ok) return;
+        const json = (await r.json()) as unknown;
+        if (!cancelled) setRows(Array.isArray(json) ? (json as IssueReportRow[]) : []);
+      })
+      .catch(() => {
+        if (!cancelled) setRows([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const usingMockData = isDemoMode() && rows.length === 0;
+  const data = useMemo(
+    () => (usingMockData ? COMPLAINTS_OVERVIEW_MOCK[period] : computeComplaintsOverview(rows, period)),
+    [usingMockData, rows, period],
+  );
 
   const panelMeta = useMemo(
     () => ({
@@ -191,7 +227,8 @@ const ComplaintsOverviewPage: React.FC = () => {
             </Link>
             <h1 className="mt-2 text-2xl font-bold tracking-tight text-slate-950">ภาพรวม Complaints</h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              สรุปข้อมูล 4 หมวด — รถเข้าศูนย์, นายไม่อยู่, การลา, ความเร็ว (ข้อมูลตัวอย่าง)
+              สรุปข้อมูล 4 หมวด — รถเข้าศูนย์, นายไม่อยู่, การลา, ความเร็ว
+              {loading ? ' · กำลังโหลด…' : usingMockData ? ' (ข้อมูลตัวอย่าง)' : ''}
             </p>
           </div>
           <div className="flex gap-1 rounded-xl bg-slate-100 p-1 self-start">
@@ -271,6 +308,7 @@ const ComplaintsOverviewPage: React.FC = () => {
           onOpenChange={(open) => !open && setActivePanel(null)}
           title={`รายชื่อ — ${panelMeta[activePanel].title} (${PERIOD_LABELS[period]})`}
           people={panelMeta[activePanel].people}
+          usingMockData={usingMockData}
         />
       ) : null}
     </main>

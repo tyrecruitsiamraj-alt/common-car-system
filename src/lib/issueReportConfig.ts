@@ -26,6 +26,8 @@ export type IssueReportConfig = {
   icon: LucideIcon;
   description: string;
   fields: IssueField[];
+  /** คีย์ของฟิลด์วันที่หลัก — ใช้กรองตามช่วงเวลา (วัน/สัปดาห์/เดือน/ปี) ในหน้าภาพรวม */
+  primaryDateField: string;
 };
 
 /** หมวดหมู่ย่อยของ Complaints — เมนูซ้าย > Complaints — เนื้อหา/ฟิลด์ปรับได้ภายหลัง */
@@ -36,6 +38,7 @@ export const ISSUE_REPORT_TYPES: IssueReportConfig[] = [
     label: 'รถเข้าศูนย์',
     icon: Wrench,
     description: 'แจ้งข้อมูลเมื่อรถต้องนำเข้าศูนย์บริการ',
+    primaryDateField: 'report_date',
     fields: [
       { key: 'report_date', label: 'วันที่', type: 'date', required: true },
       { key: 'employee_name', label: 'ชื่อ-นามสกุล', type: 'employee-picker', required: true },
@@ -85,6 +88,7 @@ export const ISSUE_REPORT_TYPES: IssueReportConfig[] = [
     label: 'นายไม่อยู่',
     icon: UserX,
     description: 'แจ้งกรณีผู้บังคับบัญชา/นายไม่อยู่ปฏิบัติงาน',
+    primaryDateField: 'start_date',
     fields: [
       { key: 'employee_id', label: 'รหัส ID', type: 'text', placeholder: 'เติมอัตโนมัติเมื่อเลือกชื่อ' },
       {
@@ -140,6 +144,7 @@ export const ISSUE_REPORT_TYPES: IssueReportConfig[] = [
     label: 'การลา',
     icon: CalendarOff,
     description: 'แจ้งข้อมูลการลาของพนักงาน',
+    primaryDateField: 'leave_date',
     fields: [
       { key: 'employee_id', label: 'รหัส ID', type: 'text', placeholder: 'เติมอัตโนมัติเมื่อเลือกชื่อ' },
       {
@@ -178,6 +183,7 @@ export const ISSUE_REPORT_TYPES: IssueReportConfig[] = [
     label: 'ความเร็ว',
     icon: Gauge,
     description: 'แจ้งเหตุขับรถเร็วเกินกำหนด',
+    primaryDateField: 'report_date',
     fields: [
       { key: 'report_date', label: 'วันที่', type: 'date', required: true },
       { key: 'employee_name', label: 'ชื่อ-นามสกุล', type: 'employee-picker', required: true },
