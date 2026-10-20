@@ -1265,12 +1265,12 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                     busy &&
                       !incident &&
                       (bookDayCalendar
-                        ? 'bg-red-500/50 text-white border border-red-600/55'
+                        ? 'bg-red-500/50 text-black font-medium border border-red-600/55'
                         : 'bg-primary/25 text-foreground border border-primary/20'),
                     busy &&
                       incident &&
                       (bookDayCalendar
-                        ? 'bg-red-600/60 text-white border border-red-700/60'
+                        ? 'bg-red-600/60 text-black font-medium border border-red-700/60'
                         : 'bg-amber-500/30 text-foreground border border-amber-600/35'),
                   );
                   const inner =
