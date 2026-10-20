@@ -25,6 +25,9 @@ import AccidentDashboardPage from "@/pages/dashboard/AccidentDashboardPage";
 import AccidentReportPage from "@/pages/accidents/AccidentReportPage";
 import ComplaintDashboardPage from "@/pages/dashboard/ComplaintDashboardPage";
 import ComplaintReportPage from "@/pages/complaints/ComplaintReportPage";
+import IssueReportPage from "@/pages/complaints/IssueReportPage";
+import ComplaintsOverviewPage from "@/pages/complaints/ComplaintsOverviewPage";
+import PublicIssueReportPage from "@/pages/complaints/PublicIssueReportPage";
 import ChangePasswordPage from "@/pages/ChangePasswordPage";
 import AppearanceSettingsPage from "@/pages/settings/AppearanceSettingsPage";
 import UserPermissionsSettingsPage from "@/pages/settings/UserPermissionsSettingsPage";
@@ -62,6 +65,7 @@ function AppRoutes() {
       <Route path="/fleet/forms" element={<Navigate to="/exams" replace />} />
       <Route path="/accidents/report" element={<AccidentReportPage />} />
       <Route path="/complaints/report" element={<ComplaintReportPage />} />
+      <Route path="/complaints/report/:slug" element={<PublicIssueReportPage />} />
       <Route path="/register" element={isAuthenticated ? <Navigate to="/" replace /> : <RegisterPage />} />
       <Route path="/forgot-password" element={isAuthenticated ? <Navigate to="/" replace /> : <ForgotPasswordPage />} />
 
@@ -79,6 +83,8 @@ function AppRoutes() {
         <Route path="/dashboard" element={<SupervisorDashboard />} />
         <Route path="/accidents" element={<AccidentDashboardPage />} />
         <Route path="/complaints" element={<ComplaintDashboardPage />} />
+        <Route path="/complaints/overview" element={<ComplaintsOverviewPage />} />
+        <Route path="/complaints/:slug" element={<IssueReportPage />} />
         <Route path="/account/change-password" element={<ChangePasswordPage />} />
         <Route
           path="/settings"

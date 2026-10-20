@@ -371,7 +371,7 @@ export default function FleetBookingsDashboard({
             <h1 className="mt-1 text-3xl font-bold tracking-tight text-slate-950">{title}</h1>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">{description}</p>
           </div>
-          <div className="flex flex-col gap-2 sm:flex-row">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
             {onDayChange && dayValue ? (
               <div className="flex flex-col gap-1 min-w-[11rem]">
                 <Label className="text-xs text-slate-600">วันที่</Label>
