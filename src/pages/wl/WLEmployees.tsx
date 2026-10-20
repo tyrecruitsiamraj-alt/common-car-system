@@ -29,7 +29,14 @@ import { formatThaiDate } from '@/lib/thaiDateTimeFormat';
 import { readJsonSafe } from '@/lib/api';
 import { isDemoMode } from '@/lib/demoMode';
 import { apiFetch } from '@/lib/apiFetch';
-import { DRIVER_LIST_POSITIONS_PARAM, isDriverListPosition } from '@/lib/driverListPositions';
+import {
+  DRIVER_DIRECTORY_POSITIONS_PARAM,
+  DRIVER_LIST_POSITIONS_PARAM,
+  PERSONAL_DRIVER_POSITIONS_PARAM,
+  isDriverDirectoryPosition,
+  isDriverListPosition,
+  isPersonalDriverPosition,
+} from '@/lib/driverListPositions';
 
 const TMA_DASH = '—';
 
@@ -108,11 +115,28 @@ const TMA_COLUMNS: {
 const PAGE_SIZE = 20;
 const SEARCH_DEBOUNCE_MS = 350;
 
-const statusFilters: { value: EmployeeStatus | 'all'; label: string }[] = [
-  { value: 'all', label: 'ทั้งหมด' },
+/** สถานะที่เลือกได้ในแท็บ "กองกลาง"/"ขับนาย" — ไม่มี "ไม่ใช้งาน" เพราะแยกไปเป็นแท็บ "พ้นสภาพ" ต่างหาก ไม่ให้ซ้ำกัน */
+const statusFilters: { value: EmployeeStatus; label: string }[] = [
   { value: 'active', label: 'ใช้งาน' },
-  { value: 'inactive', label: 'ไม่ใช้งาน' },
   { value: 'suspended', label: 'ระงับ' },
+];
+
+type DriverTab = 'central' | 'personal' | 'inactive';
+
+const DRIVER_TABS: { value: DriverTab; label: string; positionsParam: string; isPosition: (p: string) => boolean }[] = [
+  { value: 'central', label: 'กองกลาง', positionsParam: DRIVER_LIST_POSITIONS_PARAM, isPosition: isDriverListPosition },
+  {
+    value: 'personal',
+    label: 'ขับนาย',
+    positionsParam: PERSONAL_DRIVER_POSITIONS_PARAM,
+    isPosition: isPersonalDriverPosition,
+  },
+  {
+    value: 'inactive',
+    label: 'พ้นสภาพ',
+    positionsParam: DRIVER_DIRECTORY_POSITIONS_PARAM,
+    isPosition: isDriverDirectoryPosition,
+  },
 ];
 
 /** รายชื่อสำหรับ "โหมดสาธิต" เท่านั้น — รวม mock + local storage + ผู้สมัคร track WL (ข้อมูลจากยุคระบบสรรหาเดิม) */
@@ -138,13 +162,19 @@ function isManageableDriver(emp: Employee): boolean {
   return !emp.id.startsWith(WL_FROM_CANDIDATE_PREFIX);
 }
 
-function buildEmployeesQuery(filter: EmployeeStatus | 'all', search: string, limit: number, offset: number): string {
+function buildEmployeesQuery(
+  status: EmployeeStatus,
+  search: string,
+  limit: number,
+  offset: number,
+  positionsParam: string,
+): string {
   const params = new URLSearchParams();
   params.set('limit', String(limit));
   params.set('offset', String(offset));
-  if (filter !== 'all') params.set('status', filter);
+  params.set('status', status);
   if (search) params.set('search', search);
-  params.set('position', DRIVER_LIST_POSITIONS_PARAM);
+  params.set('position', positionsParam);
   return `/api/employees?${params.toString()}`;
 }
 
@@ -153,7 +183,8 @@ const WLEmployees: React.FC = () => {
   const isMobile = useIsMobile();
   const { hasPermission } = useAuth();
   const canEdit = hasPermission('staff');
-  const [filter, setFilter] = useState<EmployeeStatus | 'all'>('all');
+  const [tab, setTab] = useState<DriverTab>('central');
+  const [filter, setFilter] = useState<EmployeeStatus>('active');
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
@@ -170,6 +201,8 @@ const WLEmployees: React.FC = () => {
   const [tmaProfiles, setTmaProfiles] = useState<Map<string, DriverTmaProfile>>(new Map());
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const activeTab = DRIVER_TABS.find((t) => t.value === tab) ?? DRIVER_TABS[0];
+  const effectiveStatus: EmployeeStatus = tab === 'inactive' ? 'inactive' : filter;
 
   // debounce การพิมพ์ค้นหา ก่อนยิง query จริง (ลดจำนวน request ต่อ keystroke)
   useEffect(() => {
@@ -177,10 +210,15 @@ const WLEmployees: React.FC = () => {
     return () => clearTimeout(t);
   }, [searchInput]);
 
-  // เปลี่ยนตัวกรอง/คำค้นหา → กลับไปหน้าแรกเสมอ
+  // เปลี่ยนแท็บ → รีเซ็ตตัวกรองสถานะกลับค่าเริ่มต้น (กองกลาง/ขับนาย = ใช้งาน, พ้นสภาพ = ล็อกเป็นพ้นสภาพอยู่แล้ว)
+  useEffect(() => {
+    setFilter('active');
+  }, [tab]);
+
+  // เปลี่ยนแท็บ/ตัวกรอง/คำค้นหา → กลับไปหน้าแรกเสมอ
   useEffect(() => {
     setPage(1);
-  }, [filter, search]);
+  }, [tab, filter, search]);
 
   useEffect(() => {
     if (!isDemoMode()) return;
@@ -193,14 +231,14 @@ const WLEmployees: React.FC = () => {
   useEffect(() => {
     if (!isDemoMode()) return;
     const all = demoEmployeeSource()
-      .filter((e) => isDriverListPosition(e.position))
-      .filter((e) => filter === 'all' || e.status === filter)
+      .filter((e) => activeTab.isPosition(e.position))
+      .filter((e) => e.status === effectiveStatus)
       .filter((e) => matchesSearch(e, search));
     setTotal(all.length);
     setEmployees(all.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE));
     setLoading(false);
     setError(null);
-  }, [filter, search, page, demoVersion, reloadToken]);
+  }, [activeTab, effectiveStatus, search, page, demoVersion, reloadToken]);
 
   // โหมดจริง: กรอง/แบ่งหน้าฝั่ง server ทั้งหมด (status, search, limit/offset) — อ่านจำนวนรวมจาก header X-Total-Count
   useEffect(() => {
@@ -208,7 +246,7 @@ const WLEmployees: React.FC = () => {
     let cancelled = false;
     setLoading(true);
     setError(null);
-    apiFetch(buildEmployeesQuery(filter, search, PAGE_SIZE, (page - 1) * PAGE_SIZE))
+    apiFetch(buildEmployeesQuery(effectiveStatus, search, PAGE_SIZE, (page - 1) * PAGE_SIZE, activeTab.positionsParam))
       .then(async (r) => {
         if (cancelled) return;
         if (!r.ok) {
@@ -235,7 +273,7 @@ const WLEmployees: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [filter, search, page, reloadToken]);
+  }, [activeTab, effectiveStatus, search, page, reloadToken]);
 
   // ข้อมูลเสริมจาก Database TMA.xlsx ที่ seed ไว้ (driver_tma_profiles) — โหลดทั้งชุดครั้งเดียวมาทำ map ด้วย employee_id
   // ไม่ผูกกับ pagination ของตารางพนักงาน (คนละ query กัน) โหมดสาธิตไม่มีข้อมูลชุดนี้
@@ -279,12 +317,12 @@ const WLEmployees: React.FC = () => {
     let rows: Employee[];
     if (isDemoMode()) {
       rows = demoEmployeeSource()
-        .filter((e) => isDriverListPosition(e.position))
-        .filter((e) => filter === 'all' || e.status === filter)
+        .filter((e) => activeTab.isPosition(e.position))
+        .filter((e) => e.status === effectiveStatus)
         .filter((e) => matchesSearch(e, search));
     } else {
       try {
-        const r = await apiFetch(buildEmployeesQuery(filter, search, 500, 0));
+        const r = await apiFetch(buildEmployeesQuery(effectiveStatus, search, 500, 0, activeTab.positionsParam));
         const data = r.ok ? await readJsonSafe<Employee[]>(r) : [];
         rows = Array.isArray(data) ? data : [];
       } catch {
@@ -301,7 +339,7 @@ const WLEmployees: React.FC = () => {
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'ส่งออก Excel ไม่สำเร็จ');
     }
-  }, [filter, search]);
+  }, [activeTab, effectiveStatus, search]);
 
   const openEditDriver = (emp: Employee) => {
     setEditEmployee(emp);
@@ -399,7 +437,7 @@ const WLEmployees: React.FC = () => {
       <PageHeader
         showBrandKicker
         title="Drivers"
-        subtitle={`${total} คน — เพิ่มชื่อได้จากฟอร์มด้านล่าง`}
+        subtitle={`${activeTab.label} — ${total} คน${tab === 'central' ? ' — เพิ่มชื่อได้จากฟอร์มด้านล่าง' : ''}`}
         backPath="/fleet"
         className="mb-6"
         actions={
@@ -411,7 +449,26 @@ const WLEmployees: React.FC = () => {
       />
 
       <div className="space-y-4">
-        <QuickAddDriverForm id="driver-quick-add" onCreated={() => void reloadEmployees()} />
+        <div className="flex gap-1.5 overflow-x-auto">
+          {DRIVER_TABS.map((t) => (
+            <button
+              key={t.value}
+              onClick={() => setTab(t.value)}
+              className={cn(
+                'px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap transition-colors',
+                tab === t.value
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-secondary text-muted-foreground hover:text-foreground',
+              )}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+
+        {tab === 'central' ? (
+          <QuickAddDriverForm id="driver-quick-add" onCreated={() => void reloadEmployees()} />
+        ) : null}
 
         {loading && <div className="text-sm text-muted-foreground">กำลังโหลดพนักงาน...</div>}
         {error && <div className="text-sm text-destructive">เกิดข้อผิดพลาด: {error}</div>}
@@ -428,27 +485,29 @@ const WLEmployees: React.FC = () => {
             />
           </div>
 
-          <div className="flex gap-1.5 overflow-x-auto">
-            {statusFilters.map((f) => (
-              <button
-                key={f.value}
-                onClick={() => setFilter(f.value)}
-                className={cn(
-                  'px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors',
-                  filter === f.value
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-secondary text-muted-foreground hover:text-foreground',
-                )}
-              >
-                {f.label}
-              </button>
-            ))}
-          </div>
+          {tab !== 'inactive' ? (
+            <div className="flex gap-1.5 overflow-x-auto">
+              {statusFilters.map((f) => (
+                <button
+                  key={f.value}
+                  onClick={() => setFilter(f.value)}
+                  className={cn(
+                    'px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors',
+                    filter === f.value
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-secondary text-muted-foreground hover:text-foreground',
+                  )}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+          ) : null}
         </div>
 
         {!loading && employees.length === 0 ? (
           <p className="text-sm text-muted-foreground py-6 text-center">
-            ยังไม่มีรายชื่อ — กรอกฟอร์มด้านบนแล้วกดบันทึกรายชื่อ
+            {tab === 'central' ? 'ยังไม่มีรายชื่อ — กรอกฟอร์มด้านบนแล้วกดบันทึกรายชื่อ' : 'ไม่มีรายชื่อในแท็บนี้'}
           </p>
         ) : null}
 

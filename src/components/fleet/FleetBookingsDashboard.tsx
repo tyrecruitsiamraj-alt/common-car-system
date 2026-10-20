@@ -107,6 +107,7 @@ type SummaryProps = {
   onEmployeeFreeClick?: () => void;
   onEmployeePartialClick?: () => void;
   onEmployeeInUseClick?: () => void;
+  onEmployeeTotalClick?: () => void;
 };
 
 type Props = {
@@ -235,6 +236,7 @@ function SummaryPanel({
   onEmployeeFreeClick,
   onEmployeePartialClick,
   onEmployeeInUseClick,
+  onEmployeeTotalClick,
 }: SummaryProps) {
   return (
     <aside className="space-y-6">
@@ -253,7 +255,13 @@ function SummaryPanel({
               Drivers
             </div>
             <div className="grid grid-cols-2 gap-2">
-              <SummaryStatButton label="Total" value={employeeStats.total} className="bg-slate-50" />
+              <SummaryStatButton
+                label="กองกลาง"
+                value={employeeStats.total}
+                sub={onEmployeeTotalClick ? 'ดูรายชื่อ' : undefined}
+                onClick={onEmployeeTotalClick}
+                className="bg-slate-50"
+              />
               <SummaryStatButton
                 label="In use"
                 value={employeeStats.inUse}

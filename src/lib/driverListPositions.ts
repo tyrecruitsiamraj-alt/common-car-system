@@ -15,3 +15,27 @@ export function isDriverListPosition(position: string | null | undefined): boole
   if (!position) return false;
   return (DRIVER_LIST_POSITIONS as readonly string[]).includes(position);
 }
+
+/**
+ * ตำแหน่งคนขับที่ผูกกับผู้บริหาร/บุคคลใดบุคคลหนึ่งโดยเฉพาะ ("ขับนาย") — แยกจากกองกลางด้านบน
+ * ใช้เฉพาะในหน้ารายชื่อ Drivers (`/fleet/drivers`) สำหรับแท็บ "ขับนาย"
+ * ไม่กระทบปฏิทิน Monitor/BOOKABLE_DRIVER_POSITIONS ซึ่งยังอิง DRIVER_LIST_POSITIONS/Common+Support เดิม
+ */
+export const PERSONAL_DRIVER_POSITIONS = ['Position Driver', 'Driver Co', 'JP Co'] as const;
+
+export const PERSONAL_DRIVER_POSITIONS_PARAM = PERSONAL_DRIVER_POSITIONS.join(',');
+
+export function isPersonalDriverPosition(position: string | null | undefined): boolean {
+  if (!position) return false;
+  return (PERSONAL_DRIVER_POSITIONS as readonly string[]).includes(position);
+}
+
+/** รวมทุกตำแหน่งคนขับที่จัดการในหน้า Drivers (กองกลาง + ขับนาย) — ใช้สำหรับแท็บ "พ้นสภาพ" ที่ตัดข้ามตำแหน่ง */
+export const DRIVER_DIRECTORY_POSITIONS = [...DRIVER_LIST_POSITIONS, ...PERSONAL_DRIVER_POSITIONS] as const;
+
+export const DRIVER_DIRECTORY_POSITIONS_PARAM = DRIVER_DIRECTORY_POSITIONS.join(',');
+
+export function isDriverDirectoryPosition(position: string | null | undefined): boolean {
+  if (!position) return false;
+  return (DRIVER_DIRECTORY_POSITIONS as readonly string[]).includes(position);
+}

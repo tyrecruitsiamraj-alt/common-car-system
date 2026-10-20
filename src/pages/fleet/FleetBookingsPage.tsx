@@ -533,7 +533,7 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
   const [cancelling, setCancelling] = useState(false);
   const [metricDetailOpen, setMetricDetailOpen] = useState(false);
   const [metricDetailKind, setMetricDetailKind] = useState<DashboardMetricId | null>(null);
-  const [summaryDetailOpen, setSummaryDetailOpen] = useState<'free' | 'partial' | 'inUse' | null>(null);
+  const [summaryDetailOpen, setSummaryDetailOpen] = useState<'free' | 'partial' | 'inUse' | 'total' | null>(null);
   const [summaryPartialHour, setSummaryPartialHour] = useState(() => new Date().getHours());
 
   const [empDayDialog, setEmpDayDialog] = useState<{
@@ -2046,6 +2046,7 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                 maintenanceCount,
                 employeeStats: summaryEmployeeBundle.stats,
                 summaryDayLabel: dayLabel,
+                onEmployeeTotalClick: () => setSummaryDetailOpen('total'),
                 onEmployeeFreeClick: () => setSummaryDetailOpen('free'),
                 onEmployeePartialClick: () => {
                   const h = isSameDay(selectedDay, new Date()) ? new Date().getHours() : 9;
@@ -3072,6 +3073,33 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
         }}
       >
         <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg rounded-[1.5rem]">
+          {summaryDetailOpen === 'total' ? (
+            <>
+              <DialogHeader>
+                <DialogTitle>กองกลาง — {dayLabel}</DialogTitle>
+                <DialogDescription>
+                  รายชื่อคนขับกองกลางทั้งหมด ({employeesForPlanner.length} คน)
+                </DialogDescription>
+              </DialogHeader>
+              {employeesForPlanner.length === 0 ? (
+                <p className="text-sm text-muted-foreground py-4 text-center">ไม่มีรายชื่อคนขับกองกลาง</p>
+              ) : (
+                <ul className="space-y-2">
+                  {employeesForPlanner.map((e) => (
+                    <li
+                      key={e.id}
+                      className="rounded-xl border border-slate-200 bg-slate-50/60 px-3 py-2.5 text-sm font-medium text-foreground"
+                    >
+                      {e.first_name} {e.last_name}
+                      {e.employee_code ? (
+                        <span className="text-muted-foreground font-normal"> · {e.employee_code}</span>
+                      ) : null}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </>
+          ) : null}
           {summaryDetailOpen === 'free' ? (
             <>
               <DialogHeader>
