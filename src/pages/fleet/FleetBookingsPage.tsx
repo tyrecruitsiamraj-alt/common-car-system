@@ -1212,7 +1212,7 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
               className="grid border-b border-border bg-muted/95 text-muted-foreground sticky top-0 z-10 shadow-sm backdrop-blur-sm"
               style={{ gridTemplateColumns: `8.5rem repeat(${plannerHourSlots.length}, minmax(2.75rem, 1fr))` }}
             >
-              <div className="px-1 py-1 text-[10px] font-medium text-foreground border-r border-border/60">
+              <div className="sticky left-0 z-20 px-1 py-1 text-[10px] font-medium text-foreground border-r border-border/60 bg-muted/95 backdrop-blur-sm">
                 {bookDayCalendar ? 'Driver' : 'พนักงาน'}
               </div>
               {plannerHourSlots.map((h) => (
@@ -1232,7 +1232,7 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                 className="grid border-b border-border/60 last:border-b-0"
                 style={{ gridTemplateColumns: `8.5rem repeat(${plannerHourSlots.length}, minmax(2.75rem, 1fr))` }}
               >
-                <div className="px-1 py-1 text-[10px] leading-tight border-r border-border/60 bg-muted/10 min-w-0">
+                <div className="sticky left-0 z-[1] px-1 py-1 text-[10px] leading-tight border-r border-border/60 bg-background min-w-0">
                   <div className="font-medium text-foreground line-clamp-2 leading-tight" title={empLabel(emp.id)}>
                     {emp.first_name} {emp.last_name}
                   </div>
