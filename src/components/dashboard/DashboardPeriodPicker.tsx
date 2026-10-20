@@ -11,6 +11,7 @@ import {
 import type { DashboardPeriodPreset } from '@/lib/fleetDashboardStats';
 
 const PRESET_LABELS: Record<DashboardPeriodPreset, string> = {
+  today: 'วันนี้',
   this_week: 'สัปดาห์นี้',
   this_month: 'เดือนนี้',
   last_week: 'สัปดาห์ที่แล้ว',

@@ -15,6 +15,7 @@ import type { DashboardPeriodPreset } from '@/lib/fleetDashboardStats';
 import type { Employee, Vehicle } from '@/types';
 
 const PERIOD_LABELS: Record<DashboardPeriodPreset, string> = {
+  today: 'วันนี้',
   this_week: 'สัปดาห์นี้',
   this_month: 'เดือนนี้',
   last_week: 'สัปดาห์ที่แล้ว',
@@ -71,33 +72,82 @@ const DashboardFilterBar: React.FC<Props> = ({
   );
 
   return (
-    <div className="rounded-xl border border-slate-200/80 bg-white p-4 shadow-sm space-y-4 lg:sticky lg:top-20">
-      <div>
-        <h3 className="text-sm font-semibold text-slate-900">Filters</h3>
-        <p className="text-xs text-slate-500 mt-0.5">{periodLabel}</p>
-      </div>
+    <div className="rounded-xl border border-slate-200/80 bg-white p-4 shadow-sm space-y-4">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-end">
+        <div className="shrink-0 lg:w-36">
+          <h3 className="text-sm font-semibold text-slate-900">Filters</h3>
+          <p className="text-xs text-slate-500 mt-0.5">{periodLabel}</p>
+        </div>
 
-      <div className="space-y-1.5">
-        <Label className="text-xs text-slate-500">ช่วงเวลา</Label>
-        <Select
-          value={filters.periodPreset}
-          onValueChange={(v) => onChange({ periodPreset: v as DashboardPeriodPreset })}
-        >
-          <SelectTrigger className="h-10 bg-slate-50 border-slate-200">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {(Object.keys(PERIOD_LABELS) as DashboardPeriodPreset[]).map((key) => (
-              <SelectItem key={key} value={key}>
-                {PERIOD_LABELS[key]}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:flex lg:flex-1 gap-3">
+          <div className="space-y-1.5 lg:flex-1 lg:min-w-[150px]">
+            <Label className="text-xs text-slate-500">ช่วงเวลา</Label>
+            <Select
+              value={filters.periodPreset}
+              onValueChange={(v) => onChange({ periodPreset: v as DashboardPeriodPreset })}
+            >
+              <SelectTrigger className="h-10 bg-slate-50 border-slate-200">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {(Object.keys(PERIOD_LABELS) as DashboardPeriodPreset[]).map((key) => (
+                  <SelectItem key={key} value={key}>
+                    {PERIOD_LABELS[key]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-1.5 lg:flex-1 lg:min-w-[150px]">
+            <Label className="text-xs text-slate-500">สถานะ</Label>
+            <Select
+              value={filters.status}
+              onValueChange={(v) => onChange({ status: v as DashboardFilters['status'] })}
+            >
+              <SelectTrigger className="h-10 bg-slate-50 border-slate-200">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {STATUS_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-1.5 lg:flex-1 lg:min-w-[180px]">
+            <Label className="text-xs text-slate-500">ผู้รับผิดชอบ</Label>
+            <SearchablePicker
+              value={filters.ownerId}
+              onValueChange={(v) => onChange({ ownerId: v })}
+              options={ownerOptions}
+              placeholder="พิมพ์ชื่อ รหัส หรือตำแหน่ง…"
+              emptyMessage="ไม่พบพนักงาน"
+              inputClassName={pickerInputClass}
+              aria-label="ผู้รับผิดชอบ"
+            />
+          </div>
+
+          <div className="space-y-1.5 lg:flex-1 lg:min-w-[180px]">
+            <Label className="text-xs text-slate-500">รถ</Label>
+            <SearchablePicker
+              value={filters.vehicleId}
+              onValueChange={(v) => onChange({ vehicleId: v })}
+              options={vehicleOptions}
+              placeholder="พิมพ์ทะเบียนหรือชื่อรถ…"
+              emptyMessage="ไม่พบรถ"
+              inputClassName={pickerInputClass}
+              aria-label="รถ"
+            />
+          </div>
+        </div>
       </div>
 
       {filters.periodPreset === 'custom' ? (
-        <div className="space-y-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:max-w-md gap-3 border-t border-slate-100 pt-4">
           <div className="space-y-1.5">
             <Label className="text-xs text-slate-500">ตั้งแต่</Label>
             <DateSelectDmyBe
@@ -116,48 +166,6 @@ const DashboardFilterBar: React.FC<Props> = ({
           </div>
         </div>
       ) : null}
-
-      <div className="space-y-1.5">
-        <Label className="text-xs text-slate-500">สถานะ</Label>
-        <Select value={filters.status} onValueChange={(v) => onChange({ status: v as DashboardFilters['status'] })}>
-          <SelectTrigger className="h-10 bg-slate-50 border-slate-200">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {STATUS_OPTIONS.map((opt) => (
-              <SelectItem key={opt.value} value={opt.value}>
-                {opt.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      <div className="space-y-1.5">
-        <Label className="text-xs text-slate-500">ผู้รับผิดชอบ</Label>
-        <SearchablePicker
-          value={filters.ownerId}
-          onValueChange={(v) => onChange({ ownerId: v })}
-          options={ownerOptions}
-          placeholder="พิมพ์ชื่อ รหัส หรือตำแหน่ง…"
-          emptyMessage="ไม่พบพนักงาน"
-          inputClassName={pickerInputClass}
-          aria-label="ผู้รับผิดชอบ"
-        />
-      </div>
-
-      <div className="space-y-1.5">
-        <Label className="text-xs text-slate-500">รถ</Label>
-        <SearchablePicker
-          value={filters.vehicleId}
-          onValueChange={(v) => onChange({ vehicleId: v })}
-          options={vehicleOptions}
-          placeholder="พิมพ์ทะเบียนหรือชื่อรถ…"
-          emptyMessage="ไม่พบรถ"
-          inputClassName={pickerInputClass}
-          aria-label="รถ"
-        />
-      </div>
     </div>
   );
 };

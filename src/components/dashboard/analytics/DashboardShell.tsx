@@ -1,7 +1,8 @@
 import React from 'react';
-import { Download, RefreshCw, Search } from 'lucide-react';
+import { CalendarDays, Download, RefreshCw, Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { formatThaiDateShort } from '@/lib/thaiDateTimeFormat';
 import DashboardFilterBar from '@/components/dashboard/analytics/DashboardFilterBar';
 import DashboardKpiCard from '@/components/dashboard/analytics/DashboardKpiCard';
 import DashboardChartSection from '@/components/dashboard/analytics/DashboardChartSection';
@@ -65,6 +66,10 @@ const DashboardShell: React.FC<Props> = ({
                 className="pl-9 bg-white border-slate-200"
               />
             </div>
+            <div className="hidden sm:flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-3 h-10 text-sm text-slate-600 whitespace-nowrap">
+              <CalendarDays className="h-4 w-4 text-slate-400" />
+              {formatThaiDateShort(fromIso)} – {formatThaiDateShort(toIso)}
+            </div>
             <Button type="button" variant="outline" className="bg-white" onClick={onRefresh} disabled={loading}>
               <RefreshCw className="h-4 w-4 mr-2" />
               รีเฟรช
@@ -76,46 +81,42 @@ const DashboardShell: React.FC<Props> = ({
           </div>
         </div>
 
-        <div className="flex flex-col lg:flex-row gap-6 items-start">
-          <aside className="w-full lg:w-72 shrink-0">
-            <DashboardFilterBar
-              filters={filters}
-              onChange={onFiltersChange}
-              employees={employees}
-              vehicles={vehicles}
-              periodLabel={data.periodLabel}
-            />
-          </aside>
+        <DashboardFilterBar
+          filters={filters}
+          onChange={onFiltersChange}
+          employees={employees}
+          vehicles={vehicles}
+          periodLabel={data.periodLabel}
+        />
 
-          <div className="flex-1 min-w-0 space-y-6">
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
-              {data.kpis.map((kpi) => (
-                <DashboardKpiCard key={kpi.id} kpi={kpi} loading={loading} />
-              ))}
-            </div>
-
-            <DashboardChartSection
-              trendSeries={data.trendSeries}
-              statusSlices={data.statusSlices}
-              jobTypeSlices={data.jobTypeSlices}
-              cancelReasonSlices={data.cancelReasonSlices}
-              loading={loading}
-            />
-
-            <DashboardDriverOverview drivers={data.driverSlices} loading={loading} />
-
-            <DashboardEmployeeHoursReport fromIso={fromIso} toIso={toIso} {...reportFilters} />
-
-            <DashboardVehicleUsageReport fromIso={fromIso} toIso={toIso} {...reportFilters} />
-
-            <DashboardWorkQueueTable
-              fromIso={fromIso}
-              toIso={toIso}
-              {...reportFilters}
-              employees={employees}
-              vehicles={vehicles}
-            />
+        <div className="space-y-6">
+          <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-4">
+            {data.kpis.map((kpi) => (
+              <DashboardKpiCard key={kpi.id} kpi={kpi} loading={loading} />
+            ))}
           </div>
+
+          <DashboardChartSection
+            trendSeries={data.trendSeries}
+            statusSlices={data.statusSlices}
+            jobTypeSlices={data.jobTypeSlices}
+            cancelReasonSlices={data.cancelReasonSlices}
+            loading={loading}
+          />
+
+          <DashboardDriverOverview drivers={data.driverSlices} loading={loading} />
+
+          <DashboardEmployeeHoursReport fromIso={fromIso} toIso={toIso} {...reportFilters} />
+
+          <DashboardVehicleUsageReport fromIso={fromIso} toIso={toIso} {...reportFilters} />
+
+          <DashboardWorkQueueTable
+            fromIso={fromIso}
+            toIso={toIso}
+            {...reportFilters}
+            employees={employees}
+            vehicles={vehicles}
+          />
         </div>
       </div>
     </div>

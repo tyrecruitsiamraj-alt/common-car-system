@@ -17,7 +17,7 @@ import {
   subWeeks,
 } from 'date-fns';
 import { th } from 'date-fns/locale';
-import { formatThaiDate, formatThaiTimeRange } from '@/lib/thaiDateTimeFormat';
+import { formatThaiDate, formatThaiTimeRange, nowInBangkok } from '@/lib/thaiDateTimeFormat';
 import {
   bookingEffectiveEnd,
   computeTodaySummaryCounts,
@@ -34,7 +34,7 @@ export const DASHBOARD_PLANNER_HOURS = Array.from(
 
 export type DashboardRankItem = { id: string; label: string; count: number; hours?: number };
 
-export type DashboardPeriodPreset = 'this_week' | 'this_month' | 'last_week' | 'last_month' | 'custom';
+export type DashboardPeriodPreset = 'today' | 'this_week' | 'this_month' | 'last_week' | 'last_month' | 'custom';
 
 export type DashboardPeriodRange = {
   from: Date;
@@ -62,9 +62,16 @@ export function resolveDashboardPeriodRange(
   preset: DashboardPeriodPreset,
   customFromYmd?: string,
   customToYmd?: string,
-  anchor = new Date(),
+  anchor = nowInBangkok(),
 ): DashboardPeriodRange {
   const today = startOfDay(anchor);
+  if (preset === 'today') {
+    return {
+      from: today,
+      to: endOfDay(today),
+      label: `วันนี้ (${formatThaiDate(today)})`,
+    };
+  }
   if (preset === 'this_week') {
     const from = startOfWeek(today, WEEK_OPTS);
     const to = endOfWeek(today, WEEK_OPTS);
@@ -292,7 +299,7 @@ export function computeDailyEmployeeSummary(
 }
 
 export function formatDashboardDayLabel(day: Date): string {
-  if (isSameDay(day, new Date())) return 'วันนี้';
+  if (isSameDay(day, nowInBangkok())) return 'วันนี้';
   return formatThaiDate(day);
 }
 

@@ -9,6 +9,7 @@ import { useWlEmployees } from '@/hooks/useWlEmployees';
 import { apiFetch } from '@/lib/apiFetch';
 import { isDemoMode } from '@/lib/demoMode';
 import { resolveDashboardPeriodRange } from '@/lib/fleetDashboardStats';
+import { nowInBangkok } from '@/lib/thaiDateTimeFormat';
 import type { Vehicle, VehicleBooking } from '@/types';
 
 const SupervisorDashboard: React.FC = () => {
@@ -23,8 +24,8 @@ const SupervisorDashboard: React.FC = () => {
     ownerId: '',
     vehicleId: '',
     periodPreset: 'this_month',
-    customFromYmd: format(new Date(), 'yyyy-MM-01'),
-    customToYmd: format(new Date(), 'yyyy-MM-dd'),
+    customFromYmd: format(nowInBangkok(), 'yyyy-MM-01'),
+    customToYmd: format(nowInBangkok(), 'yyyy-MM-dd'),
     search: '',
   }));
 

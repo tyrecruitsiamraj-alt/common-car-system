@@ -31,6 +31,7 @@ import type {
   DashboardWorkItem,
 } from '@/lib/dashboard/types';
 import { BOOKING_CANCEL_REASON_LABELS, BOOKING_JOB_TYPE_LABELS } from '@/lib/bookingUiMessages';
+import { nowInBangkok } from '@/lib/thaiDateTimeFormat';
 import type {
   Employee,
   Vehicle,
@@ -53,7 +54,7 @@ function isIncidentBooking(b: VehicleBooking): boolean {
   return /อุบัติ|อุบัติเหตุ|accident|crash|ชน/i.test(n);
 }
 
-function isAtRiskBooking(b: VehicleBooking, now = new Date()): boolean {
+function isAtRiskBooking(b: VehicleBooking, now = nowInBangkok()): boolean {
   if (b.status === 'cancelled' || b.completed_at) return false;
   if (isIncidentBooking(b)) return true;
   const end = parseISO(b.ends_at);
@@ -62,7 +63,7 @@ function isAtRiskBooking(b: VehicleBooking, now = new Date()): boolean {
   return minsLeft >= 0 && minsLeft <= 45;
 }
 
-function mapTaskStatus(b: VehicleBooking, now = new Date()): DashboardTaskStatus {
+function mapTaskStatus(b: VehicleBooking, now = nowInBangkok()): DashboardTaskStatus {
   const base = deriveBookingListStatus(b);
   if (base === 'cancelled') return 'cancelled';
   if (base === 'completed') return 'completed';
@@ -111,7 +112,7 @@ export function bookingToWorkItem(
   b: VehicleBooking,
   employees: Employee[],
   vehicles: Vehicle[],
-  now = new Date(),
+  now = nowInBangkok(),
 ): DashboardWorkItem {
   const status = mapTaskStatus(b, now);
   const veh = vehInfo(vehicles, b.vehicle_id);
@@ -388,7 +389,7 @@ export function buildDashboardData(
   range: DashboardPeriodRange,
   filters: DashboardFilters,
 ): DashboardData {
-  const now = new Date();
+  const now = nowInBangkok();
   const inRange = bookingsInRange(bookings, range.from, range.to);
   const prev = previousRange(range);
   const inPrevRange = bookingsInRange(bookings, prev.from, prev.to);
