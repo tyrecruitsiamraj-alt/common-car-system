@@ -1205,7 +1205,7 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
         </div>
         <div className="flex-1 min-h-0 overflow-auto">
           <div
-            className="w-full border border-border rounded-md overflow-hidden bg-background/50"
+            className="w-full border border-border rounded-md bg-background/50"
             style={{ minWidth: `${8.5 * 16 + plannerHourSlots.length * 2.75}rem` }}
           >
             <div
