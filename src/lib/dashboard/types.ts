@@ -15,7 +15,8 @@ export type DashboardTrendDirection = 'up' | 'down' | 'neutral';
 
 export type DashboardKpiId =
   | 'total'
-  | 'pending'
+  | 'in_progress'
+  | 'advance'
   | 'overdue'
   | 'completed'
   | 'success_rate';

@@ -167,15 +167,19 @@ function buildKpis(
 ): DashboardKpi[] {
   const total = current.length;
   const prevTotal = previous.length;
-  const pending = countByStatus(current, 'pending') + countByStatus(current, 'in_progress');
-  const prevPending =
-    countByStatus(previous, 'pending') + countByStatus(previous, 'in_progress');
+  const active = total - countByStatus(current, 'cancelled');
+  const prevActive = prevTotal - countByStatus(previous, 'cancelled');
+  // กำลังดำเนินงาน = เริ่มทำงานแล้ว (in_progress) รวมงานที่ใกล้เลยกำหนด (at_risk)
+  const inProgress = countByStatus(current, 'in_progress') + countByStatus(current, 'at_risk');
+  const prevInProgress =
+    countByStatus(previous, 'in_progress') + countByStatus(previous, 'at_risk');
+  // งานล่วงหน้า = จองไว้แต่ยังไม่ถึงกำหนดเริ่ม (pending)
+  const advance = countByStatus(current, 'pending');
+  const prevAdvance = countByStatus(previous, 'pending');
   const overdue = countByStatus(current, 'overdue');
   const prevOverdue = countByStatus(previous, 'overdue');
   const completed = countByStatus(current, 'completed');
   const prevCompleted = countByStatus(previous, 'completed');
-  const active = total - countByStatus(current, 'cancelled');
-  const prevActive = prevTotal - countByStatus(previous, 'cancelled');
   const rate = active > 0 ? Math.round((completed / active) * 100) : 0;
   const prevRate = prevActive > 0 ? Math.round((prevCompleted / prevActive) * 100) : 0;
 
@@ -194,20 +198,27 @@ function buildKpis(
     {
       id: 'total',
       label: 'งานทั้งหมด',
-      value: String(total),
-      hint: 'ใบจองในช่วงที่เลือก',
-      trend: mkTrend(total, prevTotal),
+      value: String(active),
+      hint: 'ใบจองในช่วงที่เลือก (ไม่รวมยกเลิก)',
+      trend: mkTrend(active, prevActive),
     },
     {
-      id: 'pending',
-      label: 'รอดำเนินการ',
-      value: String(pending),
-      hint: 'รอเริ่ม + กำลังดำเนินการ',
-      trend: mkTrend(pending, prevPending, true),
+      id: 'in_progress',
+      label: 'กำลังดำเนินงาน',
+      value: String(inProgress),
+      hint: 'เริ่มทำงานแล้ว',
+      trend: mkTrend(inProgress, prevInProgress, true),
+    },
+    {
+      id: 'advance',
+      label: 'งานล่วงหน้า',
+      value: String(advance),
+      hint: 'จองล่วงหน้า ยังไม่ถึงกำหนดเริ่ม',
+      trend: mkTrend(advance, prevAdvance),
     },
     {
       id: 'overdue',
-      label: 'ล่าช้า',
+      label: 'ล่าช้า (รอปิดงาน)',
       value: String(overdue),
       hint: 'เลยเวลาและยังไม่ปิดงาน',
       trend: mkTrend(overdue, prevOverdue, true),
@@ -223,7 +234,7 @@ function buildKpis(
       id: 'success_rate',
       label: 'อัตราสำเร็จ',
       value: `${rate}%`,
-      hint: 'สำเร็จ / งานที่ไม่ถูกยกเลิก',
+      hint: 'สำเร็จ / งานทั้งหมด (ไม่รวมยกเลิก)',
       trend: mkTrend(rate, prevRate),
     },
   ];
