@@ -20,13 +20,18 @@ type DriverDirectoryEntry = {
 };
 
 /** จำนวนวันรวมแบบนับวันเริ่มและวันสิ้นสุด (inclusive) — ว่างหรือวันที่ไม่ถูกต้องคืนค่าว่าง */
-function computeDaysInclusive(startYmd: string | undefined, endYmd: string | undefined): string {
+function computeDaysInclusive(
+  startYmd: string | undefined,
+  endYmd: string | undefined,
+  subtractDays = 0,
+): string {
   if (!startYmd || !endYmd) return '';
   const start = new Date(startYmd);
   const end = new Date(endYmd);
   if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return '';
   const diff = Math.round((end.getTime() - start.getTime()) / 86400000) + 1;
-  return diff > 0 ? String(diff) : '';
+  if (diff <= 0) return '';
+  return String(Math.max(0, diff - subtractDays));
 }
 
 function fieldBlock(label: string, required: boolean | undefined, input: React.ReactNode) {
@@ -99,7 +104,11 @@ const IssueReportForm: React.FC<Props> = ({ config, cancelHref }) => {
     const data: Record<string, string> = { ...values };
     for (const f of config.fields) {
       if (f.type === 'computed-days' && f.computeDaysFrom) {
-        data[f.key] = computeDaysInclusive(values[f.computeDaysFrom.startKey], values[f.computeDaysFrom.endKey]);
+        data[f.key] = computeDaysInclusive(
+          values[f.computeDaysFrom.startKey],
+          values[f.computeDaysFrom.endKey],
+          f.computeDaysFrom.subtractDays,
+        );
       }
     }
 
@@ -161,7 +170,11 @@ const IssueReportForm: React.FC<Props> = ({ config, cancelHref }) => {
             );
           } else if (f.type === 'computed-days') {
             const computed = f.computeDaysFrom
-              ? computeDaysInclusive(values[f.computeDaysFrom.startKey], values[f.computeDaysFrom.endKey])
+              ? computeDaysInclusive(
+                  values[f.computeDaysFrom.startKey],
+                  values[f.computeDaysFrom.endKey],
+                  f.computeDaysFrom.subtractDays,
+                )
               : '';
             input = (
               <Input

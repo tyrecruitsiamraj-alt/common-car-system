@@ -15,8 +15,11 @@ export type IssueField = {
   otherField?: { key: string; label: string; placeholder?: string };
   /** type: 'employee-picker' — คีย์ของฟิลด์ที่จะเติมรหัสพนักงานอัตโนมัติเมื่อเลือกชื่อ */
   linkedCodeField?: string;
-  /** type: 'computed-days' — คำนวณจำนวนวัน (รวมวันเริ่ม-สิ้นสุด) จากอีก 2 ฟิลด์วันที่ */
-  computeDaysFrom?: { startKey: string; endKey: string };
+  /**
+   * type: 'computed-days' — คำนวณจำนวนวัน (รวมวันเริ่ม-สิ้นสุด) จากอีก 2 ฟิลด์วันที่
+   * subtractDays: หักออกจากผลรวม (เช่น "จำนวนวันที่ใช้ได้" ต้องหักวันที่บิน+วันที่กลับออก 2 วัน เพราะ 2 วันนี้ไม่ว่าง)
+   */
+  computeDaysFrom?: { startKey: string; endKey: string; subtractDays?: number };
 };
 
 export type IssueReportConfig = {
@@ -118,7 +121,7 @@ export const ISSUE_REPORT_TYPES: IssueReportConfig[] = [
         key: 'usable_days',
         label: 'จำนวนวันที่ใช้ได้',
         type: 'computed-days',
-        computeDaysFrom: { startKey: 'start_date', endKey: 'end_date' },
+        computeDaysFrom: { startKey: 'start_date', endKey: 'end_date', subtractDays: 2 },
       },
       {
         key: 'employee_status',

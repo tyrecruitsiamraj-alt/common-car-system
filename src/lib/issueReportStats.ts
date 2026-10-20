@@ -96,12 +96,19 @@ function computeVehicleService(rows: IssueReportRow[]): VehicleServiceData {
   };
 }
 
+/** จำนวนวันที่ใช้ได้จริง = จำนวนวันบินทั้งหมด หักวันที่บิน + วันที่กลับออก 2 วัน (2 วันนี้ไม่ว่าง) */
+function usableDaysInclusive(startYmd: string | undefined, endYmd: string | undefined): number {
+  const total = daysInclusive(startYmd, endYmd);
+  return total > 0 ? Math.max(0, total - 2) : 0;
+}
+
 function computeSupervisorAbsent(rows: IssueReportRow[]): SupervisorAbsentData {
   const totalDaysAway = rows.reduce((sum, r) => sum + daysInclusive(r.data.start_date, r.data.end_date), 0);
+  const totalUsableDays = rows.reduce((sum, r) => sum + usableDaysInclusive(r.data.start_date, r.data.end_date), 0);
   return {
     totalPeople: new Set(rows.map((r) => r.employee_name).filter(Boolean)).size,
     totalDaysAway,
-    totalUsableDays: totalDaysAway,
+    totalUsableDays,
     byStatus: countBy(rows, (r) => r.data.employee_status),
     people: peopleSummary(rows, (r) => `บิน ${daysInclusive(r.data.start_date, r.data.end_date)} วัน — ${r.data.cover_type ?? '-'}`),
   };
