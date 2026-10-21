@@ -2466,10 +2466,18 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                         <th className="sticky left-28 z-[2] bg-card border border-border p-1 text-left w-[8rem] min-w-[8rem]">
                           Name TH
                         </th>
-                        <th className="border border-border p-1 text-left w-[8rem] min-w-[8rem]">Name EN</th>
-                        <th className="border border-border p-1 text-left w-[6rem] min-w-[6rem]">Tel</th>
-                        <th className="border border-border p-1 text-left w-[6rem] min-w-[6rem]">Remark</th>
-                        <th className="border border-border p-1 text-center w-8 min-w-8">Count</th>
+                        <th className="sticky left-[15rem] z-[2] bg-card border border-border p-1 text-left w-[8rem] min-w-[8rem]">
+                          Name EN
+                        </th>
+                        <th className="sticky left-[23rem] z-[2] bg-card border border-border p-1 text-left w-[6rem] min-w-[6rem]">
+                          Tel
+                        </th>
+                        <th className="sticky left-[29rem] z-[2] bg-card border border-border p-1 text-left w-[6rem] min-w-[6rem]">
+                          Remark
+                        </th>
+                        <th className="sticky left-[35rem] z-[2] bg-card border border-border p-1 text-center w-8 min-w-8 shadow-[2px_0_0_0_rgba(0,0,0,0.06)]">
+                          Count
+                        </th>
                         {daysInSelectedMonth.map((d) => (
                           <th
                             key={format(d, 'yyyy-MM-dd')}
@@ -2510,14 +2518,24 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                             >
                               {emp.first_name} {emp.last_name}
                             </td>
-                            <td className="border border-border p-1 text-left max-w-[8rem] truncate" title={emp.english_name || ''}>
+                            <td
+                              className="sticky left-[15rem] z-[1] bg-card border border-border p-1 text-left max-w-[8rem] truncate"
+                              title={emp.english_name || ''}
+                            >
                               {emp.english_name || '-'}
                             </td>
-                            <td className="border border-border p-1 text-left whitespace-nowrap">{emp.phone || '-'}</td>
-                            <td className="border border-border p-1 text-left max-w-[6rem] truncate" title={emp.position}>
+                            <td className="sticky left-[23rem] z-[1] bg-card border border-border p-1 text-left whitespace-nowrap">
+                              {emp.phone || '-'}
+                            </td>
+                            <td
+                              className="sticky left-[29rem] z-[1] bg-card border border-border p-1 text-left max-w-[6rem] truncate"
+                              title={emp.position}
+                            >
                               {emp.position || '-'}
                             </td>
-                            <td className="border border-border p-1 text-center font-medium">{count}</td>
+                            <td className="sticky left-[35rem] z-[1] bg-card border border-border p-1 text-center font-medium shadow-[2px_0_0_0_rgba(0,0,0,0.06)]">
+                              {count}
+                            </td>
                             {daysInSelectedMonth.map((d) => {
                               const dayList = bookingsOverlappingDay(empBookings, d);
                               const incident = dayList.some(isIncidentBooking);
