@@ -2607,9 +2607,15 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                         <th className="sticky left-28 z-[2] bg-card border border-border p-1 text-left w-[8rem] min-w-[8rem]">
                           รุ่นรถ
                         </th>
-                        <th className="border border-border p-1 text-center w-[4rem] min-w-[4rem]">ที่นั่ง</th>
-                        <th className="border border-border p-1 text-left w-[8rem] min-w-[8rem]">หมายเหตุ</th>
-                        <th className="border border-border p-1 text-center w-8 min-w-8">Count</th>
+                        <th className="sticky left-[15rem] z-[2] bg-card border border-border p-1 text-center w-[4rem] min-w-[4rem]">
+                          ที่นั่ง
+                        </th>
+                        <th className="sticky left-[19rem] z-[2] bg-card border border-border p-1 text-left w-[8rem] min-w-[8rem]">
+                          หมายเหตุ
+                        </th>
+                        <th className="sticky left-[27rem] z-[2] bg-card border border-border p-1 text-center w-8 min-w-8 shadow-[2px_0_0_0_rgba(0,0,0,0.06)]">
+                          Count
+                        </th>
                         {daysInSelectedMonth.map((d) => (
                           <th
                             key={format(d, 'yyyy-MM-dd')}
@@ -2650,11 +2656,18 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                             >
                               {veh.label || '-'}
                             </td>
-                            <td className="border border-border p-1 text-center tabular-nums">{veh.seats}</td>
-                            <td className="border border-border p-1 text-left max-w-[8rem] truncate" title={veh.notes || ''}>
+                            <td className="sticky left-[15rem] z-[1] bg-card border border-border p-1 text-center tabular-nums">
+                              {veh.seats}
+                            </td>
+                            <td
+                              className="sticky left-[19rem] z-[1] bg-card border border-border p-1 text-left max-w-[8rem] truncate"
+                              title={veh.notes || ''}
+                            >
                               {veh.notes || '-'}
                             </td>
-                            <td className="border border-border p-1 text-center font-medium">{count}</td>
+                            <td className="sticky left-[27rem] z-[1] bg-card border border-border p-1 text-center font-medium shadow-[2px_0_0_0_rgba(0,0,0,0.06)]">
+                              {count}
+                            </td>
                             {daysInSelectedMonth.map((d) => {
                               const dayList = bookingsOverlappingDay(vehBookings, d);
                               const incident = dayList.some(isIncidentBooking);
