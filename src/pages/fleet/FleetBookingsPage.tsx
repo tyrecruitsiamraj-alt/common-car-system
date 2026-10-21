@@ -311,6 +311,19 @@ function employeeBusyPlannerSlots(
   ).length;
 }
 
+/** รวมชั่วโมงที่พนักงานถูกจอง (active) ในแต่ละวันของ days ที่ระบุ — ใช้กับฟิลเตอร์ "จำนวนชั่วโมง" ในตารางรายเดือน */
+function totalBookedHoursForEmployee(bookings: VehicleBooking[], empId: string, days: Date[]): number {
+  const empBookings = bookings.filter((b) => b.employee_id === empId && isBookingActive(b));
+  let total = 0;
+  for (const d of days) {
+    for (const b of bookingsOverlappingDay(empBookings, d)) {
+      const seg = bookingSegmentOnLocalDay(b, d);
+      if (seg) total += seg.endH - seg.startH;
+    }
+  }
+  return total;
+}
+
 const BOOKING_AUDIT_LABEL: Record<VehicleBookingAudit['action'], string> = {
   created: 'สร้างจอง',
   updated: 'แก้ไข',
@@ -521,6 +534,11 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
   /** กรองพนักงาน/รถจาก dropdown — ใช้กับตารางรายวัน/รายชั่วโมงและสรุปด้านล่าง */
   const [plannerFilterEmpId, setPlannerFilterEmpId] = useState('');
   const [plannerFilterVehId, setPlannerFilterVehId] = useState('');
+  /** กรองช่วงวันที่ (ภายในเดือนที่เลือก) + จำนวนชั่วโมงรวม — ใช้กับตาราง "พนักงาน × วัน" ในมุมมองรายเดือน */
+  const [monthGridFromDay, setMonthGridFromDay] = useState('');
+  const [monthGridToDay, setMonthGridToDay] = useState('');
+  const [monthHoursMin, setMonthHoursMin] = useState('');
+  const [monthHoursMax, setMonthHoursMax] = useState('');
   const [listQuery, setListQuery] = useState('');
   const [listStatusFilter, setListStatusFilter] = useState<BookingListStatus>('all');
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
@@ -928,6 +946,35 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
     return eachDayOfInterval({ start: from, end: to });
   }, [monthAnchor]);
   const monthWeekCount = monthGridDays.length > 0 ? monthGridDays.length / 7 : 0;
+
+  /** ช่วงวันที่ย่อยภายในเดือน (ถ้าตั้งไว้) — ใช้กรองเฉพาะตาราง "พนักงาน × วัน" ในมุมมองรายเดือน */
+  const monthPillGridDays = useMemo(() => {
+    if (!monthGridFromDay && !monthGridToDay) return daysInSelectedMonth;
+    const from = monthGridFromDay ? parse(monthGridFromDay, 'yyyy-MM-dd', new Date()) : null;
+    const to = monthGridToDay ? parse(monthGridToDay, 'yyyy-MM-dd', new Date()) : null;
+    return daysInSelectedMonth.filter((d) => {
+      if (from && !Number.isNaN(from.getTime()) && isBefore(startOfDay(d), startOfDay(from))) return false;
+      if (to && !Number.isNaN(to.getTime()) && isBefore(startOfDay(to), startOfDay(d))) return false;
+      return true;
+    });
+  }, [daysInSelectedMonth, monthGridFromDay, monthGridToDay]);
+
+  const monthHoursMinNum = monthHoursMin.trim() === '' ? null : Number(monthHoursMin);
+  const monthHoursMaxNum = monthHoursMax.trim() === '' ? null : Number(monthHoursMax);
+
+  /** พนักงานในตาราง "พนักงาน × วัน" หลังกรองด้วยช่วงชั่วโมงรวม (ถ้าตั้งไว้) — คำนวณจากชั่วโมงรวมในช่วงวันที่ที่แสดงอยู่ */
+  const employeesForMonthPillGrid = useMemo(() => {
+    const hasHoursFilter =
+      (monthHoursMinNum !== null && !Number.isNaN(monthHoursMinNum)) ||
+      (monthHoursMaxNum !== null && !Number.isNaN(monthHoursMaxNum));
+    if (!hasHoursFilter) return employeesForPlanner;
+    return employeesForPlanner.filter((emp) => {
+      const total = totalBookedHoursForEmployee(bookings, emp.id, monthPillGridDays);
+      if (monthHoursMinNum !== null && !Number.isNaN(monthHoursMinNum) && total < monthHoursMinNum) return false;
+      if (monthHoursMaxNum !== null && !Number.isNaN(monthHoursMaxNum) && total > monthHoursMaxNum) return false;
+      return true;
+    });
+  }, [employeesForPlanner, bookings, monthPillGridDays, monthHoursMinNum, monthHoursMaxNum]);
 
   const weekDays = useMemo(() => {
     const d = parse(dayValue, 'yyyy-MM-dd', new Date());
@@ -2256,6 +2303,68 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
               </div>
             </div>
           )}
+          {viewMode === 'month' && (
+            <div className="flex flex-wrap gap-2 sm:gap-3 items-end pt-1 border-t border-border/40 mt-1">
+              <div className="space-y-0.5">
+                <Label className="text-[10px] text-muted-foreground">จากวันที่ (ตาราง พนักงาน × วัน)</Label>
+                <DateSelectDmyBe
+                  value={monthGridFromDay}
+                  onChange={setMonthGridFromDay}
+                  allowEmpty
+                  yearKind="ce"
+                  triggerClassName="h-8 text-xs rounded-md border border-input bg-background px-2"
+                />
+              </div>
+              <div className="space-y-0.5">
+                <Label className="text-[10px] text-muted-foreground">ถึงวันที่</Label>
+                <DateSelectDmyBe
+                  value={monthGridToDay}
+                  onChange={setMonthGridToDay}
+                  allowEmpty
+                  yearKind="ce"
+                  triggerClassName="h-8 text-xs rounded-md border border-input bg-background px-2"
+                />
+              </div>
+              <div className="w-24 space-y-0.5">
+                <Label className="text-[10px] text-muted-foreground">ชม. ขั้นต่ำ</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  value={monthHoursMin}
+                  onChange={(e) => setMonthHoursMin(e.target.value)}
+                  placeholder="ไม่กำหนด"
+                  className="h-8 text-xs"
+                />
+              </div>
+              <div className="w-24 space-y-0.5">
+                <Label className="text-[10px] text-muted-foreground">ชม. สูงสุด</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  value={monthHoursMax}
+                  onChange={(e) => setMonthHoursMax(e.target.value)}
+                  placeholder="ไม่กำหนด"
+                  className="h-8 text-xs"
+                />
+              </div>
+              {monthGridFromDay || monthGridToDay || monthHoursMin || monthHoursMax ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 text-xs"
+                  onClick={() => {
+                    setMonthGridFromDay('');
+                    setMonthGridToDay('');
+                    setMonthHoursMin('');
+                    setMonthHoursMax('');
+                  }}
+                >
+                  ล้างตัวกรอง
+                </Button>
+              ) : null}
+            </div>
+          )}
         </div>
 
         {loading ? <p className="text-xs text-muted-foreground shrink-0">กำลังโหลด…</p> : null}
@@ -2360,6 +2469,8 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                 <div className="flex-1 min-h-0 overflow-auto">
                   {employeesForPlanner.length === 0 ? (
                     <p className="text-[10px] text-muted-foreground p-2">ไม่มีพนักงานในระบบ</p>
+                  ) : employeesForMonthPillGrid.length === 0 ? (
+                    <p className="text-[10px] text-muted-foreground p-2">ไม่มีพนักงานที่ตรงกับเงื่อนไขที่กรอง</p>
                   ) : (
                     <table className="w-full border-collapse text-[9px] min-w-0">
                       <thead className="sticky top-0 z-[1] bg-card shadow-sm">
@@ -2367,7 +2478,7 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                           <th className="sticky left-0 z-[2] bg-card border border-border p-1 text-left w-[7rem] min-w-[7rem] max-w-[7rem]">
                             พนักงาน
                           </th>
-                          {daysInSelectedMonth.map((d) => (
+                          {monthPillGridDays.map((d) => (
                             <th
                               key={format(d, 'yyyy-MM-dd')}
                               className="border border-border p-0.5 font-medium text-muted-foreground min-w-[1rem] text-center"
@@ -2375,10 +2486,13 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                               {format(d, 'd')}
                             </th>
                           ))}
+                          <th className="border border-border p-1 font-medium text-muted-foreground min-w-[3rem] text-center">
+                            รวม ชม.
+                          </th>
                         </tr>
                       </thead>
                       <tbody>
-                        {employeesForPlanner.map((emp) => (
+                        {employeesForMonthPillGrid.map((emp) => (
                           <tr key={emp.id}>
                             <td
                               className="sticky left-0 z-[1] bg-card border border-border p-1 text-left font-medium text-foreground max-w-[7rem] truncate"
@@ -2386,7 +2500,7 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                             >
                               {emp.first_name} {emp.last_name}
                             </td>
-                            {daysInSelectedMonth.map((d) => {
+                            {monthPillGridDays.map((d) => {
                               const st = dayPlannerStatusForEmployee(bookings, emp.id, d);
                               const pastD = isBefore(startOfDay(d), startOfDay(new Date()));
                               const dayList = bookingsOverlappingDay(
@@ -2432,6 +2546,9 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
                                 </td>
                               );
                             })}
+                            <td className="border border-border p-1 text-center font-medium text-foreground whitespace-nowrap">
+                              {totalBookedHoursForEmployee(bookings, emp.id, monthPillGridDays).toFixed(1)}
+                            </td>
                           </tr>
                         ))}
                       </tbody>
