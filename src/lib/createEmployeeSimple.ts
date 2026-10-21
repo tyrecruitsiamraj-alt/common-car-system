@@ -10,6 +10,7 @@ export type SimpleEmployeeInput = {
   first_name: string;
   last_name: string;
   phone: string;
+  position?: string;
 };
 
 function nextDemoEmployeeCode(): string {
@@ -33,6 +34,9 @@ export async function createEmployeeSimple(input: SimpleEmployeeInput): Promise<
     throw new Error('กรุณากรอกชื่อ นามสกุล และเบอร์โทร');
   }
 
+  // ตำแหน่งเลือกได้จากฟอร์ม — ถ้าไม่ได้เลือก fallback เป็น Common Driver (แท็บเริ่มต้นของหน้า Drivers)
+  const position = input.position?.trim() || 'Common Driver';
+
   if (isDemoMode()) {
     return createEmployee({
       employee_code: nextDemoEmployeeCode(),
@@ -41,8 +45,7 @@ export async function createEmployeeSimple(input: SimpleEmployeeInput): Promise<
       last_name,
       phone,
       status: 'active',
-      // หน้า Drivers กรองให้เห็นเฉพาะ Common Driver / Temp Driver — ตั้งค่าเริ่มต้นให้ยังเห็นคนที่เพิ่งเพิ่ม
-      position: 'Common Driver',
+      position,
       join_date: toYmdLocal(new Date()),
     });
   }
@@ -54,8 +57,7 @@ export async function createEmployeeSimple(input: SimpleEmployeeInput): Promise<
       first_name,
       last_name,
       phone,
-      // หน้า Drivers กรองให้เห็นเฉพาะ Common Driver / Temp Driver — ตั้งค่าเริ่มต้นให้ยังเห็นคนที่เพิ่งเพิ่ม
-      position: 'Common Driver',
+      position,
       ...(title_prefix ? { title_prefix } : {}),
     }),
   });

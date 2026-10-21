@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/select';
 import { createEmployeeSimple } from '@/lib/createEmployeeSimple';
 import { TITLE_PREFIX_OPTIONS } from '@/lib/titlePrefixOptions';
+import { DRIVER_DIRECTORY_POSITIONS } from '@/lib/driverListPositions';
 import type { Employee } from '@/types';
 import { toast } from 'sonner';
 
@@ -20,13 +21,16 @@ const TITLE_PREFIX_NONE = '__none__';
 type Props = {
   id?: string;
   onCreated: (employee: Employee) => void;
+  /** ตำแหน่งเริ่มต้นที่เลือกไว้ล่วงหน้าในฟอร์ม (เช่น ให้ตรงกับแท็บที่เปิดอยู่) */
+  defaultPosition?: string;
 };
 
-export default function QuickAddDriverForm({ id, onCreated }: Props) {
+export default function QuickAddDriverForm({ id, onCreated, defaultPosition }: Props) {
   const [titlePrefix, setTitlePrefix] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [phone, setPhone] = useState('');
+  const [position, setPosition] = useState(defaultPosition || DRIVER_DIRECTORY_POSITIONS[0]);
   const [saving, setSaving] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -39,12 +43,14 @@ export default function QuickAddDriverForm({ id, onCreated }: Props) {
         first_name: firstName,
         last_name: lastName,
         phone,
+        position,
       });
       toast.success(`เพิ่ม ${created.first_name} ${created.last_name} แล้ว`);
       setTitlePrefix('');
       setFirstName('');
       setLastName('');
       setPhone('');
+      setPosition(defaultPosition || DRIVER_DIRECTORY_POSITIONS[0]);
       onCreated(created);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'บันทึกไม่สำเร็จ');
@@ -114,20 +120,39 @@ export default function QuickAddDriverForm({ id, onCreated }: Props) {
           />
         </div>
       </div>
-      <div className="space-y-1.5">
-        <Label htmlFor="quick-phone" className="text-xs">
-          เบอร์โทร *
-        </Label>
-        <Input
-          id="quick-phone"
-          type="tel"
-          value={phone}
-          onChange={(e) => setPhone(e.target.value)}
-          autoComplete="tel"
-          placeholder="0812345678"
-          className="min-h-[40px] bg-background"
-          required
-        />
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="space-y-1.5">
+          <Label htmlFor="quick-phone" className="text-xs">
+            เบอร์โทร *
+          </Label>
+          <Input
+            id="quick-phone"
+            type="tel"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            autoComplete="tel"
+            placeholder="0812345678"
+            className="min-h-[40px] bg-background"
+            required
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="quick-position" className="text-xs">
+            ตำแหน่ง *
+          </Label>
+          <Select value={position} onValueChange={setPosition}>
+            <SelectTrigger id="quick-position" className="min-h-[40px] bg-background">
+              <SelectValue placeholder="เลือกตำแหน่ง" />
+            </SelectTrigger>
+            <SelectContent>
+              {DRIVER_DIRECTORY_POSITIONS.map((p) => (
+                <SelectItem key={p} value={p}>
+                  {p}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
       <Button type="submit" size="sm" disabled={saving} className="w-full sm:w-auto">
         {saving ? 'กำลังบันทึก…' : 'บันทึกรายชื่อ'}

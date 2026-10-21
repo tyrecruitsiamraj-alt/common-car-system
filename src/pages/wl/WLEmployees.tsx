@@ -32,6 +32,7 @@ import { apiFetch } from '@/lib/apiFetch';
 import {
   COMMON_DRIVER_POSITION,
   DRIVER_DIRECTORY_POSITIONS_PARAM,
+  PERSONAL_DRIVER_POSITIONS,
   PERSONAL_DRIVER_POSITIONS_PARAM,
   TEMP_DRIVER_POSITION,
   isCommonDriverPosition,
@@ -457,7 +458,19 @@ const WLEmployees: React.FC = () => {
       />
 
       <div className="space-y-4">
-        <QuickAddDriverForm id="driver-quick-add" onCreated={() => void reloadEmployees()} />
+        <QuickAddDriverForm
+          id="driver-quick-add"
+          onCreated={() => void reloadEmployees()}
+          defaultPosition={
+            activeTab.value === 'common'
+              ? COMMON_DRIVER_POSITION
+              : activeTab.value === 'temp'
+                ? TEMP_DRIVER_POSITION
+                : activeTab.value === 'position'
+                  ? PERSONAL_DRIVER_POSITIONS[0]
+                  : COMMON_DRIVER_POSITION
+          }
+        />
 
         <div className="flex gap-1.5 overflow-x-auto">
           {DRIVER_TABS.map((t) => (
