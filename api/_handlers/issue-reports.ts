@@ -10,7 +10,6 @@ import {
 import { readJsonBody, getString } from '../_lib/body.js';
 import { tableInAppSchema } from '../_lib/schema.js';
 import { enforceRateLimit } from '../_lib/rateLimit.js';
-import { logWarn } from '../_lib/logger.js';
 
 const tbl = tableInAppSchema('issue_reports');
 
@@ -30,14 +29,7 @@ type Row = {
   reporter_phone: string | null;
   data: Record<string, unknown> | null;
   created_at: string | Date;
-  // คอลัมน์จาก migration 043 — อาจยังไม่มีในฐานข้อมูลจริงจนกว่าจะรัน migration
-  related_accident?: boolean | null;
-  accident_case_id?: string | null;
 };
-
-function getBool(v: unknown): boolean | undefined {
-  return typeof v === 'boolean' ? v : undefined;
-}
 
 function toYmd(value: string | Date | null): string | undefined {
   if (!value) return undefined;
@@ -68,8 +60,6 @@ function toPublicRow(row: Row) {
     reporter_phone: row.reporter_phone ?? undefined,
     data: row.data ?? {},
     created_at: toIso(row.created_at),
-    related_accident: row.related_accident ?? false,
-    accident_case_id: row.accident_case_id ?? undefined,
   };
 }
 
@@ -141,83 +131,19 @@ async function handlePost(req: ApiReq, res: ApiRes): Promise<void> {
       [category, report_date, employee_id, employee_name, position, reporter_name, reporter_phone, JSON.stringify(data)],
     );
 
-    let row = rows[0];
+    const row = rows[0];
     if (!row) return sendError(res, 500, 'Failed to save report');
-
-    const related_accident = getBool(b.related_accident);
-    const accident_case_id = getString(b.accident_case_id);
-    if (related_accident !== undefined || accident_case_id) {
-      try {
-        const { rows: accRows } = await dbQuery<Row>(
-          `update ${tbl} set related_accident = coalesce($2, related_accident), accident_case_id = $3 where id = $1 returning *`,
-          [row.id, related_accident ?? null, accident_case_id],
-        );
-        if (accRows[0]) row = accRows[0];
-      } catch (accErr) {
-        // ป้องกัน: ถ้ายังไม่ได้รัน migration 043 (คอลัมน์ related_accident/accident_case_id ยังไม่มี)
-        // อย่าให้การบันทึกเคสหลักพังตาม
-        logWarn('issue-reports POST - accident link skipped (migration 043 not applied?)', {
-          message: accErr instanceof Error ? accErr.message : String(accErr),
-        });
-      }
-    }
-
     return res.status(201).json(toPublicRow(row));
   } catch (e) {
     return handleApiError(res, e, 'issue-reports POST');
   }
 }
 
-async function handlePatch(req: AuthedReq, res: ApiRes): Promise<void> {
-  try {
-    const id = getString(req.query?.id);
-    if (!id) return sendError(res, 400, 'Bad request', 'id is required');
-
-    const raw = await readJsonBody(req);
-    if (typeof raw !== 'object' || raw === null) {
-      return sendError(res, 400, 'Bad request', 'Invalid JSON body');
-    }
-    const b = raw as Record<string, unknown>;
-
-    const related_accident = getBool(b.related_accident);
-    const hasAccidentCaseId = Object.prototype.hasOwnProperty.call(b, 'accident_case_id');
-    const accident_case_id = hasAccidentCaseId ? getString(b.accident_case_id) : undefined;
-
-    if (related_accident === undefined && accident_case_id === undefined) {
-      return sendError(res, 400, 'Bad request', 'Nothing to update');
-    }
-
-    try {
-      const { rows } = await dbQuery<Row>(
-        `update ${tbl} set
-          related_accident = coalesce($2, related_accident),
-          accident_case_id = case when $3 then $4 else accident_case_id end
-        where id = $1
-        returning *`,
-        [id, related_accident ?? null, hasAccidentCaseId, accident_case_id ?? null],
-      );
-      const row = rows[0];
-      if (!row) return sendError(res, 404, 'Not found');
-      return res.status(200).json(toPublicRow(row));
-    } catch (e) {
-      // ป้องกัน: ถ้ายังไม่ได้รัน migration 043 ให้ตอบข้อความที่เข้าใจง่าย แทนที่จะพัง 500 ดิบๆ
-      logWarn('issue-reports PATCH - accident columns unavailable (migration 043 not applied?)', {
-        message: e instanceof Error ? e.message : String(e),
-      });
-      return sendError(res, 409, 'ยังไม่สามารถบันทึกได้ — ระบบยังไม่ได้อัปเดตฐานข้อมูลสำหรับฟีเจอร์นี้ กรุณาติดต่อผู้ดูแลระบบ');
-    }
-  } catch (e) {
-    return handleApiError(res, e, 'issue-reports PATCH');
-  }
-}
-
 const protectedGet = withAuthStaffWrite(handleGet);
-const protectedPatch = withAuthStaffWrite(handlePatch);
 
 export default async function issueReportsHandler(req: ApiReq, res: ApiRes): Promise<void> {
   const method = (req.method || 'GET').toUpperCase();
   if (method === 'POST') return handlePost(req, res);
   if (method === 'GET') return protectedGet(req, res);
-  if (method === 'PATCH') return protectedPatch(req, res);
   return sendError(res, 405, 'Method not allowed');
 }

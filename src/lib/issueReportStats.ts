@@ -21,8 +21,6 @@ export type IssueReportRow = {
   reporter_phone?: string;
   data: Record<string, string>;
   created_at: string;
-  related_accident?: boolean;
-  accident_case_id?: string;
 };
 
 function periodBounds(period: PeriodKey, now: Date): { fromYmd: string; toYmd: string } {

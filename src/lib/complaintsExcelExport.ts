@@ -19,7 +19,6 @@ function toSheetRow(r: IssueReportRow) {
     ผู้แจ้ง: r.reporter_name ?? '',
     เบอร์โทรผู้แจ้ง: r.reporter_phone ?? '',
     รายละเอียด: summarizeIssueReportRow(r),
-    มีอุบัติเหตุ: r.related_accident ? 'ใช่' : 'ไม่ใช่',
   };
 }
 
@@ -36,7 +35,6 @@ export function exportComplaintsOverviewExcel(allRows: IssueReportRow[], period:
     หมวด: config.label,
     จำนวนเคส: rows.length,
     จำนวนพนักงานที่เกี่ยวข้อง: new Set(rows.map((r) => r.employee_name).filter(Boolean)).size,
-    เกี่ยวข้องกับอุบัติเหตุ: rows.filter((r) => r.related_accident).length,
   }));
 
   const sheets = [
