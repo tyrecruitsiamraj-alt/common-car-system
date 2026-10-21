@@ -27,6 +27,7 @@ import ComplaintDashboardPage from "@/pages/dashboard/ComplaintDashboardPage";
 import ComplaintReportPage from "@/pages/complaints/ComplaintReportPage";
 import IssueReportPage from "@/pages/complaints/IssueReportPage";
 import ComplaintsOverviewPage from "@/pages/complaints/ComplaintsOverviewPage";
+import ComplaintsHistoryPage from "@/pages/complaints/ComplaintsHistoryPage";
 import PublicIssueReportPage from "@/pages/complaints/PublicIssueReportPage";
 import ChangePasswordPage from "@/pages/ChangePasswordPage";
 import AppearanceSettingsPage from "@/pages/settings/AppearanceSettingsPage";
@@ -84,6 +85,7 @@ function AppRoutes() {
         <Route path="/accidents" element={<AccidentDashboardPage />} />
         <Route path="/complaints" element={<ComplaintDashboardPage />} />
         <Route path="/complaints/overview" element={<ComplaintsOverviewPage />} />
+        <Route path="/complaints/history" element={<ComplaintsHistoryPage />} />
         <Route path="/complaints/:slug" element={<IssueReportPage />} />
         <Route path="/account/change-password" element={<ChangePasswordPage />} />
         <Route

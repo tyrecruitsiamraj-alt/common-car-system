@@ -1,19 +1,22 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { ArrowLeft, ExternalLink } from 'lucide-react';
+import { ArrowLeft, ExternalLink, QrCode as QrCodeIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import IssueReportForm from '@/components/complaints/IssueReportForm';
+import QrCodeDialog from '@/components/complaints/QrCodeDialog';
 import { ISSUE_REPORT_TYPES } from '@/lib/issueReportConfig';
 import NotFound from '@/pages/NotFound';
 
 const IssueReportPage: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
+  const [qrOpen, setQrOpen] = useState(false);
   const config = ISSUE_REPORT_TYPES.find((t) => t.slug === slug);
 
   if (!config) return <NotFound />;
 
   const Icon = config.icon;
   const publicHref = `/complaints/report/${config.slug}`;
+  const publicUrl = `${window.location.origin}${publicHref}`;
 
   return (
     <main className="min-h-[calc(100dvh-4rem)] -mx-4 sm:-mx-5 md:-mx-6 lg:-mx-8 px-4 py-6 text-slate-900 md:px-8">
@@ -32,16 +35,30 @@ const IssueReportPage: React.FC = () => {
             </div>
             <p className="mt-1 text-sm text-muted-foreground">{config.description}</p>
           </div>
-          <Button type="button" variant="outline" size="sm" asChild className="shrink-0">
-            <Link to={publicHref} target="_blank" rel="noreferrer">
-              <ExternalLink className="h-3.5 w-3.5 mr-1.5" />
-              เปิดลิงก์สาธารณะ
-            </Link>
-          </Button>
+          <div className="flex shrink-0 gap-2">
+            <Button type="button" variant="outline" size="sm" asChild>
+              <Link to={publicHref} target="_blank" rel="noreferrer">
+                <ExternalLink className="h-3.5 w-3.5 mr-1.5" />
+                เปิดลิงก์สาธารณะ
+              </Link>
+            </Button>
+            <Button type="button" variant="outline" size="sm" onClick={() => setQrOpen(true)}>
+              <QrCodeIcon className="h-3.5 w-3.5 mr-1.5" />
+              แสดง QR Code
+            </Button>
+          </div>
         </div>
 
         <IssueReportForm config={config} cancelHref="/complaints" />
       </div>
+
+      <QrCodeDialog
+        open={qrOpen}
+        onOpenChange={setQrOpen}
+        title={config.label}
+        url={publicUrl}
+        filename={`complaint-qr-${config.slug}`}
+      />
     </main>
   );
 };

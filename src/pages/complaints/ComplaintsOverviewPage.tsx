@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Wrench, UserX, CalendarOff, Gauge, type LucideIcon } from 'lucide-react';
+import { ArrowLeft, Wrench, UserX, CalendarOff, Gauge, FileSpreadsheet, History, type LucideIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -15,6 +15,7 @@ import {
   type PersonCaseSummary,
 } from '@/lib/complaintsOverviewMockData';
 import { computeComplaintsOverview, type IssueReportRow } from '@/lib/issueReportStats';
+import { exportComplaintsOverviewExcel } from '@/lib/complaintsExcelExport';
 
 const PERIODS: PeriodKey[] = ['day', 'week', 'month', 'year'];
 
@@ -127,12 +128,14 @@ function PeopleDialog({
   open,
   onOpenChange,
   title,
+  categorySlug,
   people,
   usingMockData,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   title: string;
+  categorySlug: string;
   people: PersonCaseSummary[];
   usingMockData: boolean;
 }) {
@@ -150,6 +153,7 @@ function PeopleDialog({
               <TableHead>ตำแหน่ง</TableHead>
               <TableHead className="text-right">จำนวนครั้ง</TableHead>
               <TableHead>รายละเอียด</TableHead>
+              <TableHead />
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -159,6 +163,15 @@ function PeopleDialog({
                 <TableCell className="text-muted-foreground">{p.position}</TableCell>
                 <TableCell className="text-right font-semibold tabular-nums">{p.count}</TableCell>
                 <TableCell className="text-xs text-muted-foreground">{p.cases.join(' · ')}</TableCell>
+                <TableCell>
+                  {usingMockData ? null : (
+                    <Button type="button" variant="ghost" size="sm" asChild>
+                      <Link to={`/complaints/history?employee=${encodeURIComponent(p.name)}&category=${categorySlug}`}>
+                        ดูประวัติ
+                      </Link>
+                    </Button>
+                  )}
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
@@ -206,10 +219,10 @@ const ComplaintsOverviewPage: React.FC = () => {
 
   const panelMeta = useMemo(
     () => ({
-      vehicleService: { title: 'รถเข้าศูนย์', people: data.vehicleService.people },
-      supervisorAbsent: { title: 'นายบิน', people: data.supervisorAbsent.people },
-      leave: { title: 'การลา', people: data.leave.people },
-      speed: { title: 'ความเร็ว', people: data.speed.people },
+      vehicleService: { title: 'รถเข้าศูนย์', slug: 'vehicle-service', people: data.vehicleService.people },
+      supervisorAbsent: { title: 'นายบิน', slug: 'supervisor-absent', people: data.supervisorAbsent.people },
+      leave: { title: 'การลา', slug: 'leave', people: data.leave.people },
+      speed: { title: 'ความเร็ว', slug: 'speed', people: data.speed.people },
     }),
     [data],
   );
@@ -231,20 +244,38 @@ const ComplaintsOverviewPage: React.FC = () => {
               {loading ? ' · กำลังโหลด…' : usingMockData ? ' (ข้อมูลตัวอย่าง)' : ''}
             </p>
           </div>
-          <div className="flex gap-1 rounded-xl bg-slate-100 p-1 self-start">
-            {PERIODS.map((p) => (
-              <button
-                key={p}
-                type="button"
-                onClick={() => setPeriod(p)}
-                className={cn(
-                  'px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors',
-                  p === period ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700',
-                )}
-              >
-                {PERIOD_LABELS[p]}
-              </button>
-            ))}
+          <div className="flex flex-wrap items-center gap-2 self-start">
+            <div className="flex gap-1 rounded-xl bg-slate-100 p-1">
+              {PERIODS.map((p) => (
+                <button
+                  key={p}
+                  type="button"
+                  onClick={() => setPeriod(p)}
+                  className={cn(
+                    'px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors',
+                    p === period ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700',
+                  )}
+                >
+                  {PERIOD_LABELS[p]}
+                </button>
+              ))}
+            </div>
+            <Button type="button" variant="outline" size="sm" asChild>
+              <Link to="/complaints/history">
+                <History className="h-3.5 w-3.5 mr-1.5" />
+                ประวัติพนักงาน/ผู้แจ้ง
+              </Link>
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={usingMockData || rows.length === 0}
+              onClick={() => exportComplaintsOverviewExcel(rows, period)}
+            >
+              <FileSpreadsheet className="h-3.5 w-3.5 mr-1.5" />
+              Export Excel
+            </Button>
           </div>
         </div>
 
@@ -307,6 +338,7 @@ const ComplaintsOverviewPage: React.FC = () => {
           open
           onOpenChange={(open) => !open && setActivePanel(null)}
           title={`รายชื่อ — ${panelMeta[activePanel].title} (${PERIOD_LABELS[period]})`}
+          categorySlug={panelMeta[activePanel].slug}
           people={panelMeta[activePanel].people}
           usingMockData={usingMockData}
         />

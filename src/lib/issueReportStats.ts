@@ -21,6 +21,8 @@ export type IssueReportRow = {
   reporter_phone?: string;
   data: Record<string, string>;
   created_at: string;
+  related_accident?: boolean;
+  accident_case_id?: string;
 };
 
 function periodBounds(period: PeriodKey, now: Date): { fromYmd: string; toYmd: string } {
@@ -38,7 +40,7 @@ function periodBounds(period: PeriodKey, now: Date): { fromYmd: string; toYmd: s
   }
 }
 
-function filterByPeriod(rows: IssueReportRow[], period: PeriodKey, now = new Date()): IssueReportRow[] {
+export function filterByPeriod(rows: IssueReportRow[], period: PeriodKey, now = new Date()): IssueReportRow[] {
   const { fromYmd, toYmd } = periodBounds(period, now);
   return rows.filter((r) => r.report_date && r.report_date >= fromYmd && r.report_date <= toYmd);
 }
@@ -134,6 +136,22 @@ function computeSpeed(rows: IssueReportRow[]): SpeedData {
     byReason: countBy(rows, (r) => r.data.speed_reason),
     people: peopleSummary(rows, (r) => `${r.data.speed_over ?? '-'} — ${r.data.speed_reason ?? '-'}`),
   };
+}
+
+/** สรุปรายละเอียดของเคสเดียวเป็นข้อความสั้นๆ ตามหมวด — ใช้ในหน้าประวัติและ Export Excel */
+export function summarizeIssueReportRow(row: IssueReportRow): string {
+  switch (row.category) {
+    case 'vehicle-service':
+      return `${serviceTypeLabel(row) ?? '-'} — ${row.data.vehicle_model ?? '-'}${row.data.vehicle_plate ? ` (${row.data.vehicle_plate})` : ''} · ${row.data.status ?? '-'}`;
+    case 'supervisor-absent':
+      return `บิน ${daysInclusive(row.data.start_date, row.data.end_date)} วัน — ${row.data.cover_type ?? '-'}`;
+    case 'leave':
+      return leaveTypeLabel(row) ?? '-';
+    case 'speed':
+      return `${row.data.speed_over ?? '-'} — ${row.data.speed_reason ?? '-'}`;
+    default:
+      return '-';
+  }
 }
 
 export function computeComplaintsOverview(
