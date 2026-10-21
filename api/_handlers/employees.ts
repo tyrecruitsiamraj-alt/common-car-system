@@ -8,6 +8,7 @@ import {
 } from '../_lib/http.js';
 import { readJsonBody, getString } from '../_lib/body.js';
 import { tableInAppSchema } from '../_lib/schema.js';
+import { logError } from '../_lib/logger.js';
 
 const tblEmp = tableInAppSchema('employees');
 const tblEmpHistory = tableInAppSchema('employee_status_history');
@@ -241,7 +242,14 @@ async function employeesHandler(req: AuthedReq, res: ApiRes) {
 
   if (method === 'GET') {
     try {
-      await applyDueEmployeeChanges();
+      try {
+        await applyDueEmployeeChanges();
+      } catch (applyErr) {
+        // ป้องกัน: ถ้ายังไม่ได้รัน migration 042 (คอลัมน์/ตาราง pending_* ยังไม่มี) อย่าให้ GET ทั้งหมดพังตาม
+        logError('employees GET - applyDueEmployeeChanges skipped', {
+          message: applyErr instanceof Error ? applyErr.message : String(applyErr),
+        });
+      }
 
       const id = getString(req.query?.id);
       if (id) {
@@ -447,7 +455,7 @@ async function employeesHandler(req: AuthedReq, res: ApiRes) {
           address = $12, lat = $13, lng = $14,
           reliability_score = $15, utilization_rate = $16,
           total_days_worked = $17, total_income = $18, total_cost = $19, total_issues = $20,
-          avatar_url = $21, assigned_boss_name = $22
+          avatar_url = $21
         where id = $1
         returning *
       `,
@@ -473,12 +481,28 @@ async function employeesHandler(req: AuthedReq, res: ApiRes) {
           total_cost,
           total_issues,
           avatar_url,
-          assigned_boss_name,
         ],
       );
 
-      const updated = rows[0];
+      let updated = rows[0];
       if (!updated) return sendError(res, 500, 'Failed to update employee');
+
+      // assigned_boss_name อยู่ใน migration 042 แยกต่างหาก — ถ้ายังไม่ได้รัน migration
+      // อย่าให้การแก้ไขข้อมูลพื้นฐานด้านบน (ชื่อ/เบอร์/ตำแหน่ง ฯลฯ) พังตาม
+      if (raw.assigned_boss_name !== undefined) {
+        try {
+          const { rows: bossRows } = await dbQuery<EmployeeRow>(
+            `update ${tblEmp} set assigned_boss_name = $2 where id = $1 returning *`,
+            [id, assigned_boss_name],
+          );
+          if (bossRows[0]) updated = bossRows[0];
+        } catch (bossErr) {
+          logError('employees PATCH - assigned_boss_name skipped (migration 042 not applied?)', {
+            message: bossErr instanceof Error ? bossErr.message : String(bossErr),
+          });
+        }
+      }
+
       return res.status(200).json(toEmployeeResponse(updated));
     } catch (e) {
       return handleApiError(res, e, 'employees PATCH', { userId: req.user.sub });
