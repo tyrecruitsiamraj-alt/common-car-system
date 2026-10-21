@@ -15,6 +15,14 @@ export interface User {
 // ============ EMPLOYEES (WL) ============
 export type EmployeeStatus = 'active' | 'inactive' | 'suspended';
 
+/**
+ * ประเภทการเปลี่ยนแปลงสถานะ/ตำแหน่งผู้ขับ ที่ตั้งเวลาไว้ล่วงหน้า (มีวันที่มีผล)
+ * - resignation: ลาออก/พ้นสภาพ → เปลี่ยน status เป็น inactive
+ * - temp_replacement: เปลี่ยนตัว → เปลี่ยน position เป็น Temp Driver (หรือตำแหน่งที่ระบุ)
+ * - position_change: เปลี่ยนตำแหน่ง/เปลี่ยนนาย → เปลี่ยน position และ/หรือ assigned_boss_name
+ */
+export type EmployeeChangeType = 'resignation' | 'temp_replacement' | 'position_change';
+
 export interface Employee {
   id: string;
   employee_code: string;
@@ -26,6 +34,8 @@ export interface Employee {
   phone: string;
   status: EmployeeStatus;
   position: string;
+  /** ชื่อผู้บังคับบัญชา/นายที่ดูแลอยู่ปัจจุบัน (ใช้กับตำแหน่ง "ขับนาย" เป็นหลัก) */
+  assigned_boss_name?: string;
   join_date: string;
   address?: string;
   lat?: number;
@@ -37,6 +47,30 @@ export interface Employee {
   total_cost: number;
   total_issues: number;
   avatar_url?: string;
+  created_at: string;
+  // การเปลี่ยนแปลงที่ตั้งเวลาไว้ล่วงหน้า — ยังไม่ apply จนกว่าจะถึง pending_effective_date
+  // (ระบบ apply อัตโนมัติตอนโหลดข้อมูล ดู applyDueEmployeeChanges ที่ api/_handlers/employees.ts)
+  pending_status?: EmployeeStatus;
+  pending_position?: string;
+  pending_boss_name?: string;
+  pending_effective_date?: string;
+  pending_change_type?: EmployeeChangeType;
+  pending_note?: string;
+}
+
+/** ประวัติการเปลี่ยนแปลงสถานะ/ตำแหน่งของผู้ขับ — เขียนเมื่อการเปลี่ยนแปลงที่ตั้งเวลาไว้ถึงกำหนดและถูก apply จริง */
+export interface EmployeeStatusHistory {
+  id: string;
+  employee_id: string;
+  change_type: EmployeeChangeType;
+  old_status?: string;
+  new_status?: string;
+  old_position?: string;
+  new_position?: string;
+  old_boss_name?: string;
+  new_boss_name?: string;
+  effective_date: string;
+  note?: string;
   created_at: string;
 }
 

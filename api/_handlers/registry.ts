@@ -1,6 +1,7 @@
 import type { ApiReq, ApiRes } from '../_lib/http.js';
 import candidatesHandler from './candidates.js';
 import employeesHandler from './employees.js';
+import employeeStatusChangesHandler from './employee-status-changes.js';
 import geocodeHandler from './geocode.js';
 import healthHandler from './health.js';
 import workCalendarHandler from './work-calendar.js';
@@ -37,6 +38,7 @@ export const apiRoutes: Record<string, ApiHandler> = {
   '/api/work-calendar': workCalendarHandler as ApiHandler,
   '/api/training-records': trainingRecordsHandler as ApiHandler,
   '/api/employees': employeesHandler as ApiHandler,
+  '/api/employee-status-changes': employeeStatusChangesHandler as ApiHandler,
   '/api/vehicles': vehiclesHandler as ApiHandler,
   '/api/vehicle-bookings': vehicleBookingsHandler as ApiHandler,
   '/api/dashboard-reports': dashboardReportsHandler as ApiHandler,

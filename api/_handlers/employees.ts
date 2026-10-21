@@ -10,6 +10,7 @@ import { readJsonBody, getString } from '../_lib/body.js';
 import { tableInAppSchema } from '../_lib/schema.js';
 
 const tblEmp = tableInAppSchema('employees');
+const tblEmpHistory = tableInAppSchema('employee_status_history');
 
 const ALLOWED_TITLE_PREFIXES = new Set(['นาย', 'นาง', 'นางสาว', 'เด็กชาย', 'เด็กหญิง']);
 
@@ -30,6 +31,7 @@ type EmployeeRow = {
   phone: string;
   status: string;
   position: string;
+  assigned_boss_name: string | null;
   join_date: string | Date;
   address: string | null;
   lat: number | null;
@@ -42,6 +44,12 @@ type EmployeeRow = {
   total_issues: number;
   avatar_url: string | null;
   created_at: string | Date;
+  pending_status: string | null;
+  pending_position: string | null;
+  pending_boss_name: string | null;
+  pending_effective_date: string | Date | null;
+  pending_change_type: string | null;
+  pending_note: string | null;
 };
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
@@ -87,6 +95,7 @@ function toEmployeeResponse(row: EmployeeRow) {
     phone: row.phone,
     status: row.status,
     position: row.position,
+    assigned_boss_name: row.assigned_boss_name || undefined,
     join_date: toYmd(row.join_date),
     address: row.address || undefined,
     lat: row.lat === null ? undefined : row.lat,
@@ -99,7 +108,65 @@ function toEmployeeResponse(row: EmployeeRow) {
     total_issues: row.total_issues,
     avatar_url: row.avatar_url || undefined,
     created_at: toIsoString(row.created_at),
+    ...(row.pending_change_type
+      ? {
+          pending_status: row.pending_status || undefined,
+          pending_position: row.pending_position || undefined,
+          pending_boss_name: row.pending_boss_name || undefined,
+          pending_effective_date: row.pending_effective_date
+            ? toYmd(row.pending_effective_date)
+            : undefined,
+          pending_change_type: row.pending_change_type,
+          pending_note: row.pending_note || undefined,
+        }
+      : {}),
   };
+}
+
+/**
+ * Apply การเปลี่ยนแปลงสถานะ/ตำแหน่งที่ตั้งเวลาไว้ล่วงหน้าและถึงกำหนดแล้ว (pending_effective_date <= วันนี้)
+ * ไปยัง status/position/assigned_boss_name จริง พร้อมบันทึกประวัติ — เรียกก่อน query ทุกครั้งที่ GET
+ * (lazy-apply-on-read ตามที่ตกลงกันไว้ ไม่ใช้ cron job)
+ */
+async function applyDueEmployeeChanges(): Promise<void> {
+  await dbQuery(
+    `
+      with due as (
+        select id, status, position, assigned_boss_name,
+               pending_status, pending_position, pending_boss_name,
+               pending_change_type, pending_effective_date, pending_note
+        from ${tblEmp}
+        where pending_effective_date is not null and pending_effective_date <= current_date
+        for update
+      ),
+      logged as (
+        insert into ${tblEmpHistory} (
+          employee_id, change_type, old_status, new_status,
+          old_position, new_position, old_boss_name, new_boss_name,
+          effective_date, note
+        )
+        select
+          id, pending_change_type, status, coalesce(pending_status, status),
+          position, coalesce(pending_position, position),
+          assigned_boss_name, coalesce(pending_boss_name, assigned_boss_name),
+          pending_effective_date, pending_note
+        from due
+        returning employee_id
+      )
+      update ${tblEmp} e set
+        status = coalesce(due.pending_status, due.status),
+        position = coalesce(due.pending_position, due.position),
+        assigned_boss_name = coalesce(due.pending_boss_name, due.assigned_boss_name),
+        pending_status = null,
+        pending_position = null,
+        pending_boss_name = null,
+        pending_effective_date = null,
+        pending_change_type = null,
+        pending_note = null
+      from due
+      where e.id = due.id
+    `,
+  );
 }
 
 function parseLimitOffset(query: Record<string, unknown> | undefined): { limit: number; offset: number } {
@@ -174,6 +241,8 @@ async function employeesHandler(req: AuthedReq, res: ApiRes) {
 
   if (method === 'GET') {
     try {
+      await applyDueEmployeeChanges();
+
       const id = getString(req.query?.id);
       if (id) {
         const { rows } = await dbQuery<EmployeeRow>(
@@ -332,6 +401,10 @@ async function employeesHandler(req: AuthedReq, res: ApiRes) {
             : cur.status
           : cur.status;
       const position = raw.position !== undefined ? getString(raw.position) : cur.position;
+      const assigned_boss_name =
+        raw.assigned_boss_name !== undefined
+          ? getString(raw.assigned_boss_name)
+          : cur.assigned_boss_name;
       const join_date =
         raw.join_date !== undefined
           ? isDateYmd(raw.join_date)
@@ -374,7 +447,7 @@ async function employeesHandler(req: AuthedReq, res: ApiRes) {
           address = $12, lat = $13, lng = $14,
           reliability_score = $15, utilization_rate = $16,
           total_days_worked = $17, total_income = $18, total_cost = $19, total_issues = $20,
-          avatar_url = $21
+          avatar_url = $21, assigned_boss_name = $22
         where id = $1
         returning *
       `,
@@ -400,6 +473,7 @@ async function employeesHandler(req: AuthedReq, res: ApiRes) {
           total_cost,
           total_issues,
           avatar_url,
+          assigned_boss_name,
         ],
       );
 

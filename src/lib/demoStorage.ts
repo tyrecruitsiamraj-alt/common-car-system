@@ -1,11 +1,14 @@
 import { isDemoMode } from '@/lib/demoMode';
+import { toYmdLocal } from '@/lib/dateTh';
 import type {
   Candidate,
   CandidateStaffingTrack,
   CandidateStatus,
   DrivingResult,
   Employee,
+  EmployeeChangeType,
   EmployeeStatus,
+  EmployeeStatusHistory,
   Gender,
   JobAssignment,
   JobCategory,
@@ -17,6 +20,7 @@ import type {
 const CANDIDATES_KEY = 'jarvis_demo_candidates';
 const JOBS_KEY = 'jarvis_demo_jobs';
 const EMPLOYEES_KEY = 'jarvis_demo_employees';
+const EMPLOYEE_STATUS_HISTORY_KEY = 'jarvis_demo_employee_status_history';
 const JOB_ASSIGNMENTS_KEY = 'jarvis_demo_job_assignments';
 const CANDIDATE_STAFFING_KEY = 'jarvis_demo_candidate_staffing';
 const STAFFING_TRACK_V2_FLAG = 'jarvis_demo_staffing_track_v2_migrated';
@@ -533,8 +537,131 @@ export function upsertJobInDemoStorage(job: JobRequest): void {
   notifyDemoJobsChanged();
 }
 
+/**
+ * Apply การเปลี่ยนแปลงสถานะ/ตำแหน่งที่ตั้งเวลาไว้ล่วงหน้าและถึงกำหนดแล้ว (pending_effective_date <= วันนี้)
+ * ไปยัง status/position/assigned_boss_name จริง พร้อมบันทึกประวัติ — lazy-apply-on-read แบบเดียวกับฝั่ง API จริง
+ * (ดู applyDueEmployeeChanges ที่ api/_handlers/employees.ts)
+ */
+function applyDueEmployeeChanges(items: Employee[]): Employee[] {
+  const today = toYmdLocal(new Date());
+  let changed = false;
+  const history = readJsonArray<EmployeeStatusHistory>(EMPLOYEE_STATUS_HISTORY_KEY);
+
+  const next = items.map((e) => {
+    if (!e.pending_effective_date || e.pending_effective_date > today) return e;
+    changed = true;
+
+    history.unshift({
+      id: crypto.randomUUID(),
+      employee_id: e.id,
+      change_type: e.pending_change_type ?? 'position_change',
+      old_status: e.status,
+      new_status: e.pending_status ?? e.status,
+      old_position: e.position,
+      new_position: e.pending_position ?? e.position,
+      old_boss_name: e.assigned_boss_name,
+      new_boss_name: e.pending_boss_name ?? e.assigned_boss_name,
+      effective_date: e.pending_effective_date,
+      note: e.pending_note,
+      created_at: new Date().toISOString(),
+    });
+
+    return {
+      ...e,
+      status: e.pending_status ?? e.status,
+      position: e.pending_position ?? e.position,
+      assigned_boss_name: e.pending_boss_name ?? e.assigned_boss_name,
+      pending_status: undefined,
+      pending_position: undefined,
+      pending_boss_name: undefined,
+      pending_effective_date: undefined,
+      pending_change_type: undefined,
+      pending_note: undefined,
+    };
+  });
+
+  if (changed) {
+    writeJsonArray(EMPLOYEES_KEY, sortNewestFirst(next));
+    writeJsonArray(EMPLOYEE_STATUS_HISTORY_KEY, history);
+  }
+  return next;
+}
+
 export function getEmployees(): Employee[] {
-  return sortNewestFirst(readJsonArray<Employee>(EMPLOYEES_KEY));
+  const items = sortNewestFirst(readJsonArray<Employee>(EMPLOYEES_KEY));
+  return applyDueEmployeeChanges(items);
+}
+
+/** ประวัติการเปลี่ยนแปลงสถานะ/ตำแหน่งของผู้ขับคนหนึ่ง เรียงใหม่สุดก่อน */
+export function getEmployeeStatusHistory(employeeId: string): EmployeeStatusHistory[] {
+  getEmployees(); // ให้แน่ใจว่า apply การเปลี่ยนแปลงที่ถึงกำหนดแล้วก่อนอ่านประวัติ
+  return readJsonArray<EmployeeStatusHistory>(EMPLOYEE_STATUS_HISTORY_KEY)
+    .filter((h) => h.employee_id === employeeId)
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+}
+
+export type ScheduleEmployeeChangeInput = {
+  employee_id: string;
+  change_type: EmployeeChangeType;
+  effective_date: string;
+  new_position?: string;
+  new_boss_name?: string;
+  note?: string;
+};
+
+/** ตั้งเวลาการเปลี่ยนแปลงสถานะ/ตำแหน่ง (ลาออก/เปลี่ยนตัว/เปลี่ยนตำแหน่ง-เปลี่ยนนาย) — ยังไม่ apply จนถึงวันที่มีผล */
+export function scheduleEmployeeChangeInDemo(input: ScheduleEmployeeChangeInput): Employee {
+  const items = getEmployees();
+  const idx = items.findIndex((e) => e.id === input.employee_id);
+  if (idx < 0) throw new Error('ไม่พบผู้ขับ');
+
+  const newPosition = input.new_position?.trim() || undefined;
+  const newBossName = input.new_boss_name?.trim() || undefined;
+
+  const pendingStatus: EmployeeStatus | undefined =
+    input.change_type === 'resignation' ? 'inactive' : undefined;
+  const pendingPosition =
+    input.change_type === 'temp_replacement'
+      ? newPosition || 'Temp Driver'
+      : input.change_type === 'position_change'
+        ? newPosition
+        : undefined;
+  const pendingBossName = input.change_type === 'position_change' ? newBossName : undefined;
+
+  const updated: Employee = {
+    ...items[idx],
+    pending_status: pendingStatus,
+    pending_position: pendingPosition,
+    pending_boss_name: pendingBossName,
+    pending_effective_date: input.effective_date,
+    pending_change_type: input.change_type,
+    pending_note: input.note?.trim() || undefined,
+  };
+  const next = [...items];
+  next[idx] = updated;
+  writeJsonArray(EMPLOYEES_KEY, sortNewestFirst(next));
+  return updated;
+}
+
+/** ยกเลิกการเปลี่ยนแปลงที่ตั้งเวลาไว้แต่ยังไม่ถึงกำหนด (ไม่บันทึกประวัติ เพราะยังไม่เคย apply จริง) */
+export function cancelPendingEmployeeChangeInDemo(employeeId: string): Employee {
+  const items = getEmployees();
+  const idx = items.findIndex((e) => e.id === employeeId);
+  if (idx < 0) throw new Error('ไม่พบผู้ขับ');
+
+  const updated: Employee = {
+    ...items[idx],
+    pending_status: undefined,
+    pending_position: undefined,
+    pending_boss_name: undefined,
+    pending_effective_date: undefined,
+    pending_change_type: undefined,
+    pending_note: undefined,
+  };
+  const next = [...items];
+  next[idx] = updated;
+  writeJsonArray(EMPLOYEES_KEY, sortNewestFirst(next));
+  return updated;
 }
 
 export function getJobAssignments(): JobAssignment[] {
