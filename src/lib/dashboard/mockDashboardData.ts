@@ -14,7 +14,7 @@ export const MOCK_DASHBOARD_DATA: DashboardData = {
     },
     {
       id: 'in_progress',
-      label: 'กำลังดำเนินงาน',
+      label: 'กำลังดำเนินการ',
       value: '21',
       hint: 'เริ่มทำงานแล้ว',
       trend: { value: 2.1, label: 'เทียบช่วงก่อน', direction: 'down' },

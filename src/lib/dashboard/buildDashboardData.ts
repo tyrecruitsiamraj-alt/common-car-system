@@ -205,7 +205,7 @@ function buildKpis(
     },
     {
       id: 'in_progress',
-      label: 'กำลังดำเนินงาน',
+      label: 'กำลังดำเนินการ',
       value: String(inProgress),
       hint: 'เริ่มทำงานแล้ว',
       trend: mkTrend(inProgress, prevInProgress, true),
