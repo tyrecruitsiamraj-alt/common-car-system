@@ -30,12 +30,14 @@ import { readJsonSafe } from '@/lib/api';
 import { isDemoMode } from '@/lib/demoMode';
 import { apiFetch } from '@/lib/apiFetch';
 import {
+  COMMON_DRIVER_POSITION,
   DRIVER_DIRECTORY_POSITIONS_PARAM,
-  DRIVER_LIST_POSITIONS_PARAM,
   PERSONAL_DRIVER_POSITIONS_PARAM,
+  TEMP_DRIVER_POSITION,
+  isCommonDriverPosition,
   isDriverDirectoryPosition,
-  isDriverListPosition,
   isPersonalDriverPosition,
+  isTempDriverPosition,
 } from '@/lib/driverListPositions';
 
 const TMA_DASH = '—';
@@ -121,19 +123,25 @@ const statusFilters: { value: EmployeeStatus; label: string }[] = [
   { value: 'suspended', label: 'ระงับ' },
 ];
 
-type DriverTab = 'central' | 'personal' | 'inactive';
+type DriverTab = 'position' | 'common' | 'temp' | 'inactive';
 
+/**
+ * แท็บแยกตามตำแหน่ง/สถานะ — เดิมแยกเป็นแค่ "กองกลาง"/"ขับนาย"/"พ้นสภาพ" (3 แท็บ)
+ * ตอนนี้แยก "กองกลาง" ออกเป็น "Common" กับ "เปลี่ยนตัว" (Temp) คนละแท็บ
+ * เงื่อนไข: Position/Common/เปลี่ยนตัว อิงตามตำแหน่ง, ลาออก/พ้นสภาพ อิงตามสถานะ (inactive) ข้ามตำแหน่ง
+ */
 const DRIVER_TABS: { value: DriverTab; label: string; positionsParam: string; isPosition: (p: string) => boolean }[] = [
-  { value: 'central', label: 'กองกลาง', positionsParam: DRIVER_LIST_POSITIONS_PARAM, isPosition: isDriverListPosition },
   {
-    value: 'personal',
-    label: 'ขับนาย',
+    value: 'position',
+    label: 'Position',
     positionsParam: PERSONAL_DRIVER_POSITIONS_PARAM,
     isPosition: isPersonalDriverPosition,
   },
+  { value: 'common', label: 'Common', positionsParam: COMMON_DRIVER_POSITION, isPosition: isCommonDriverPosition },
+  { value: 'temp', label: 'เปลี่ยนตัว', positionsParam: TEMP_DRIVER_POSITION, isPosition: isTempDriverPosition },
   {
     value: 'inactive',
-    label: 'พ้นสภาพ',
+    label: 'ลาออก,พ้นสภาพ',
     positionsParam: DRIVER_DIRECTORY_POSITIONS_PARAM,
     isPosition: isDriverDirectoryPosition,
   },
@@ -183,7 +191,7 @@ const WLEmployees: React.FC = () => {
   const isMobile = useIsMobile();
   const { hasPermission } = useAuth();
   const canEdit = hasPermission('staff');
-  const [tab, setTab] = useState<DriverTab>('central');
+  const [tab, setTab] = useState<DriverTab>('common');
   const [filter, setFilter] = useState<EmployeeStatus>('active');
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
@@ -437,7 +445,7 @@ const WLEmployees: React.FC = () => {
       <PageHeader
         showBrandKicker
         title="Drivers"
-        subtitle={`${activeTab.label} — ${total} คน${tab === 'central' ? ' — เพิ่มชื่อได้จากฟอร์มด้านล่าง' : ''}`}
+        subtitle={`${activeTab.label} — ${total} คน — เพิ่มชื่อได้จากฟอร์มด้านบน`}
         backPath="/fleet"
         className="mb-6"
         actions={
@@ -449,6 +457,8 @@ const WLEmployees: React.FC = () => {
       />
 
       <div className="space-y-4">
+        <QuickAddDriverForm id="driver-quick-add" onCreated={() => void reloadEmployees()} />
+
         <div className="flex gap-1.5 overflow-x-auto">
           {DRIVER_TABS.map((t) => (
             <button
@@ -465,10 +475,6 @@ const WLEmployees: React.FC = () => {
             </button>
           ))}
         </div>
-
-        {tab === 'central' ? (
-          <QuickAddDriverForm id="driver-quick-add" onCreated={() => void reloadEmployees()} />
-        ) : null}
 
         {loading && <div className="text-sm text-muted-foreground">กำลังโหลดพนักงาน...</div>}
         {error && <div className="text-sm text-destructive">เกิดข้อผิดพลาด: {error}</div>}
@@ -506,9 +512,7 @@ const WLEmployees: React.FC = () => {
         </div>
 
         {!loading && employees.length === 0 ? (
-          <p className="text-sm text-muted-foreground py-6 text-center">
-            {tab === 'central' ? 'ยังไม่มีรายชื่อ — กรอกฟอร์มด้านบนแล้วกดบันทึกรายชื่อ' : 'ไม่มีรายชื่อในแท็บนี้'}
-          </p>
+          <p className="text-sm text-muted-foreground py-6 text-center">ไม่มีรายชื่อในแท็บนี้</p>
         ) : null}
 
         {isMobile ? (

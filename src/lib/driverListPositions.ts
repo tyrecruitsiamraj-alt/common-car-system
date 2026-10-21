@@ -30,6 +30,22 @@ export function isPersonalDriverPosition(position: string | null | undefined): b
   return (PERSONAL_DRIVER_POSITIONS as readonly string[]).includes(position);
 }
 
+/**
+ * ตำแหน่งเดี่ยวสำหรับแยกแท็บ "Common" / "เปลี่ยนตัว" ในหน้า Drivers (`/fleet/drivers`)
+ * เดิมสองตำแหน่งนี้ถูกจัดกลุ่มรวมกันเป็นแท็บเดียว ("กองกลาง") — ตอนนี้แยกเป็นคนละแท็บ
+ * ไม่กระทบ DRIVER_LIST_POSITIONS ด้านบนซึ่งยังใช้ที่ปฏิทิน Monitor/BOOKABLE_DRIVER_POSITIONS เหมือนเดิม
+ */
+export const COMMON_DRIVER_POSITION = 'Common Driver';
+export const TEMP_DRIVER_POSITION = 'Temp Driver';
+
+export function isCommonDriverPosition(position: string | null | undefined): boolean {
+  return position === COMMON_DRIVER_POSITION;
+}
+
+export function isTempDriverPosition(position: string | null | undefined): boolean {
+  return position === TEMP_DRIVER_POSITION;
+}
+
 /** รวมทุกตำแหน่งคนขับที่จัดการในหน้า Drivers (กองกลาง + ขับนาย) — ใช้สำหรับแท็บ "พ้นสภาพ" ที่ตัดข้ามตำแหน่ง */
 export const DRIVER_DIRECTORY_POSITIONS = [...DRIVER_LIST_POSITIONS, ...PERSONAL_DRIVER_POSITIONS] as const;
 
