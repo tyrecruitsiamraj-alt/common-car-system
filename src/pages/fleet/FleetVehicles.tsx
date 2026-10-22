@@ -156,7 +156,7 @@ const FleetVehicles: React.FC = () => {
   };
 
   return (
-    <AppPage maxWidth="2xl" panel>
+    <AppPage maxWidth="4xl" panel>
       <PageHeader
         showBrandKicker
         title="Vehicles"
@@ -167,7 +167,7 @@ const FleetVehicles: React.FC = () => {
       <div className="space-y-6">
         <form onSubmit={submit} className="glass-card rounded-xl p-4 border border-border space-y-3">
           <p className="text-sm font-medium text-foreground">เพิ่มรถ</p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-3 sm:items-end">
             <div className="space-y-1.5">
               <Label htmlFor="plate">ทะเบียนรถ</Label>
               <Input id="plate" value={plate} onChange={(e) => setPlate(e.target.value)} placeholder="กข 1234" />
@@ -189,14 +189,14 @@ const FleetVehicles: React.FC = () => {
                 ))}
               </select>
             </div>
+            <button
+              type="submit"
+              disabled={saving}
+              className="h-10 px-6 rounded-lg bg-primary text-primary-foreground text-sm font-medium disabled:opacity-60 whitespace-nowrap"
+            >
+              {saving ? 'กำลังบันทึก…' : 'บันทึก'}
+            </button>
           </div>
-          <button
-            type="submit"
-            disabled={saving}
-            className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium disabled:opacity-60"
-          >
-            {saving ? 'กำลังบันทึก…' : 'บันทึก'}
-          </button>
         </form>
 
         <div className="glass-card rounded-xl border border-border overflow-hidden">

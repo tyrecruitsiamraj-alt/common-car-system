@@ -6,7 +6,7 @@ type AppPageProps = {
   /** ใช้การ์ดกลมมนแบบ Fleet (page-panel) */
   panel?: boolean;
   className?: string;
-  maxWidth?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl' | '7xl' | 'full';
+  maxWidth?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl' | '4xl' | '7xl' | 'full';
 };
 
 const maxWidthClass: Record<NonNullable<AppPageProps['maxWidth']>, string> = {
@@ -16,6 +16,7 @@ const maxWidthClass: Record<NonNullable<AppPageProps['maxWidth']>, string> = {
   xl: 'max-w-xl',
   '2xl': 'max-w-2xl',
   '3xl': 'max-w-3xl',
+  '4xl': 'max-w-4xl',
   '7xl': 'max-w-7xl',
   full: 'max-w-full',
 };
