@@ -5,6 +5,14 @@ import { readJsonBody, getString } from '../_lib/body.js';
 
 const usersTable = tableInAppSchema('users');
 
+/** โดเมนใช้ไม่ได้จริง (RFC 2606) — ใช้แทนอีเมลเดิมเมื่อปิดใช้งานผู้ใช้ เพื่อให้ยังผ่าน NOT NULL/unique ได้ */
+const DELETED_EMAIL_DOMAIN = 'deleted.invalid';
+const DELETED_FULL_NAME = 'ผู้ใช้งานถูกลบ';
+
+function isScrubbedEmail(email: string): boolean {
+  return email.toLowerCase().endsWith(`@${DELETED_EMAIL_DOMAIN}`);
+}
+
 type UserRow = {
   id: string;
   email: string;
@@ -55,14 +63,19 @@ async function handler(req: AuthedReq, res: ApiRes) {
         return sendError(res, 400, 'Bad request', 'Nothing to update');
       }
 
-      if (role && role !== 'admin') {
-        const { rows: curRows } = await dbQuery<{ role: string; is_active: boolean }>(
-          `select role, is_active from ${usersTable} where id = $1 limit 1`,
+      let cur: { role: string; is_active: boolean; email: string } | undefined;
+      if ((role && role !== 'admin') || is_active !== undefined) {
+        const { rows: curRows } = await dbQuery<{ role: string; is_active: boolean; email: string }>(
+          `select role, is_active, email from ${usersTable} where id = $1 limit 1`,
           [id],
         );
-        const cur = curRows[0];
+        cur = curRows[0];
         if (!cur) return sendError(res, 404, 'Not found', 'User not found');
-        if (cur.role === 'admin' && cur.is_active) {
+      }
+
+      if (cur && cur.role === 'admin' && cur.is_active) {
+        const wouldRemoveAdmin = (role !== undefined && role !== 'admin') || is_active === false;
+        if (wouldRemoveAdmin) {
           const { rows: adminRows } = await dbQuery<{ count: string }>(
             `select count(*)::text as count from ${usersTable} where role = 'admin' and is_active = true`,
           );
@@ -73,16 +86,33 @@ async function handler(req: AuthedReq, res: ApiRes) {
         }
       }
 
+      let scrubFullName: string | null = null;
+      let scrubEmail: string | null = null;
+      if (is_active === false) {
+        // ปิดใช้งาน = ลบชื่อและอีเมลทิ้งถาวร ป้องกันข้อมูลรั่วไหล; ใช้งานอีกครั้งต้องสมัครสมาชิกใหม่เท่านั้น
+        scrubFullName = DELETED_FULL_NAME;
+        scrubEmail = `deleted-${id}@${DELETED_EMAIL_DOMAIN}`;
+      } else if (is_active === true && cur && isScrubbedEmail(cur.email)) {
+        return sendError(
+          res,
+          400,
+          'Bad request',
+          'ผู้ใช้นี้ถูกลบแล้ว ไม่สามารถเปิดใช้งานได้ กรุณาสมัครสมาชิกใหม่',
+        );
+      }
+
       const { rows: updatedRows } = await dbQuery<UserRow>(
         `
         update ${usersTable}
         set
           role = coalesce($2, role),
-          is_active = coalesce($3, is_active)
+          is_active = coalesce($3, is_active),
+          full_name = coalesce($4, full_name),
+          email = coalesce($5, email)
         where id = $1
         returning id, email, role, full_name, is_active, created_at
         `,
-        [id, role ?? null, is_active ?? null],
+        [id, role ?? null, is_active ?? null, scrubFullName, scrubEmail],
       );
       const u = updatedRows[0];
       if (!u) return sendError(res, 404, 'Not found', 'User not found');

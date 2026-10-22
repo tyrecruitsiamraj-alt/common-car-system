@@ -4,6 +4,16 @@ import { Clock, Shield, Trash2, Users } from 'lucide-react';
 import PageHeader from '@/components/shared/PageHeader';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { apiFetch } from '@/lib/apiFetch';
 import {
   fetchFleetBookingPermissions,
@@ -18,6 +28,9 @@ import type { User, UserRole } from '@/types';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
+/** ตรงกับ DELETED_EMAIL_DOMAIN ฝั่ง api/_handlers/app-users.ts — ใช้บอกว่าอีเมลนี้ถูกลบไปแล้วหลังปิดใช้งาน */
+const isScrubbedEmail = (email: string) => email.toLowerCase().endsWith('@deleted.invalid');
+
 const UserPermissionsSettingsPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [users, setUsers] = useState<User[]>([]);
@@ -26,6 +39,7 @@ const UserPermissionsSettingsPage: React.FC = () => {
   const [savingUserId, setSavingUserId] = useState<string | null>(null);
   const [savingEditor, setSavingEditor] = useState(false);
   const [savingDeleteUserId, setSavingDeleteUserId] = useState<string | null>(null);
+  const [confirmDisableUser, setConfirmDisableUser] = useState<User | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -180,6 +194,7 @@ const UserPermissionsSettingsPage: React.FC = () => {
                 const isEditor = editorUserId === u.id;
                 const canDeleteComplaints = deleteComplaintsUserIds.has(u.id);
                 const savingDelete = savingDeleteUserId === u.id;
+                const scrubbed = isScrubbedEmail(u.email);
                 return (
                   <div
                     key={u.id}
@@ -187,9 +202,13 @@ const UserPermissionsSettingsPage: React.FC = () => {
                   >
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-foreground truncate">{u.full_name}</p>
-                      <p className="text-[11px] text-muted-foreground md:hidden truncate">{u.email}</p>
+                      <p className="text-[11px] text-muted-foreground md:hidden truncate">
+                        {scrubbed ? '—' : u.email}
+                      </p>
                     </div>
-                    <p className="text-xs text-muted-foreground truncate hidden md:block">{u.email}</p>
+                    <p className="text-xs text-muted-foreground truncate hidden md:block">
+                      {scrubbed ? '—' : u.email}
+                    </p>
 
                     <div className="flex items-center gap-2">
                       <Label className="text-[10px] text-muted-foreground md:hidden shrink-0">บทบาท</Label>
@@ -216,17 +235,24 @@ const UserPermissionsSettingsPage: React.FC = () => {
                       <Label className="text-[10px] text-muted-foreground md:hidden shrink-0">สถานะ</Label>
                       <button
                         type="button"
-                        disabled={busy}
-                        onClick={() => void updateUser(u.id, { is_active: !u.is_active })}
+                        disabled={busy || (!u.is_active && scrubbed)}
+                        onClick={() => {
+                          if (u.is_active) {
+                            setConfirmDisableUser(u);
+                          } else {
+                            void updateUser(u.id, { is_active: true });
+                          }
+                        }}
+                        title={!u.is_active && scrubbed ? 'ผู้ใช้นี้ถูกลบแล้ว ต้องสมัครสมาชิกใหม่เท่านั้น' : undefined}
                         className={cn(
                           'text-xs px-2.5 py-1 rounded-full transition-colors',
                           u.is_active
                             ? 'bg-emerald-500/15 text-emerald-800 hover:bg-emerald-500/25'
                             : 'bg-muted text-muted-foreground hover:bg-muted/80',
-                          busy && 'opacity-60',
+                          (busy || (!u.is_active && scrubbed)) && 'opacity-60 cursor-not-allowed',
                         )}
                       >
-                        {u.is_active ? 'ใช้งาน' : 'ปิดใช้'}
+                        {u.is_active ? 'ใช้งาน' : scrubbed ? 'ถูกลบ' : 'ปิดใช้'}
                       </button>
                     </div>
 
@@ -294,6 +320,35 @@ const UserPermissionsSettingsPage: React.FC = () => {
           </Button>
         </div>
       </div>
+
+      <AlertDialog
+        open={confirmDisableUser !== null}
+        onOpenChange={(open) => {
+          if (!open) setConfirmDisableUser(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>ปิดใช้งานผู้ใช้นี้ถาวร?</AlertDialogTitle>
+            <AlertDialogDescription>
+              ชื่อและอีเมลของ “{confirmDisableUser?.full_name}” จะถูกลบออกจากระบบทันทีเพื่อป้องกันข้อมูลรั่วไหล
+              และไม่สามารถกู้คืนได้ หากต้องการใช้งานอีกครั้งจะต้องสมัครสมาชิกใหม่เท่านั้น
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>ยกเลิก</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                const target = confirmDisableUser;
+                setConfirmDisableUser(null);
+                if (target) void updateUser(target.id, { is_active: false });
+              }}
+            >
+              ยืนยันปิดใช้งานและลบข้อมูล
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
