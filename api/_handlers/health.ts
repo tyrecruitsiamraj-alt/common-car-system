@@ -6,36 +6,13 @@ import {
   getDatabaseUrlSource,
 } from '../_lib/env.js';
 import { getJwtSecret, isVercelProduction } from '../_lib/auth.js';
-import { dbPing, dbQuery } from '../_lib/postgres.js';
+import { dbPing } from '../_lib/postgres.js';
 import {
   bookingGuardsHealthPayload,
   checkBookingProductionReadiness,
 } from '../_lib/bookingProductionReadiness.js';
-import { tableInAppSchema } from '../_lib/schema.js';
 import { logError } from '../_lib/logger.js';
 import type { ApiReq, ApiRes } from '../_lib/http.js';
-
-/**
- * ตรวจชั่วคราวว่าตาราง/คอลัมน์ที่เพิ่งเพิ่ม (migration 041/042) มีจริงใน DB หรือยัง
- * เพื่อ debug ปัญหา "บันทึกฟอร์ม Complaints ไม่ได้" โดยไม่ต้องมี DB credential ตรง — ลบออกได้หลังแก้บั๊กเสร็จ
- */
-async function checkMigrationTablesHealth(): Promise<Record<string, { ok: boolean; error?: string }>> {
-  const checks: [string, string][] = [
-    ['issue_reports', `select 1 from ${tableInAppSchema('issue_reports')} limit 1`],
-    ['employees_pending_status_column', `select pending_status from ${tableInAppSchema('employees')} limit 1`],
-    ['employee_status_history', `select 1 from ${tableInAppSchema('employee_status_history')} limit 1`],
-  ];
-  const result: Record<string, { ok: boolean; error?: string }> = {};
-  for (const [name, sql] of checks) {
-    try {
-      await dbQuery(sql);
-      result[name] = { ok: true };
-    } catch (e) {
-      result[name] = { ok: false, error: e instanceof Error ? e.message : String(e) };
-    }
-  }
-  return result;
-}
 
 /**
  * สุขภาพ API + สิ่งที่ต้องมีสำหรับ login จริง (ไม่ส่งความลับ / ไม่ส่ง connection string)
@@ -95,11 +72,6 @@ export default async function handler(req: ApiReq, res: ApiRes): Promise<void> {
         allRequiredPresent: false,
       };
     }
-  }
-
-  let migrationTables: Record<string, { ok: boolean; error?: string }> | null = null;
-  if (databaseReachable === true) {
-    migrationTables = await checkMigrationTablesHealth();
   }
 
   const productionEnv = isVercelProduction();
@@ -181,8 +153,6 @@ export default async function handler(req: ApiReq, res: ApiRes): Promise<void> {
       bookingGuardsReady: bookingGuards?.allRequiredPresent ?? null,
     },
     bookingGuards: bookingGuards ?? undefined,
-    /** @temporary debug ปัญหา Complaints บันทึกไม่ได้ — ลบออกหลังแก้บั๊กเสร็จ */
-    migrationTables: migrationTables ?? undefined,
     hintsTh,
     /** ว่า getDatabaseUrl() จะใช้คีย์ไหนเป็นหลัก — none = API ไม่เห็น connection */
     databaseUrlSource,
