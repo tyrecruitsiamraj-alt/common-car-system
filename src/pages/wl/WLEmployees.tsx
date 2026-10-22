@@ -4,6 +4,7 @@ import PageHeader from '@/components/shared/PageHeader';
 import AppPage from '@/components/layout/AppPage';
 import QuickAddDriverForm from '@/components/wl/QuickAddDriverForm';
 import DriverEditDialog from '@/components/wl/DriverEditDialog';
+import DriverDeactivateDialog from '@/components/wl/DriverDeactivateDialog';
 import ExportExcelButton from '@/components/shared/ExportExcelButton';
 import {
   Pagination,
@@ -13,7 +14,7 @@ import {
   PaginationPrevious,
 } from '@/components/ui/pagination';
 import { exportDriversExcel } from '@/lib/fleetExcelExport';
-import { deleteEmployee } from '@/lib/createEmployeeSimple';
+import { deleteEmployee, updateEmployee } from '@/lib/createEmployeeSimple';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import type { DriverTmaProfile, Employee, EmployeeStatus } from '@/types';
@@ -123,6 +124,18 @@ const TMA_COLUMNS: {
 const PAGE_SIZE = 20;
 const SEARCH_DEBOUNCE_MS = 350;
 
+const STATUS_BADGE_LABEL: Record<EmployeeStatus, string> = {
+  active: 'ใช้งาน',
+  suspended: 'ระงับ',
+  inactive: 'ไม่ใช้งาน',
+};
+
+const STATUS_BADGE_CLASS: Record<EmployeeStatus, string> = {
+  active: 'bg-success/15 text-success',
+  suspended: 'bg-destructive/15 text-destructive',
+  inactive: 'bg-muted text-muted-foreground',
+};
+
 /** สถานะที่เลือกได้ในแท็บ "กองกลาง"/"ขับนาย" — ไม่มี "ไม่ใช้งาน" เพราะแยกไปเป็นแท็บ "พ้นสภาพ" ต่างหาก ไม่ให้ซ้ำกัน */
 const statusFilters: { value: EmployeeStatus; label: string }[] = [
   { value: 'active', label: 'ใช้งาน' },
@@ -213,6 +226,9 @@ const WLEmployees: React.FC = () => {
   const [editEmployee, setEditEmployee] = useState<Employee | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deactivateEmployee, setDeactivateEmployee] = useState<Employee | null>(null);
+  const [deactivateDialogOpen, setDeactivateDialogOpen] = useState(false);
+  const [reactivatingId, setReactivatingId] = useState<string | null>(null);
 
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [total, setTotal] = useState(0);
@@ -394,6 +410,51 @@ const WLEmployees: React.FC = () => {
     }
   };
 
+  const openDeactivateDriver = (emp: Employee) => {
+    setDeactivateEmployee(emp);
+    setDeactivateDialogOpen(true);
+  };
+
+  const handleReactivateDriver = async (emp: Employee) => {
+    if (!canEdit || !isManageableDriver(emp) || reactivatingId) return;
+    const name = formatEmployeeDisplayName(emp);
+    if (!window.confirm(`เปิดใช้งาน ${name} อีกครั้ง?`)) return;
+    setReactivatingId(emp.id);
+    try {
+      await updateEmployee(emp.id, { status: 'active' });
+      toast.success(`เปิดใช้งาน ${name} แล้ว`);
+      await reloadEmployees();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'เปิดใช้งานไม่สำเร็จ');
+    } finally {
+      setReactivatingId(null);
+    }
+  };
+
+  /** แท่งสถานะต่อแถว — กดเพื่อปิดใช้งาน (เปิด popup ใส่สาเหตุ ย้ายไปแท็บ "ลาออก,พ้นสภาพ") หรือเปิดใช้งานอีกครั้ง */
+  const renderStatusBadge = (emp: Employee) => {
+    const label = STATUS_BADGE_LABEL[emp.status];
+    const badgeClass = cn('text-xs px-2 py-0.5 rounded-full shrink-0', STATUS_BADGE_CLASS[emp.status]);
+    if (!canEdit || !isManageableDriver(emp)) {
+      return <span className={badgeClass}>{label}</span>;
+    }
+    return (
+      <button
+        type="button"
+        className={cn(badgeClass, 'cursor-pointer hover:opacity-80 transition-opacity')}
+        title={emp.status === 'inactive' ? 'กดเพื่อเปิดใช้งานอีกครั้ง' : 'กดเพื่อปิดใช้งาน (ลาออก/พ้นสภาพ)'}
+        disabled={reactivatingId === emp.id}
+        onClick={(e) => {
+          e.stopPropagation();
+          if (emp.status === 'inactive') void handleReactivateDriver(emp);
+          else openDeactivateDriver(emp);
+        }}
+      >
+        {label}
+      </button>
+    );
+  };
+
   const renderDriverActions = (emp: Employee) => {
     if (!canEdit || !isManageableDriver(emp)) return null;
     const busy = deletingId === emp.id;
@@ -552,37 +613,21 @@ const WLEmployees: React.FC = () => {
                 key={emp.id}
                 className="glass-card rounded-xl p-4 border border-border hover:border-primary/40 transition-all"
               >
-                <button
-                  type="button"
+                <div
                   onClick={() => navigate(`/fleet/drivers/${emp.id}`)}
-                  className="w-full text-left"
+                  className="w-full text-left cursor-pointer"
                 >
                   <div className="flex items-center justify-between mb-2 gap-2">
                     <span className="font-semibold text-foreground text-sm">
                       {formatEmployeeDisplayName(emp)}
                     </span>
-                    <span
-                      className={cn(
-                        'text-xs px-2 py-0.5 rounded-full shrink-0',
-                        emp.status === 'active'
-                          ? 'bg-success/15 text-success'
-                          : emp.status === 'suspended'
-                            ? 'bg-destructive/15 text-destructive'
-                            : 'bg-muted text-muted-foreground',
-                      )}
-                    >
-                      {emp.status === 'active'
-                        ? 'ใช้งาน'
-                        : emp.status === 'suspended'
-                          ? 'ระงับ'
-                          : 'ไม่ใช้งาน'}
-                    </span>
+                    {renderStatusBadge(emp)}
                   </div>
 
                   <div className="text-xs text-muted-foreground">
                     {emp.employee_code} • {emp.phone}
                   </div>
-                </button>
+                </div>
                 {actions ? (
                   <div className="mt-2 pt-2 border-t border-border/50 flex justify-end">{actions}</div>
                 ) : null}
@@ -643,24 +688,7 @@ const WLEmployees: React.FC = () => {
                         </td>
                         <td className="px-4 py-3 text-muted-foreground tabular-nums whitespace-nowrap">{emp.phone}</td>
                         <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">{emp.position}</td>
-                        <td className="px-4 py-3 text-center whitespace-nowrap">
-                          <span
-                            className={cn(
-                              'text-xs px-2 py-0.5 rounded-full',
-                              emp.status === 'active'
-                                ? 'bg-success/15 text-success'
-                                : emp.status === 'suspended'
-                                  ? 'bg-destructive/15 text-destructive'
-                                  : 'bg-muted text-muted-foreground',
-                            )}
-                          >
-                            {emp.status === 'active'
-                              ? 'ใช้งาน'
-                              : emp.status === 'suspended'
-                                ? 'ระงับ'
-                                : 'ไม่ใช้งาน'}
-                          </span>
-                        </td>
+                        <td className="px-4 py-3 text-center whitespace-nowrap">{renderStatusBadge(emp)}</td>
                         {canViewTma && TMA_COLUMNS.map((col) => (
                           <td key={col.key} className="px-4 py-3 text-muted-foreground whitespace-nowrap">
                             {col.render(profile)}
@@ -692,6 +720,16 @@ const WLEmployees: React.FC = () => {
           if (!open) setEditEmployee(null);
         }}
         onUpdated={() => void reloadEmployees()}
+      />
+
+      <DriverDeactivateDialog
+        employee={deactivateEmployee}
+        open={deactivateDialogOpen}
+        onOpenChange={(open) => {
+          setDeactivateDialogOpen(open);
+          if (!open) setDeactivateEmployee(null);
+        }}
+        onDeactivated={() => void reloadEmployees()}
       />
     </AppPage>
   );

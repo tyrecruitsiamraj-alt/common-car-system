@@ -715,6 +715,7 @@ export function updateEmployeeInDemo(
   patch: Pick<Employee, 'employee_code' | 'first_name' | 'last_name' | 'phone'> & {
     nickname?: string;
     title_prefix?: string;
+    status?: EmployeeStatus;
   },
 ): Employee {
   const items = getEmployees();
@@ -733,6 +734,7 @@ export function updateEmployeeInDemo(
         ? { title_prefix: patch.title_prefix }
         : { title_prefix: undefined }
       : {}),
+    ...(patch.status !== undefined ? { status: patch.status } : {}),
   };
   const next = [...items];
   next[idx] = updated;

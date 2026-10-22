@@ -1,4 +1,4 @@
-import type { Employee } from '@/types';
+import type { Employee, EmployeeStatus } from '@/types';
 import { apiFetch } from '@/lib/apiFetch';
 import { toYmdLocal } from '@/lib/dateTh';
 import { createEmployee, deleteEmployeeInDemo, getEmployees, updateEmployeeInDemo } from '@/lib/demoStorage';
@@ -77,6 +77,8 @@ export type UpdateEmployeeInput = {
   last_name?: string;
   nickname?: string;
   phone?: string;
+  /** เปิด/ปิดใช้งานทันที (ไม่ผ่านประวัติ/สาเหตุ — ใช้สำหรับ "เปิดใช้งานอีกครั้ง" เท่านั้น ปิดใช้งานให้ใช้ scheduleEmployeeChange แทนเพื่อบันทึกสาเหตุ) */
+  status?: EmployeeStatus;
 };
 
 /** แก้ไขข้อมูลผู้ขับ — ส่งเฉพาะฟิลด์ที่เปลี่ยน */
@@ -94,6 +96,7 @@ export async function updateEmployee(id: string, input: UpdateEmployeeInput): Pr
       nickname: input.nickname !== undefined ? input.nickname.trim() || undefined : cur.nickname,
       phone: input.phone?.trim() ?? cur.phone,
       ...(title_prefix !== undefined ? { title_prefix } : {}),
+      ...(input.status !== undefined ? { status: input.status } : {}),
     });
     return updated;
   }
