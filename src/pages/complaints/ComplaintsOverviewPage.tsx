@@ -2,11 +2,13 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Wrench, UserX, CalendarOff, Gauge, FileSpreadsheet, History, type LucideIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
 import { apiFetch } from '@/lib/apiFetch';
 import { isDemoMode } from '@/lib/demoMode';
+import { getBadgeColor } from '@/lib/badgeColors';
 import {
   COMPLAINTS_OVERVIEW_MOCK,
   PERIOD_LABELS,
@@ -53,16 +55,20 @@ function getIssueFieldValue(row: IssueReportRow, field: IssueField): string {
   return value && value.trim() ? value : '-';
 }
 
-function BreakdownRow({ item, max, accent }: { item: BreakdownItem; max: number; accent: string }) {
+function BreakdownRow({ item, max }: { item: BreakdownItem; max: number }) {
   const pct = max > 0 ? Math.round((item.count / max) * 100) : 0;
+  const { solid } = getBadgeColor(item.label);
   return (
     <div className="space-y-1">
       <div className="flex items-center justify-between gap-2 text-xs">
-        <span className="text-slate-600 truncate">{item.label}</span>
+        <span className="flex items-center gap-1.5 min-w-0 text-slate-600">
+          <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: solid }} aria-hidden="true" />
+          <span className="truncate">{item.label}</span>
+        </span>
         <span className="font-semibold text-slate-900 tabular-nums shrink-0">{item.count}</span>
       </div>
       <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden">
-        <div className="h-full rounded-full" style={{ width: `${Math.max(pct, 4)}%`, backgroundColor: accent }} />
+        <div className="h-full rounded-full" style={{ width: `${Math.max(pct, 4)}%`, backgroundColor: solid }} />
       </div>
     </div>
   );
@@ -151,7 +157,7 @@ function PanelCard({
         </div>
         <div className="space-y-2.5">
           {group.items.map((b) => (
-            <BreakdownRow key={b.label} item={b} max={max} accent={accent.base} />
+            <BreakdownRow key={b.label} item={b} max={max} />
           ))}
         </div>
       </div>
@@ -178,7 +184,6 @@ function CaseDetailDialog({
   people,
   caseRows,
   fields,
-  accent,
   usingMockData,
 }: {
   open: boolean;
@@ -188,12 +193,16 @@ function CaseDetailDialog({
   people: PersonCaseSummary[];
   caseRows: IssueReportRow[];
   fields: IssueField[];
-  accent: Accent;
   usingMockData: boolean;
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl rounded-[1.5rem]">
+      <DialogContent
+        className={cn(
+          'max-h-[85vh] overflow-y-auto rounded-[1.5rem]',
+          usingMockData ? 'sm:max-w-2xl' : 'sm:max-w-5xl',
+        )}
+      >
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>
@@ -224,43 +233,66 @@ function CaseDetailDialog({
               ))}
             </TableBody>
           </Table>
+        ) : caseRows.length === 0 ? (
+          <p className="text-sm text-muted-foreground">ไม่มีเคสในช่วงที่เลือก</p>
         ) : (
-          <div className="space-y-3">
-            {caseRows.length === 0 ? (
-              <p className="text-sm text-muted-foreground">ไม่มีเคสในช่วงที่เลือก</p>
-            ) : (
-              caseRows.map((row) => (
-                <div
-                  key={row.id}
-                  className="rounded-xl border border-slate-200 p-4"
-                  style={{ borderLeftColor: accent.base, borderLeftWidth: 4, backgroundColor: accent.tint }}
-                >
-                  <div className="flex items-center justify-between gap-2 mb-3">
-                    <p className="text-sm font-semibold text-slate-900">
-                      {row.employee_name || '-'}
-                      {row.report_date ? ` · ${row.report_date}` : ''}
-                    </p>
-                    {row.employee_name ? (
-                      <Button type="button" variant="ghost" size="sm" asChild>
-                        <Link
-                          to={`/complaints/history?employee=${encodeURIComponent(row.employee_name)}&category=${categorySlug}`}
+          <div className="rounded-xl border border-slate-200">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  {fields.map((f) => (
+                    <TableHead key={f.key} className="whitespace-nowrap">
+                      {f.label}
+                    </TableHead>
+                  ))}
+                  <TableHead className="whitespace-nowrap text-right">ประวัติ</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {caseRows.map((row) => (
+                  <TableRow key={row.id}>
+                    {fields.map((f) => {
+                      const value = getIssueFieldValue(row, f);
+                      if (f.type === 'select' && value !== '-') {
+                        const color = getBadgeColor(value);
+                        return (
+                          <TableCell key={f.key} className="whitespace-nowrap">
+                            <Badge
+                              className="border-transparent font-medium"
+                              style={{ backgroundColor: color.bg, color: color.text }}
+                            >
+                              {value}
+                            </Badge>
+                          </TableCell>
+                        );
+                      }
+                      return (
+                        <TableCell
+                          key={f.key}
+                          className={cn(
+                            'whitespace-nowrap text-sm',
+                            f.key === 'employee_name' ? 'font-medium text-slate-900' : 'text-slate-700',
+                          )}
                         >
-                          ดูประวัติ
-                        </Link>
-                      </Button>
-                    ) : null}
-                  </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-2">
-                    {fields.map((f) => (
-                      <div key={f.key}>
-                        <p className="text-[11px] uppercase tracking-wide text-slate-400">{f.label}</p>
-                        <p className="text-sm font-medium text-slate-800">{getIssueFieldValue(row, f)}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ))
-            )}
+                          {value}
+                        </TableCell>
+                      );
+                    })}
+                    <TableCell className="text-right">
+                      {row.employee_name ? (
+                        <Button type="button" variant="ghost" size="sm" asChild>
+                          <Link
+                            to={`/complaints/history?employee=${encodeURIComponent(row.employee_name)}&category=${categorySlug}`}
+                          >
+                            ดูประวัติ
+                          </Link>
+                        </Button>
+                      ) : null}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           </div>
         )}
       </DialogContent>
@@ -321,16 +353,14 @@ const ComplaintsOverviewPage: React.FC = () => {
         title: 'รถเข้าศูนย์',
         slug: 'vehicle-service',
         people: data.vehicleService.people,
-        accent: CATEGORY_ACCENT['vehicle-service'],
       },
       supervisorAbsent: {
         title: 'นายบิน',
         slug: 'supervisor-absent',
         people: data.supervisorAbsent.people,
-        accent: CATEGORY_ACCENT['supervisor-absent'],
       },
-      leave: { title: 'การลา', slug: 'leave', people: data.leave.people, accent: CATEGORY_ACCENT.leave },
-      speed: { title: 'ความเร็ว', slug: 'speed', people: data.speed.people, accent: CATEGORY_ACCENT.speed },
+      leave: { title: 'การลา', slug: 'leave', people: data.leave.people },
+      speed: { title: 'ความเร็ว', slug: 'speed', people: data.speed.people },
     }),
     [data],
   );
@@ -448,7 +478,6 @@ const ComplaintsOverviewPage: React.FC = () => {
           people={panelMeta[activePanel].people}
           caseRows={caseRowsBySlug[panelMeta[activePanel].slug] ?? []}
           fields={ISSUE_REPORT_TYPES.find((t) => t.slug === panelMeta[activePanel].slug)?.fields ?? []}
-          accent={panelMeta[activePanel].accent}
           usingMockData={usingMockData}
         />
       ) : null}
