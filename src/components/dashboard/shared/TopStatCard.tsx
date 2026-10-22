@@ -10,6 +10,7 @@ type Props = {
   loading?: boolean;
   tone?: Tone;
   emphasize?: boolean;
+  onClick?: () => void;
 };
 
 const TONE_CLASSES: Record<Tone, { header: string; value: string }> = {
@@ -21,10 +22,29 @@ const TONE_CLASSES: Record<Tone, { header: string; value: string }> = {
   yellow: { header: 'bg-yellow-600 text-white', value: 'bg-yellow-50 text-yellow-800' },
 };
 
-const TopStatCard: React.FC<Props> = ({ index, title, value, loading, tone = 'neutral', emphasize }) => {
+const TopStatCard: React.FC<Props> = ({ index, title, value, loading, tone = 'neutral', emphasize, onClick }) => {
   const classes = TONE_CLASSES[tone];
+  const clickable = !loading && !!onClick;
   return (
-    <div className="rounded-xl border border-slate-200/80 overflow-hidden shadow-sm">
+    <div
+      className={cn(
+        'rounded-xl border border-slate-200/80 overflow-hidden shadow-sm',
+        clickable && 'cursor-pointer transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-slate-400',
+      )}
+      role={clickable ? 'button' : undefined}
+      tabIndex={clickable ? 0 : undefined}
+      onClick={clickable ? onClick : undefined}
+      onKeyDown={
+        clickable
+          ? (e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                onClick?.();
+              }
+            }
+          : undefined
+      }
+    >
       <div className={cn('px-3 py-2 text-xs font-semibold', classes.header)}>
         {index}. {title}
       </div>

@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
+  breakdownValues,
   bucketEmployeeAge,
   bucketTopCategories,
   bucketYearsOfService,
   buildMonthlyTrend,
   countDistinctValues,
+  getEmployeeAgeLabel,
+  getYearsOfServiceLabel,
   isSameMonthAsNow,
   mostCommonValue,
 } from '@/lib/caseReportStats';
@@ -99,5 +102,30 @@ describe('bucketEmployeeAge', () => {
 describe('countDistinctValues', () => {
   it('counts unique, trimmed values', () => {
     expect(countDistinctValues(['สมชาย ใจดี', 'สมหญิง รักดี', 'สมชาย ใจดี'])).toBe(2);
+  });
+});
+
+describe('getYearsOfServiceLabel / getEmployeeAgeLabel', () => {
+  it('maps a single tenure string to its band label', () => {
+    expect(getYearsOfServiceLabel('4 ปี')).toBe('4 - 6 ปี');
+    expect(getYearsOfServiceLabel('')).toBeNull();
+  });
+
+  it('maps a single age string to its band label', () => {
+    expect(getEmployeeAgeLabel('57 ปี')).toBe('50 - 59 ปี');
+    expect(getEmployeeAgeLabel(undefined)).toBeNull();
+  });
+});
+
+describe('breakdownValues', () => {
+  it('returns every distinct value sorted by count desc, with percent against total', () => {
+    expect(breakdownValues(['a', 'a', 'b', '', undefined], 4)).toEqual([
+      { label: 'a', count: 2, percent: 50 },
+      { label: 'b', count: 1, percent: 25 },
+    ]);
+  });
+
+  it('returns an empty array when every value is blank', () => {
+    expect(breakdownValues(['', undefined])).toEqual([]);
   });
 });

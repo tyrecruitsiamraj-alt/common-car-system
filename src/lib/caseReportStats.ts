@@ -92,14 +92,16 @@ const YEARS_OF_SERVICE_BANDS: { max: number; label: string }[] = [
   { max: Infinity, label: 'มากกว่า 7 ปี' },
 ];
 
+/** ช่วงอายุงานจากฟิลด์อายุงานแบบข้อความอิสระ เช่น "4 ปี" -> "1 - 3 ปี"; คืน null ถ้าอ่านไม่ได้ */
+export function getYearsOfServiceLabel(raw?: string | null): string | null {
+  const years = parseWholeYears(raw);
+  if (years == null) return null;
+  return YEARS_OF_SERVICE_BANDS.find((b) => years <= b.max)?.label ?? null;
+}
+
 /** ช่วงอายุงานที่พบมากสุด (เช่น "มากกว่า 7 ปี") จากฟิลด์อายุงานแบบข้อความอิสระ */
 export function bucketYearsOfService(values: (string | null | undefined)[]): TopValueSummary | null {
-  const labels = values.map((raw) => {
-    const years = parseWholeYears(raw);
-    if (years == null) return null;
-    return YEARS_OF_SERVICE_BANDS.find((b) => years <= b.max)?.label ?? null;
-  });
-  return mostCommonValue(labels, values.length);
+  return mostCommonValue(values.map(getYearsOfServiceLabel), values.length);
 }
 
 const EMPLOYEE_AGE_BANDS: { max: number; label: string }[] = [
@@ -110,17 +112,37 @@ const EMPLOYEE_AGE_BANDS: { max: number; label: string }[] = [
   { max: Infinity, label: '60 ปีขึ้นไป' },
 ];
 
+/** ช่วงอายุพนักงานจากฟิลด์อายุพนักงานแบบข้อความอิสระ เช่น "57 ปี" -> "50 - 59 ปี"; คืน null ถ้าอ่านไม่ได้ */
+export function getEmployeeAgeLabel(raw?: string | null): string | null {
+  const age = parseWholeYears(raw);
+  if (age == null) return null;
+  return EMPLOYEE_AGE_BANDS.find((b) => age <= b.max)?.label ?? null;
+}
+
 /** ช่วงอายุพนักงานที่พบมากสุด (เช่น "50 - 59 ปี") จากฟิลด์อายุพนักงานแบบข้อความอิสระ */
 export function bucketEmployeeAge(values: (string | null | undefined)[]): TopValueSummary | null {
-  const labels = values.map((raw) => {
-    const age = parseWholeYears(raw);
-    if (age == null) return null;
-    return EMPLOYEE_AGE_BANDS.find((b) => age <= b.max)?.label ?? null;
-  });
-  return mostCommonValue(labels, values.length);
+  return mostCommonValue(values.map(getEmployeeAgeLabel), values.length);
 }
 
 /** จำนวนค่าที่ไม่ซ้ำกันในลิสต์ (เช่น จำนวนพนักงานไม่ซ้ำที่เกิดเคส) */
 export function countDistinctValues(values: (string | null | undefined)[]): number {
   return new Set(values.map((v) => (v ?? '').trim()).filter(Boolean)).size;
+}
+
+export type BreakdownRow = { label: string; count: number; percent: number };
+
+/** แจกแจงทุกค่าที่พบ (ไม่ใช่แค่ค่าที่มากสุด) เรียงจากมากไปน้อย — ใช้เปิดดูรายละเอียดของแต่ละกล่องสถิติ */
+export function breakdownValues(
+  values: (string | null | undefined)[],
+  total = values.length,
+): BreakdownRow[] {
+  const counts = new Map<string, number>();
+  for (const raw of values) {
+    const v = (raw ?? '').trim();
+    if (!v) continue;
+    counts.set(v, (counts.get(v) ?? 0) + 1);
+  }
+  return [...counts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .map(([label, count]) => ({ label, count, percent: total > 0 ? Math.round((count / total) * 100) : 0 }));
 }

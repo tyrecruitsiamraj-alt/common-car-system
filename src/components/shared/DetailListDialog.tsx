@@ -1,4 +1,5 @@
 import React from 'react';
+import { ArrowLeft } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 
@@ -18,6 +19,8 @@ interface DetailListDialogProps {
   title: string;
   items: DetailItem[];
   emptyMessage?: string;
+  /** แสดงปุ่มย้อนกลับในหัว dialog เมื่อเปิดจากรายการอื่น เช่น ย้อนจากรายเคสกลับไป breakdown */
+  onBack?: () => void;
 }
 
 const badgeStyles: Record<string, string> = {
@@ -34,12 +37,25 @@ const DetailListDialog: React.FC<DetailListDialogProps> = ({
   title,
   items,
   emptyMessage = 'ไม่มีข้อมูล',
+  onBack,
 }) => {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-foreground">{title}</DialogTitle>
+          <DialogTitle className="text-foreground flex items-center gap-2">
+            {onBack && (
+              <button
+                type="button"
+                onClick={onBack}
+                aria-label="ย้อนกลับ"
+                className="rounded-md p-1 -ml-1 text-muted-foreground hover:bg-secondary/60 hover:text-foreground transition-colors"
+              >
+                <ArrowLeft className="h-4 w-4" />
+              </button>
+            )}
+            <span>{title}</span>
+          </DialogTitle>
           <DialogDescription className="sr-only">
             แสดงรายการรายละเอียดที่เลือก พร้อมข้อมูลสรุปและสถานะของแต่ละรายการ
           </DialogDescription>
