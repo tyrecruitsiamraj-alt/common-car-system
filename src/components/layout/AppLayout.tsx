@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { KeyRound, LogOut, UserCircle, ChevronDown, LayoutDashboard, UserCog } from 'lucide-react';
+import { KeyRound, LogOut, UserCircle, ChevronDown, UserCog } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useBranding } from '@/contexts/BrandingContext';
 import { getAppShellBackgroundStyle } from '@/lib/brandingStorage';
@@ -25,13 +25,13 @@ const AppLayout: React.FC = () => {
   const navigate = useNavigate();
   const shellBg = getAppShellBackgroundStyle(config);
 
-  const [complaintsOpen, setComplaintsOpen] = useState(() =>
+  const [formsOpen, setFormsOpen] = useState(() =>
     ISSUE_REPORT_TYPES.some((t) => t.path === location.pathname) || location.pathname === '/complaints/overview',
   );
 
   useEffect(() => {
     if (ISSUE_REPORT_TYPES.some((t) => t.path === location.pathname) || location.pathname === '/complaints/overview') {
-      setComplaintsOpen(true);
+      setFormsOpen(true);
     }
   }, [location.pathname]);
 
@@ -93,8 +93,8 @@ const AppLayout: React.FC = () => {
               const Icon = item.icon;
               const active = isDockPathActive(item.path, location.pathname);
 
-              if (item.path === '/complaints') {
-                const highlighted = active || complaintsOpen;
+              if (item.path === '/complaints/overview') {
+                const highlighted = active || formsOpen;
                 return (
                   <div key={item.path}>
                     <div
@@ -119,34 +119,21 @@ const AppLayout: React.FC = () => {
                       />
                       <button
                         type="button"
-                        onClick={() => setComplaintsOpen((v) => !v)}
+                        onClick={() => setFormsOpen((v) => !v)}
                         className={cn(
                           'pr-3 pl-2 py-2.5 shrink-0 rounded-r-xl',
                           highlighted ? 'hover:bg-primary/15' : 'hover:bg-muted',
                         )}
-                        aria-label={complaintsOpen ? 'ย่อเมนูย่อย Complaints' : 'ขยายเมนูย่อย Complaints'}
-                        aria-expanded={complaintsOpen}
+                        aria-label={formsOpen ? 'ย่อเมนูย่อยแบบฟอร์ม' : 'ขยายเมนูย่อยแบบฟอร์ม'}
+                        aria-expanded={formsOpen}
                       >
                         <ChevronDown
-                          className={cn('w-4 h-4 transition-transform', complaintsOpen && 'rotate-180')}
+                          className={cn('w-4 h-4 transition-transform', formsOpen && 'rotate-180')}
                         />
                       </button>
                     </div>
-                    {complaintsOpen ? (
+                    {formsOpen ? (
                       <div className="mt-0.5 ml-4 pl-3 border-l border-border flex flex-col gap-0.5">
-                        <button
-                          type="button"
-                          onClick={() => navigate('/complaints/overview')}
-                          className={cn(
-                            'flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs text-left transition-all touch-manipulation',
-                            location.pathname === '/complaints/overview'
-                              ? 'bg-primary/10 text-primary font-medium'
-                              : 'text-muted-foreground hover:text-foreground hover:bg-muted',
-                          )}
-                        >
-                          <LayoutDashboard className="w-3.5 h-3.5 shrink-0" />
-                          <span className="truncate">ภาพรวม</span>
-                        </button>
                         {ISSUE_REPORT_TYPES.map((sub) => {
                           const SubIcon = sub.icon;
                           const subActive = location.pathname === sub.path;

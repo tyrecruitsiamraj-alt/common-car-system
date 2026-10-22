@@ -24,10 +24,10 @@ const IssueReportPage: React.FC = () => {
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <Link
-              to="/complaints"
+              to="/complaints/overview"
               className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
             >
-              <ArrowLeft className="h-3.5 w-3.5" /> Complaints
+              <ArrowLeft className="h-3.5 w-3.5" /> แบบฟอร์ม
             </Link>
             <div className="mt-2 flex items-center gap-2 text-foreground">
               <Icon className="h-5 w-5 text-primary" />

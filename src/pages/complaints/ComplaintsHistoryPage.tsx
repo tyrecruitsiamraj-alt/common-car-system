@@ -88,7 +88,7 @@ const ComplaintsHistoryPage: React.FC = () => {
             to="/complaints/overview"
             className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
           >
-            <ArrowLeft className="h-3.5 w-3.5" /> ภาพรวม Complaints
+            <ArrowLeft className="h-3.5 w-3.5" /> ภาพรวมแบบฟอร์ม
           </Link>
           <h1 className="mt-2 text-2xl font-bold tracking-tight text-slate-950">ประวัติพนักงาน / ผู้แจ้ง</h1>
           <p className="mt-1 text-sm text-muted-foreground">

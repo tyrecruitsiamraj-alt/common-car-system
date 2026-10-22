@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Wrench, UserX, CalendarOff, Gauge, FileSpreadsheet, History, type LucideIcon } from 'lucide-react';
+import { Wrench, UserX, CalendarOff, Gauge, FileSpreadsheet, History, type LucideIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -340,13 +340,7 @@ const ComplaintsOverviewPage: React.FC = () => {
       <div className="mx-auto max-w-6xl space-y-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <Link
-              to="/complaints"
-              className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-            >
-              <ArrowLeft className="h-3.5 w-3.5" /> Complaints
-            </Link>
-            <h1 className="mt-2 text-2xl font-bold tracking-tight text-slate-950">ภาพรวม Complaints</h1>
+            <h1 className="text-2xl font-bold tracking-tight text-slate-950">ภาพรวมแบบฟอร์ม</h1>
             <p className="mt-1 text-sm text-muted-foreground">
               สรุปข้อมูล 4 หมวด — รถเข้าศูนย์, นายบิน, การลา, ความเร็ว
               {loading ? ' · กำลังโหลด…' : usingMockData ? ' (ข้อมูลตัวอย่าง)' : ''}

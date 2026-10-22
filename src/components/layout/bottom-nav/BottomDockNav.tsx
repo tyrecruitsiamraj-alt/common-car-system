@@ -15,18 +15,18 @@ type Props = {
 const BottomDockNav: React.FC<Props> = ({ pathname, className }) => {
   const navigate = useNavigate();
   const activeIndex = dockActiveIndex(pathname);
-  const [complaintsSheetOpen, setComplaintsSheetOpen] = useState(false);
+  const [formsSheetOpen, setFormsSheetOpen] = useState(false);
 
   const handleItemClick = (path: string) => {
-    if (path === '/complaints' && isDockPathActive(path, pathname)) {
-      setComplaintsSheetOpen(true);
+    if (path === '/complaints/overview' && isDockPathActive(path, pathname)) {
+      setFormsSheetOpen(true);
       return;
     }
     navigate(path);
   };
 
   const goTo = (path: string) => {
-    setComplaintsSheetOpen(false);
+    setFormsSheetOpen(false);
     navigate(path);
   };
 
@@ -58,10 +58,10 @@ const BottomDockNav: React.FC<Props> = ({ pathname, className }) => {
         </div>
       </nav>
 
-      <Drawer open={complaintsSheetOpen} onOpenChange={setComplaintsSheetOpen}>
+      <Drawer open={formsSheetOpen} onOpenChange={setFormsSheetOpen}>
         <DrawerContent>
           <DrawerHeader>
-            <DrawerTitle>Complaints</DrawerTitle>
+            <DrawerTitle>แบบฟอร์ม</DrawerTitle>
             <DrawerDescription>เลือกหมวดที่ต้องการ</DrawerDescription>
           </DrawerHeader>
           <div className="px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] space-y-1">

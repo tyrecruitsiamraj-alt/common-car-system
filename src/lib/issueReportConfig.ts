@@ -33,7 +33,7 @@ export type IssueReportConfig = {
   primaryDateField: string;
 };
 
-/** หมวดหมู่ย่อยของ Complaints — เมนูซ้าย > Complaints — เนื้อหา/ฟิลด์ปรับได้ภายหลัง */
+/** หมวดหมู่ย่อยของแบบฟอร์ม — เมนูซ้าย > แบบฟอร์ม — เนื้อหา/ฟิลด์ปรับได้ภายหลัง */
 export const ISSUE_REPORT_TYPES: IssueReportConfig[] = [
   {
     slug: 'vehicle-service',
