@@ -52,7 +52,7 @@ function ColorRow({
 }
 
 const AppearanceSettingsPage: React.FC = () => {
-  const { user } = useAuth();
+  const { user, hasPermission } = useAuth();
   const { config, updateConfig, resetToDefaults, syncBrandingToOrg } = useBranding();
   const [syncing, setSyncing] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -233,7 +233,7 @@ const AppearanceSettingsPage: React.FC = () => {
           >
             รีเซ็ตทั้งหมด
           </Button>
-          {user?.role === 'admin' ? (
+          {hasPermission('supervisor') ? (
             <Button type="button" disabled={syncing} onClick={() => void publish()}>
               {syncing ? 'กำลังเผยแพร่…' : 'เผยแพร่ให้ทุกคนในองค์กร'}
             </Button>
@@ -255,13 +255,13 @@ const AppearanceSettingsPage: React.FC = () => {
             </Button>
           </div>
         ) : null}
-        {user?.role === 'admin' ? (
+        {hasPermission('supervisor') ? (
           <p className="text-[10px] text-muted-foreground max-w-xl">
-            เฉพาะ Admin: ปุ่มเผยแพร่จะบันทึกธีมลงฐานข้อมูล — ผู้ใช้คนอื่นจะได้ธีมนี้หลังรีเฟรช (ถ้าเชื่อม API อยู่)
+            เฉพาะ Admin/Supervisor: ปุ่มเผยแพร่จะบันทึกธีมลงฐานข้อมูล — ผู้ใช้คนอื่นจะได้ธีมนี้หลังรีเฟรช (ถ้าเชื่อม API อยู่)
           </p>
         ) : (
           <p className="text-[10px] text-muted-foreground max-w-xl">
-            การตั้งค่าถูกเก็บในเครื่องของคุณ — ถ้าต้องการให้ทั้งองค์กรใช้ธีมเดียวกัน ให้ Admin เผยแพร่จากหน้านี้
+            การตั้งค่าถูกเก็บในเครื่องของคุณ — ถ้าต้องการให้ทั้งองค์กรใช้ธีมเดียวกัน ให้ Admin/Supervisor เผยแพร่จากหน้านี้
           </p>
         )}
       </div>

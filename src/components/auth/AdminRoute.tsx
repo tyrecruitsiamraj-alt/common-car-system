@@ -1,8 +1,15 @@
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import type { UserRole } from '@/types';
 
-/** เฉพาะ admin — ใช้กับหน้าตั้งค่าระบบ / branding */
-export default function AdminRoute({ children }: { children: React.ReactNode }) {
+/** เฉพาะ admin (หรือ minRole ที่ระบุ) — ใช้กับหน้าตั้งค่าระบบ / branding */
+export default function AdminRoute({
+  children,
+  minRole = 'admin',
+}: {
+  children: React.ReactNode;
+  minRole?: UserRole;
+}) {
   const { hasPermission, bootstrapping } = useAuth();
 
   if (bootstrapping) {
@@ -13,7 +20,7 @@ export default function AdminRoute({ children }: { children: React.ReactNode }) 
     );
   }
 
-  if (!hasPermission('admin')) {
+  if (!hasPermission(minRole)) {
     return <Navigate to="/fleet" replace />;
   }
 

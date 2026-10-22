@@ -122,7 +122,7 @@ async function putBranding(req: AuthedReq, res: ApiRes): Promise<void> {
   }
 }
 
-const adminPut = withAuth(putBranding, { roles: ['admin'] });
+const adminPut = withAuth(putBranding, { roles: ['admin', 'supervisor'] });
 
 export default async function brandingHandler(req: ApiReq, res: ApiRes): Promise<void> {
   const m = (req.method || 'GET').toUpperCase();

@@ -67,8 +67,8 @@ async function jobStaffHandler(req: AuthedReq, res: ApiRes) {
 
   if (method === 'POST') {
     try {
-      if (req.user.role !== 'admin') {
-        return sendError(res, 403, 'Forbidden', 'Only administrators can change job staff roster');
+      if (req.user.role !== 'admin' && req.user.role !== 'supervisor') {
+        return sendError(res, 403, 'Forbidden', 'Only administrators and supervisors can change job staff roster');
       }
 
       const raw = await readJsonBody(req);

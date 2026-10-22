@@ -79,7 +79,7 @@ function buildWorkScheduleString(
 const AddJobPage: React.FC = () => {
   const navigate = useNavigate();
   const { hasPermission } = useAuth();
-  const canManageStaffRoster = hasPermission('admin');
+  const canManageStaffRoster = hasPermission('supervisor');
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 

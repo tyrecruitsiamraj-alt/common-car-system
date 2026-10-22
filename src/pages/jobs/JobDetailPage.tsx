@@ -454,7 +454,7 @@ const JobDetailPage: React.FC = () => {
         title={job.unit_name}
         backPath="/jobs/list"
         actions={
-          hasPermission('admin') ? (
+          hasPermission('supervisor') ? (
             <button
               type="button"
               onClick={openJobEdit}
@@ -814,7 +814,7 @@ const JobDetailPage: React.FC = () => {
                   value={editForm.recruiter_name}
                   onChange={(v) => setEditForm({ ...editForm, recruiter_name: v })}
                   optionNames={recruiterNameOptions}
-                  canManageRoster={hasPermission('admin')}
+                  canManageRoster={hasPermission('supervisor')}
                   rosterRev={staffRosterRev}
                 />
                 <RosterBackedStaffSelect
@@ -823,7 +823,7 @@ const JobDetailPage: React.FC = () => {
                   value={editForm.screener_name}
                   onChange={(v) => setEditForm({ ...editForm, screener_name: v })}
                   optionNames={screenerNameOptions}
-                  canManageRoster={hasPermission('admin')}
+                  canManageRoster={hasPermission('supervisor')}
                   rosterRev={staffRosterRev}
                 />
               </div>

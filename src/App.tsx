@@ -91,7 +91,7 @@ function AppRoutes() {
         <Route
           path="/settings"
           element={
-            <AdminRoute>
+            <AdminRoute minRole="supervisor">
               <AppearanceSettingsPage />
             </AdminRoute>
           }
