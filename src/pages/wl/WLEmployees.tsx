@@ -450,7 +450,7 @@ const WLEmployees: React.FC = () => {
     ) : null;
 
   return (
-    <AppPage maxWidth="4xl" panel>
+    <AppPage maxWidth="7xl" panel>
       <PageHeader
         showBrandKicker
         title="Drivers"
