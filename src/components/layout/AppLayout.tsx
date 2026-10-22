@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { KeyRound, LogOut, UserCircle, ChevronDown, LayoutDashboard } from 'lucide-react';
+import { KeyRound, LogOut, UserCircle, ChevronDown, LayoutDashboard, UserCog } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useBranding } from '@/contexts/BrandingContext';
 import { getAppShellBackgroundStyle } from '@/lib/brandingStorage';
@@ -19,7 +19,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 
 const AppLayout: React.FC = () => {
-  const { user, logout } = useAuth();
+  const { user, logout, hasPermission } = useAuth();
   const { config } = useBranding();
   const location = useLocation();
   const navigate = useNavigate();
@@ -190,6 +190,22 @@ const AppLayout: React.FC = () => {
                 </button>
               );
             })}
+
+            {hasPermission('admin') && (
+              <button
+                type="button"
+                onClick={() => navigate('/settings/users')}
+                className={cn(
+                  'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-left transition-all touch-manipulation',
+                  location.pathname.startsWith('/settings/users')
+                    ? 'bg-primary/10 text-primary font-medium'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted',
+                )}
+              >
+                <UserCog className="w-4 h-4 shrink-0" />
+                <span className="truncate">ผู้ใช้งาน</span>
+              </button>
+            )}
           </nav>
 
           <div className="border-t border-border p-3 shrink-0">
