@@ -1,12 +1,15 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
+import { toast } from 'sonner';
+import { ArrowLeft, Trash2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { apiFetch } from '@/lib/apiFetch';
 import { ISSUE_REPORT_TYPES } from '@/lib/issueReportConfig';
 import { summarizeIssueReportRow, type IssueReportRow } from '@/lib/issueReportStats';
+import { DELETE_COMPLAINTS_CAPABILITY, fetchCapabilityStatus } from '@/lib/userPermissions';
 
 const CATEGORY_LABEL: Record<string, string> = Object.fromEntries(
   ISSUE_REPORT_TYPES.map((t) => [t.slug, t.label]),
@@ -18,15 +21,20 @@ const ComplaintsHistoryPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState(searchParams.get('employee') ?? searchParams.get('reporter') ?? '');
   const [category, setCategory] = useState(searchParams.get('category') ?? 'all');
+  const [canDelete, setCanDelete] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    apiFetch('/api/issue-reports')
-      .then((r) => (r.ok ? r.json() : []))
-      .then((issueReports) => {
+    Promise.all([
+      apiFetch('/api/issue-reports').then((r) => (r.ok ? r.json() : [])),
+      fetchCapabilityStatus(DELETE_COMPLAINTS_CAPABILITY),
+    ])
+      .then(([issueReports, perm]) => {
         if (cancelled) return;
         setRows(Array.isArray(issueReports) ? (issueReports as IssueReportRow[]) : []);
+        setCanDelete(perm?.granted ?? false);
       })
       .catch(() => {
         if (!cancelled) setRows([]);
@@ -38,6 +46,25 @@ const ComplaintsHistoryPage: React.FC = () => {
       cancelled = true;
     };
   }, []);
+
+  const handleDelete = async (row: IssueReportRow) => {
+    const label = `${CATEGORY_LABEL[row.category] ?? row.category} — ${row.employee_name ?? 'ไม่ระบุชื่อ'} (${row.report_date ?? '-'})`;
+    if (!window.confirm(`ยืนยันลบเคสนี้?\n${label}\n\nการลบนี้ย้อนกลับไม่ได้`)) return;
+    setDeletingId(row.id);
+    try {
+      const r = await apiFetch(`/api/issue-reports?id=${encodeURIComponent(row.id)}`, { method: 'DELETE' });
+      if (!r.ok) {
+        const body = (await r.json().catch(() => ({}))) as { message?: string; error?: string };
+        throw new Error(body.message || body.error || 'ลบไม่สำเร็จ');
+      }
+      setRows((prev) => prev.filter((r2) => r2.id !== row.id));
+      toast.success('ลบเคสแล้ว');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'ลบไม่สำเร็จ');
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -102,6 +129,7 @@ const ComplaintsHistoryPage: React.FC = () => {
                 <TableHead>พนักงาน (ถูกรายงาน)</TableHead>
                 <TableHead>ผู้แจ้ง</TableHead>
                 <TableHead>รายละเอียด</TableHead>
+                {canDelete ? <TableHead /> : null}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -118,11 +146,26 @@ const ComplaintsHistoryPage: React.FC = () => {
                     {r.reporter_phone ? <div className="text-xs text-muted-foreground">{r.reporter_phone}</div> : null}
                   </TableCell>
                   <TableCell className="max-w-xs text-xs text-muted-foreground">{summarizeIssueReportRow(r)}</TableCell>
+                  {canDelete ? (
+                    <TableCell>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="text-red-600 hover:bg-red-50 hover:text-red-700"
+                        disabled={deletingId === r.id}
+                        onClick={() => void handleDelete(r)}
+                      >
+                        <Trash2 className="h-3.5 w-3.5 mr-1" />
+                        {deletingId === r.id ? 'กำลังลบ…' : 'ลบ'}
+                      </Button>
+                    </TableCell>
+                  ) : null}
                 </TableRow>
               ))}
               {filtered.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="py-8 text-center text-sm text-muted-foreground">
+                  <TableCell colSpan={canDelete ? 6 : 5} className="py-8 text-center text-sm text-muted-foreground">
                     ไม่พบข้อมูล
                   </TableCell>
                 </TableRow>

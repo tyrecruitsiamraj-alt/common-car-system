@@ -2,6 +2,7 @@ import { dbQuery } from '../_lib/postgres.js';
 import {
   sendError,
   handleApiError,
+  withAuth,
   withAuthStaffWrite,
   type ApiReq,
   type ApiRes,
@@ -10,6 +11,10 @@ import {
 import { readJsonBody, getString } from '../_lib/body.js';
 import { tableInAppSchema } from '../_lib/schema.js';
 import { enforceRateLimit } from '../_lib/rateLimit.js';
+import { userHasCapability } from '../_lib/userPermissions.js';
+
+/** ต้องตรงกับ DELETE_COMPLAINTS_CAPABILITY ฝั่ง frontend (src/lib/userPermissions.ts) */
+const DELETE_COMPLAINTS_CAPABILITY = 'delete_complaints';
 
 const tbl = tableInAppSchema('issue_reports');
 
@@ -139,11 +144,30 @@ async function handlePost(req: ApiReq, res: ApiRes): Promise<void> {
   }
 }
 
+async function handleDelete(req: AuthedReq, res: ApiRes): Promise<void> {
+  try {
+    const allowed =
+      req.user.role === 'admin' || (await userHasCapability(req.user.sub, DELETE_COMPLAINTS_CAPABILITY));
+    if (!allowed) return sendError(res, 403, 'Forbidden', 'ไม่มีสิทธิ์ลบข้อมูลนี้');
+
+    const id = getString(req.query?.id);
+    if (!id) return sendError(res, 400, 'Bad request', 'id is required');
+
+    const { rows } = await dbQuery<{ id: string }>(`delete from ${tbl} where id = $1 returning id`, [id]);
+    if (rows.length === 0) return sendError(res, 404, 'Not found');
+    return res.status(200).json({ ok: true, id: rows[0].id });
+  } catch (e) {
+    return handleApiError(res, e, 'issue-reports DELETE', { userId: req.user.sub });
+  }
+}
+
 const protectedGet = withAuthStaffWrite(handleGet);
+const protectedDelete = withAuth(handleDelete);
 
 export default async function issueReportsHandler(req: ApiReq, res: ApiRes): Promise<void> {
   const method = (req.method || 'GET').toUpperCase();
   if (method === 'POST') return handlePost(req, res);
   if (method === 'GET') return protectedGet(req, res);
+  if (method === 'DELETE') return protectedDelete(req, res);
   return sendError(res, 405, 'Method not allowed');
 }

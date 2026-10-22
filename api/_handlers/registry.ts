@@ -26,6 +26,7 @@ import driverDirectoryHandler from './driver-directory.js';
 import driverTmaProfilesHandler from './driver-tma-profiles.js';
 import fleetExamSubmissionsHandler from './fleet-exam-submissions.js';
 import fleetBookingPermissionsHandler from './fleet-booking-permissions.js';
+import userPermissionsHandler from './user-permissions.js';
 import appUsersHandler from './app-users.js';
 export type ApiHandler = (req: ApiReq, res: ApiRes) => Promise<void>;
 
@@ -49,6 +50,7 @@ export const apiRoutes: Record<string, ApiHandler> = {
   '/api/driver-tma-profiles': driverTmaProfilesHandler as ApiHandler,
   '/api/fleet-exam-submissions': fleetExamSubmissionsHandler as ApiHandler,
   '/api/fleet-booking-permissions': fleetBookingPermissionsHandler as ApiHandler,
+  '/api/user-permissions': userPermissionsHandler as ApiHandler,
   '/api/app-users': appUsersHandler as ApiHandler,
   '/api/geocode': geocodeHandler as ApiHandler,
   '/api/branding': brandingHandler as ApiHandler,

@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Clock, Shield, Users } from 'lucide-react';
+import { Clock, Shield, Trash2, Users } from 'lucide-react';
 import PageHeader from '@/components/shared/PageHeader';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -9,6 +9,11 @@ import {
   fetchFleetBookingPermissions,
   saveFleetBookingPermissions,
 } from '@/lib/fleetBookingPermissions';
+import {
+  DELETE_COMPLAINTS_CAPABILITY,
+  fetchCapabilityStatus,
+  setUserCapabilityGrant,
+} from '@/lib/userPermissions';
 import type { User, UserRole } from '@/types';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -17,19 +22,23 @@ const UserPermissionsSettingsPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [users, setUsers] = useState<User[]>([]);
   const [editorUserId, setEditorUserId] = useState<string | null>(null);
+  const [deleteComplaintsUserIds, setDeleteComplaintsUserIds] = useState<Set<string>>(new Set());
   const [savingUserId, setSavingUserId] = useState<string | null>(null);
   const [savingEditor, setSavingEditor] = useState(false);
+  const [savingDeleteUserId, setSavingDeleteUserId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [usersRes, perms] = await Promise.all([
+      const [usersRes, perms, deletePerm] = await Promise.all([
         apiFetch('/api/app-users'),
         fetchFleetBookingPermissions(),
+        fetchCapabilityStatus(DELETE_COMPLAINTS_CAPABILITY),
       ]);
       const list = usersRes.ok ? ((await usersRes.json()) as User[]) : [];
       setUsers(Array.isArray(list) ? list : []);
       setEditorUserId(perms?.completed_time_editor_user_id ?? null);
+      setDeleteComplaintsUserIds(new Set(deletePerm?.grantedUserIds ?? []));
     } catch {
       setUsers([]);
       toast.error('โหลดรายชื่อผู้ใช้ไม่สำเร็จ');
@@ -86,6 +95,26 @@ const UserPermissionsSettingsPage: React.FC = () => {
     }
   };
 
+  const toggleDeleteComplaints = async (userId: string, nextGranted: boolean) => {
+    setSavingDeleteUserId(userId);
+    try {
+      const res = await setUserCapabilityGrant(userId, DELETE_COMPLAINTS_CAPABILITY, nextGranted);
+      if (!res.ok) {
+        toast.error(res.message || 'บันทึกสิทธิ์ไม่สำเร็จ');
+        return;
+      }
+      setDeleteComplaintsUserIds((prev) => {
+        const next = new Set(prev);
+        if (nextGranted) next.add(userId);
+        else next.delete(userId);
+        return next;
+      });
+      toast.success(nextGranted ? 'ให้สิทธิ์ลบข้อมูล Complaints แล้ว' : 'ยกเลิกสิทธิ์ลบข้อมูล Complaints แล้ว');
+    } finally {
+      setSavingDeleteUserId(null);
+    }
+  };
+
   return (
     <div>
       <PageHeader
@@ -109,6 +138,10 @@ const UserPermissionsSettingsPage: React.FC = () => {
                 <strong className="text-foreground font-medium">แก้เวลาหลังปิดงาน</strong> — ผู้ใช้คนเดียวที่แก้เวลาใบงานที่กด
                 complete แล้วได้ (เริ่ม / สิ้นสุด / เวลาปิด)
               </li>
+              <li>
+                <strong className="text-foreground font-medium">ลบข้อมูล Complaints</strong> — มอบให้ผู้ใช้ได้หลายคนพร้อมกัน
+                (admin ลบได้เสมอโดยไม่ต้องมอบหมาย)
+              </li>
             </ul>
           </div>
         </div>
@@ -126,7 +159,7 @@ const UserPermissionsSettingsPage: React.FC = () => {
               ผู้ใช้ทั้งหมด ({users.length})
             </div>
 
-            <div className="hidden md:grid md:grid-cols-[1.4fr_1.4fr_0.9fr_0.7fr_1.1fr] gap-2 px-4 py-2 text-[11px] font-medium text-muted-foreground border-b border-border/60">
+            <div className="hidden md:grid md:grid-cols-[1.2fr_1.2fr_0.8fr_0.6fr_1fr_1fr] gap-2 px-4 py-2 text-[11px] font-medium text-muted-foreground border-b border-border/60">
               <span>ชื่อ</span>
               <span>อีเมล</span>
               <span>บทบาท</span>
@@ -135,16 +168,22 @@ const UserPermissionsSettingsPage: React.FC = () => {
                 <Clock className="h-3 w-3" />
                 แก้เวลาหลังปิดงาน
               </span>
+              <span className="flex items-center gap-1">
+                <Trash2 className="h-3 w-3" />
+                ลบข้อมูล Complaints
+              </span>
             </div>
 
             <div className="divide-y divide-border/60">
               {users.map((u) => {
                 const busy = savingUserId === u.id;
                 const isEditor = editorUserId === u.id;
+                const canDeleteComplaints = deleteComplaintsUserIds.has(u.id);
+                const savingDelete = savingDeleteUserId === u.id;
                 return (
                   <div
                     key={u.id}
-                    className="px-4 py-3 grid grid-cols-1 md:grid-cols-[1.4fr_1.4fr_0.9fr_0.7fr_1.1fr] gap-3 md:gap-2 md:items-center"
+                    className="px-4 py-3 grid grid-cols-1 md:grid-cols-[1.2fr_1.2fr_0.8fr_0.6fr_1fr_1fr] gap-3 md:gap-2 md:items-center"
                   >
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-foreground truncate">{u.full_name}</p>
@@ -213,6 +252,33 @@ const UserPermissionsSettingsPage: React.FC = () => {
                         }
                       >
                         {isEditor ? '✓ ได้รับมอบหมาย' : 'มอบหมาย'}
+                      </button>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <Label className="text-[10px] text-muted-foreground md:hidden shrink-0">ลบ Complaints</Label>
+                      <button
+                        type="button"
+                        disabled={savingDelete || !u.is_active || u.role === 'admin'}
+                        onClick={() => void toggleDeleteComplaints(u.id, !canDeleteComplaints)}
+                        className={cn(
+                          'text-xs px-2.5 py-1.5 rounded-lg border transition-colors w-full md:w-auto',
+                          canDeleteComplaints || u.role === 'admin'
+                            ? 'border-red-500/50 bg-red-500/15 text-red-900 font-semibold'
+                            : 'border-border bg-secondary/40 text-muted-foreground hover:bg-secondary hover:text-foreground',
+                          (savingDelete || !u.is_active || u.role === 'admin') && 'opacity-60 cursor-not-allowed',
+                        )}
+                        title={
+                          u.role === 'admin'
+                            ? 'admin ลบได้เสมอโดยไม่ต้องมอบหมาย'
+                            : !u.is_active
+                              ? 'ต้องเปิดใช้งานบัญชีก่อนมอบหมายสิทธิ์'
+                              : canDeleteComplaints
+                                ? 'คลิกเพื่อยกเลิกสิทธิ์'
+                                : 'มอบสิทธิ์ลบข้อมูล Complaints'
+                        }
+                      >
+                        {u.role === 'admin' ? '✓ admin' : canDeleteComplaints ? '✓ ลบได้' : 'มอบสิทธิ์'}
                       </button>
                     </div>
                   </div>
