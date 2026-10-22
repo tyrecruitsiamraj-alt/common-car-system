@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { format } from 'date-fns';
 import { th } from 'date-fns/locale';
-import { ExternalLink, LayoutDashboard, RefreshCw } from 'lucide-react';
+import { ExternalLink, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Select,
@@ -98,12 +98,6 @@ const ComplaintDashboardPage: React.FC = () => {
               <Button type="button" variant="outline" size="sm" className="bg-white/10 border-white/20 text-white hover:bg-white/20 hover:text-white" onClick={() => setRefreshKey((k) => k + 1)} disabled={loading}>
                 <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
                 รีเฟรช
-              </Button>
-              <Button type="button" variant="outline" size="sm" className="bg-white/10 border-white/20 text-white hover:bg-white/20 hover:text-white" asChild>
-                <Link to="/complaints/overview">
-                  <LayoutDashboard className="h-3.5 w-3.5 mr-1.5" />
-                  ภาพรวม 4 หมวด
-                </Link>
               </Button>
               <Button type="button" variant="outline" size="sm" className="bg-white/10 border-white/20 text-white hover:bg-white/20 hover:text-white" asChild>
                 <Link to="/complaints/report" target="_blank" rel="noreferrer">
