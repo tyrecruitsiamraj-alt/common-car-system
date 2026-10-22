@@ -22,7 +22,7 @@ export default function DriverTmaProfileFields({ idPrefix, value, onChange }: Pr
       {DRIVER_TMA_PROFILE_FIELD_GROUPS.map((group) => (
         <div key={group.title} className="space-y-2">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{group.title}</p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {group.fields.map((field) => {
               const id = `${idPrefix}-${field.key}`;
               return (

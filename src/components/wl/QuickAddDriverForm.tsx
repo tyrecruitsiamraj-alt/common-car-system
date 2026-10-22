@@ -111,7 +111,7 @@ export default function QuickAddDriverForm({ id, onCreated, defaultPosition }: P
           </div>
         </button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-lg rounded-[1.25rem] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-2xl lg:max-w-4xl rounded-[1.25rem] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>เพิ่มชื่อผู้ขับ / ผู้ใช้รถ</DialogTitle>
           <DialogDescription>กรอกชื่อ นามสกุล เบอร์โทร แล้วกดบันทึก — ไม่ต้องออกจากหน้านี้</DialogDescription>

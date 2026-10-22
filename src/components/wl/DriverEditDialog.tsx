@@ -178,7 +178,7 @@ export default function DriverEditDialog({ employee, tmaProfile, open, onOpenCha
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md rounded-[1.25rem]">
+      <DialogContent className="sm:max-w-2xl lg:max-w-4xl rounded-[1.25rem] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>แก้ไขชื่อผู้ขับ</DialogTitle>
           <DialogDescription>
