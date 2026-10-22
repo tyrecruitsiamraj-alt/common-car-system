@@ -72,7 +72,7 @@ function serviceTypeLabel(r: IssueReportRow): string | undefined {
   return r.data.service_type;
 }
 
-function daysInclusive(startYmd: string | undefined, endYmd: string | undefined): number {
+export function daysInclusive(startYmd: string | undefined, endYmd: string | undefined): number {
   if (!startYmd || !endYmd) return 0;
   const start = new Date(startYmd);
   const end = new Date(endYmd);
