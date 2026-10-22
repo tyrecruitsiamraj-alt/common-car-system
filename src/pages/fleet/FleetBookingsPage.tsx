@@ -878,7 +878,7 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
   const employeesForPlanner = useMemo(() => {
     return Array.from(empMap.values())
       .filter((e) => e.status !== 'inactive' && e.status !== 'suspended')
-      // หน้า Monitor (ปฏิทิน/ตารางเวลาต่างๆ) แสดงเฉพาะ Common Driver กับ Temp Driver
+      // หน้า Monitor (ปฏิทิน/ตารางเวลาต่างๆ) แสดงเฉพาะ Common Driver, Temp Driver, Support Driver (DRIVER_LIST_POSITIONS)
       // หน้า Bookings (จองรถ) แสดงเฉพาะตำแหน่งที่จองได้จริง — Common Driver กับ Support Driver (ตรงกับ BOOKABLE_DRIVER_POSITIONS)
       .filter((e) => (isMonitor ? isDriverListPosition(e.position) : BOOKABLE_DRIVER_POSITIONS.has(e.position)))
       .sort((a, b) => `${a.first_name} ${a.last_name}`.localeCompare(`${b.first_name} ${b.last_name}`, 'th'));

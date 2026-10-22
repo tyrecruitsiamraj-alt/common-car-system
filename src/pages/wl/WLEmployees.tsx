@@ -34,10 +34,12 @@ import {
   DRIVER_DIRECTORY_POSITIONS_PARAM,
   PERSONAL_DRIVER_POSITIONS,
   PERSONAL_DRIVER_POSITIONS_PARAM,
+  SUPPORT_DRIVER_POSITION,
   TEMP_DRIVER_POSITION,
   isCommonDriverPosition,
   isDriverDirectoryPosition,
   isPersonalDriverPosition,
+  isSupportDriverPosition,
   isTempDriverPosition,
 } from '@/lib/driverListPositions';
 
@@ -124,12 +126,12 @@ const statusFilters: { value: EmployeeStatus; label: string }[] = [
   { value: 'suspended', label: 'ระงับ' },
 ];
 
-type DriverTab = 'position' | 'common' | 'temp' | 'inactive';
+type DriverTab = 'position' | 'common' | 'support' | 'temp' | 'inactive';
 
 /**
  * แท็บแยกตามตำแหน่ง/สถานะ — เดิมแยกเป็นแค่ "กองกลาง"/"ขับนาย"/"พ้นสภาพ" (3 แท็บ)
- * ตอนนี้แยก "กองกลาง" ออกเป็น "Common" กับ "เปลี่ยนตัว" (Temp) คนละแท็บ
- * เงื่อนไข: Position/Common/เปลี่ยนตัว อิงตามตำแหน่ง, ลาออก/พ้นสภาพ อิงตามสถานะ (inactive) ข้ามตำแหน่ง
+ * ตอนนี้แยก "กองกลาง" ออกเป็น "Common" / "Support Driver" / "เปลี่ยนตัว" (Temp) คนละแท็บ
+ * เงื่อนไข: Position/Common/Support Driver/เปลี่ยนตัว อิงตามตำแหน่ง, ลาออก/พ้นสภาพ อิงตามสถานะ (inactive) ข้ามตำแหน่ง
  */
 const DRIVER_TABS: { value: DriverTab; label: string; positionsParam: string; isPosition: (p: string) => boolean }[] = [
   {
@@ -139,6 +141,12 @@ const DRIVER_TABS: { value: DriverTab; label: string; positionsParam: string; is
     isPosition: isPersonalDriverPosition,
   },
   { value: 'common', label: 'Common', positionsParam: COMMON_DRIVER_POSITION, isPosition: isCommonDriverPosition },
+  {
+    value: 'support',
+    label: 'Support Driver',
+    positionsParam: SUPPORT_DRIVER_POSITION,
+    isPosition: isSupportDriverPosition,
+  },
   { value: 'temp', label: 'เปลี่ยนตัว', positionsParam: TEMP_DRIVER_POSITION, isPosition: isTempDriverPosition },
   {
     value: 'inactive',
@@ -464,11 +472,13 @@ const WLEmployees: React.FC = () => {
           defaultPosition={
             activeTab.value === 'common'
               ? COMMON_DRIVER_POSITION
-              : activeTab.value === 'temp'
-                ? TEMP_DRIVER_POSITION
-                : activeTab.value === 'position'
-                  ? PERSONAL_DRIVER_POSITIONS[0]
-                  : COMMON_DRIVER_POSITION
+              : activeTab.value === 'support'
+                ? SUPPORT_DRIVER_POSITION
+                : activeTab.value === 'temp'
+                  ? TEMP_DRIVER_POSITION
+                  : activeTab.value === 'position'
+                    ? PERSONAL_DRIVER_POSITIONS[0]
+                    : COMMON_DRIVER_POSITION
           }
         />
 
