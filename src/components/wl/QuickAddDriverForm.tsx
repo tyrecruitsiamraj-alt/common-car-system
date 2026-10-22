@@ -28,6 +28,7 @@ import DriverTmaProfileFields, {
 import { isBlankDriverTmaProfileFields, saveDriverTmaProfileFields } from '@/lib/driverTmaProfileEdit';
 import type { Employee } from '@/types';
 import { toast } from 'sonner';
+import { useAuth } from '@/contexts/AuthContext';
 
 const TITLE_PREFIX_NONE = '__none__';
 
@@ -39,6 +40,9 @@ type Props = {
 };
 
 export default function QuickAddDriverForm({ id, onCreated, defaultPosition }: Props) {
+  const { hasPermission } = useAuth();
+  // ข้อมูลเสริม TMA เป็นข้อมูลส่วนบุคคล — กรอก/แก้ไขได้เฉพาะ Admin/Supervisor เท่านั้น
+  const canEditTma = hasPermission('supervisor');
   const [open, setOpen] = useState(false);
   const [titlePrefix, setTitlePrefix] = useState('');
   const [firstName, setFirstName] = useState('');
@@ -71,7 +75,7 @@ export default function QuickAddDriverForm({ id, onCreated, defaultPosition }: P
         phone,
         position,
       });
-      if (!isBlankDriverTmaProfileFields(tmaFields)) {
+      if (canEditTma && !isBlankDriverTmaProfileFields(tmaFields)) {
         try {
           await saveDriverTmaProfileFields(created.id, tmaFields);
         } catch (err) {
@@ -199,19 +203,21 @@ export default function QuickAddDriverForm({ id, onCreated, defaultPosition }: P
               </Select>
             </div>
           </div>
-          <div className="space-y-3">
-            <button
-              type="button"
-              onClick={() => setShowMore((v) => !v)}
-              className="flex items-center gap-1 text-xs font-medium text-primary"
-            >
-              {showMore ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-              ข้อมูลเพิ่มเติม (ไม่บังคับ) — ผู้บังคับบัญชา, ผู้ดูแล, ที่พัก, บัตร TDEM, วันเริ่มงาน
-            </button>
-            {showMore ? (
-              <DriverTmaProfileFields idPrefix="quick-add-tma" value={tmaFields} onChange={setTmaFields} />
-            ) : null}
-          </div>
+          {canEditTma ? (
+            <div className="space-y-3">
+              <button
+                type="button"
+                onClick={() => setShowMore((v) => !v)}
+                className="flex items-center gap-1 text-xs font-medium text-primary"
+              >
+                {showMore ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                ข้อมูลเพิ่มเติม (ไม่บังคับ) — ผู้บังคับบัญชา, ผู้ดูแล, ที่พัก, บัตร TDEM, วันเริ่มงาน
+              </button>
+              {showMore ? (
+                <DriverTmaProfileFields idPrefix="quick-add-tma" value={tmaFields} onChange={setTmaFields} />
+              ) : null}
+            </div>
+          ) : null}
 
           <Button type="submit" size="sm" disabled={saving} className="w-full sm:w-auto">
             {saving ? 'กำลังบันทึก…' : 'บันทึกรายชื่อ'}

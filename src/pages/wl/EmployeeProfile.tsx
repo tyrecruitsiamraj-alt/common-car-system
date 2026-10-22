@@ -39,6 +39,7 @@ import { exportDriverProfileExcel } from '@/lib/fleetExcelExport';
 import { toast } from 'sonner';
 import { bookingEffectiveEnd } from '@/lib/fleetBookingsDashboard';
 import { formatBookingWorkOrderNo } from '@/lib/bookingWorkOrder';
+import { useAuth } from '@/contexts/AuthContext';
 
 const HISTORY_DAYS = 365;
 
@@ -108,6 +109,9 @@ function TmaProfileSection({ profile: p }: { profile: DriverTmaProfile }) {
         <TmaField label="เลข 5 ตัวท้าย" value={p.card_last5} />
         <TmaField label="วันเริ่มงาน" value={p.start_date ? formatThaiDate(p.start_date) : undefined} />
         <TmaField label="วันเกิด" value={p.birthdate ? formatThaiDate(p.birthdate) : undefined} />
+        <TmaField label="สิทธิลาป่วย (วัน)" value={p.sick_leave_limit} />
+        <TmaField label="สิทธิลากิจ (วัน)" value={p.private_leave_limit} />
+        <TmaField label="สิทธิลาพักร้อน (วัน)" value={p.annual_leave_limit} />
         {p.end_date ? (
           <TmaField label="วันสิ้นสุดงาน" value={formatThaiDate(p.end_date)} />
         ) : null}
@@ -173,6 +177,9 @@ function TmaProfileSection({ profile: p }: { profile: DriverTmaProfile }) {
 
 const EmployeeProfile: React.FC = () => {
   const { id } = useParams<{ id: string }>();
+  const { hasPermission } = useAuth();
+  // ข้อมูลเสริม TMA เป็นข้อมูลส่วนบุคคล — ดูได้เฉพาะ Admin/Supervisor เท่านั้น
+  const canViewTma = hasPermission('supervisor');
   const [employee, setEmployee] = useState<Employee | null>(null);
   const [wlCandidate, setWlCandidate] = useState<Candidate | null>(null);
   const [bookings, setBookings] = useState<VehicleBooking[]>([]);
@@ -319,7 +326,7 @@ const EmployeeProfile: React.FC = () => {
   }, [id, employee, loadFleetHistory]);
 
   useEffect(() => {
-    if (!id || parseWlEmployeeCandidateId(id) || !employee || isDemoMode()) {
+    if (!id || parseWlEmployeeCandidateId(id) || !employee || isDemoMode() || !canViewTma) {
       setTmaProfile(null);
       return;
     }
@@ -338,7 +345,7 @@ const EmployeeProfile: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [id, employee]);
+  }, [id, employee, canViewTma]);
 
   // ประวัติการร้องเรียน/อุบัติเหตุ — ตารางต้นทางไม่มี employee_id แบบ FK จริง จึงดึงทั้งชุด (ข้อมูลน้อย ~100 แถวรวม)
   // แล้วจับคู่กับพนักงานคนนี้ฝั่ง client ด้วย src/lib/driverIncidentMatch.ts (รหัสพนักงาน แล้ว fallback ชื่อ-สกุล)
@@ -540,7 +547,7 @@ const EmployeeProfile: React.FC = () => {
         <p className="text-lg text-foreground tabular-nums">{employee.phone?.trim() || '—'}</p>
       </div>
 
-      {tmaProfile ? <TmaProfileSection profile={tmaProfile} /> : null}
+      {canViewTma && tmaProfile ? <TmaProfileSection profile={tmaProfile} /> : null}
 
       <div className="grid grid-cols-2 gap-3">
         <div className="rounded-2xl border border-red-200 bg-red-50/80 p-4 text-center">

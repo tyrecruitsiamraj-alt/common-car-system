@@ -34,6 +34,9 @@ export const DRIVER_TMA_PROFILE_FIELD_GROUPS: { title: string; fields: DriverTma
       { key: 'endDate', dbField: 'end_date', label: 'วันสิ้นสุดงาน', type: 'date' },
       { key: 'resignationReason', dbField: 'resignation_reason', label: 'เหตุผลลาออก', type: 'text' },
       { key: 'experienceYears', dbField: 'experience_years', label: 'ประสบการณ์ (ปี)', type: 'number' },
+      { key: 'sickLeaveLimit', dbField: 'sick_leave_limit', label: 'สิทธิลาป่วย (วัน)', type: 'number' },
+      { key: 'privateLeaveLimit', dbField: 'private_leave_limit', label: 'สิทธิลากิจ (วัน)', type: 'number' },
+      { key: 'annualLeaveLimit', dbField: 'annual_leave_limit', label: 'สิทธิลาพักร้อน (วัน)', type: 'number' },
     ],
   },
   {

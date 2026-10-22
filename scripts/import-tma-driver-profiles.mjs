@@ -28,6 +28,8 @@ const root = path.join(__dirname, '..');
 const DEFAULT_FILE = 'Database TMA.xlsx';
 
 // ตำแหน่งคอลัมน์คงที่ในไฟล์ (ยืนยันด้วยการตรวจ header จริงก่อนรัน — ดู assertHeader)
+// เวอร์ชันไฟล์ปัจจุบันมี 3 คอลัมน์ลา (Sick/Private/Annual Leave Limit) แทรกหลัง Under_DriverCO
+// ทำให้ทุกคอลัมน์ตั้งแต่ BOSS TYPE เป็นต้นไปเลื่อนลง +3 เทียบกับไฟล์ "Database TMA.xlsx" เวอร์ชันเดิม
 const COL = {
   id: 0,
   nameEng: 1,
@@ -43,30 +45,33 @@ const COL = {
   experience: 11,
   driverType: 12,
   underDriverCo: 13,
-  bossType: 14,
-  userName: 15,
-  userTel: 16,
-  apartment: 17,
-  carModel: 18,
-  carColor: 19,
-  carNo: 20,
-  carSticker: 21,
-  driverMovement: 22,
-  driverPictureUrl: 23,
-  driverLicenseImageUrl: 24, // หัวคอลัมน์ในไฟล์เขียนว่า "Driver License Expire" แต่ค่าจริงเป็นลิงก์รูปใบขับขี่
-  carMovement: 25,
-  defensiveSafetyDriving: 26,
-  tdemCardId: 27,
-  cardLast5: 28,
-  birthdate: 29,
-  age: 30,
-  engFirstName: 31,
-  engLastName: 32,
-  examScore2025: 33,
-  supervisorScore2025: 34,
-  complainScore: 35,
-  accidentScore: 36,
-  totalScore: 37,
+  sickLeaveLimit: 14,
+  privateLeaveLimit: 15,
+  annualLeaveLimit: 16,
+  bossType: 17,
+  userName: 18,
+  userTel: 19,
+  apartment: 20,
+  carModel: 21,
+  carColor: 22,
+  carNo: 23,
+  carSticker: 24,
+  driverMovement: 25,
+  driverPictureUrl: 26,
+  driverLicenseImageUrl: 27, // หัวคอลัมน์ในไฟล์เขียนว่า "Driver License Expire" แต่ค่าจริงเป็นลิงก์รูปใบขับขี่
+  carMovement: 28,
+  defensiveSafetyDriving: 29,
+  tdemCardId: 30,
+  cardLast5: 31,
+  birthdate: 32,
+  age: 33,
+  engFirstName: 34,
+  engLastName: 35,
+  examScore2025: 36,
+  supervisorScore2025: 37,
+  complainScore: 38,
+  accidentScore: 39,
+  totalScore: 40,
 };
 
 function loadEnvFromFiles() {
@@ -97,6 +102,11 @@ const args = process.argv.slice(2);
 const apply = args.includes('--apply');
 const limitArg = args.find((a) => a.startsWith('--limit='));
 const limit = limitArg ? parseInt(limitArg.split('=')[1], 10) : null;
+// --exclude="SR 0044,TD0199" — ข้ามแถวตาม ID (คอลัมน์แรกของไฟล์) ทั้งหมด เช่น แถวที่รู้แล้วว่าข้อมูลพัง ก่อนแก้ไฟล์ต้นฉบับ
+const excludeArg = args.find((a) => a.startsWith('--exclude='));
+const excludeIds = new Set(
+  (excludeArg ? excludeArg.slice('--exclude='.length).split(',') : []).map((s) => normCode(s)),
+);
 const filePath = args.find((a) => !a.startsWith('--')) || path.join(root, DEFAULT_FILE);
 
 const MONTHS = {
@@ -176,6 +186,11 @@ function assertHeader(header) {
     [COL.tel]: 'driver tel.',
     [COL.status]: 'status',
     [COL.startDate]: 'start date',
+    [COL.sickLeaveLimit]: 'sick leave limit',
+    [COL.privateLeaveLimit]: 'private leave limit',
+    [COL.annualLeaveLimit]: 'annual leave limit',
+    [COL.carModel]: 'car model',
+    [COL.totalScore]: 'total',
   };
   const problems = [];
   for (const [i, expected] of Object.entries(expect)) {
@@ -207,6 +222,9 @@ function mapRow(row) {
     experience_years: numOrNull(row[COL.experience]),
     driver_type: cell(row[COL.driverType]),
     under_driver_co: cell(row[COL.underDriverCo]),
+    sick_leave_limit: numOrNull(row[COL.sickLeaveLimit]),
+    private_leave_limit: numOrNull(row[COL.privateLeaveLimit]),
+    annual_leave_limit: numOrNull(row[COL.annualLeaveLimit]),
     boss_type: cell(row[COL.bossType]),
     assigned_user_name: cell(row[COL.userName]),
     assigned_user_tel: cell(row[COL.userTel]),
@@ -238,10 +256,14 @@ async function main() {
   const rows = readRows();
   const header = rows[0];
   assertHeader(header);
-  const dataRows = rows.slice(1).filter((r) => cell(r[COL.id]) || cell(r[COL.nameTh]));
+  const dataRows = rows
+    .slice(1)
+    .filter((r) => cell(r[COL.id]) || cell(r[COL.nameTh]))
+    .filter((r) => !excludeIds.has(normCode(r[COL.id])));
 
   console.log(`ไฟล์: ${filePath}`);
   console.log(`แถวข้อมูลทั้งหมด: ${dataRows.length}`);
+  if (excludeIds.size > 0) console.log(`ข้ามตาม --exclude: ${[...excludeIds].join(', ')}`);
 
   const env = loadEnvFromFiles();
   const databaseUrl = getDatabaseUrlFromEnv(env).trim();
@@ -429,6 +451,7 @@ async function main() {
           defensive_safety_driving, tdem_card_id, card_last5,
           birthdate, age, english_first_name, english_last_name,
           exam_score_2025, supervisor_score_2025, complain_score, accident_score, total_score,
+          sick_leave_limit, private_leave_limit, annual_leave_limit,
           imported_at, updated_at
         )
         values (
@@ -441,6 +464,7 @@ async function main() {
           $28, $29, $30,
           $31, $32, $33, $34,
           $35, $36, $37, $38, $39,
+          $40, $41, $42,
           now(), now()
         )
         on conflict (employee_id) where employee_id is not null do update set
@@ -482,6 +506,9 @@ async function main() {
           complain_score = excluded.complain_score,
           accident_score = excluded.accident_score,
           total_score = excluded.total_score,
+          sick_leave_limit = excluded.sick_leave_limit,
+          private_leave_limit = excluded.private_leave_limit,
+          annual_leave_limit = excluded.annual_leave_limit,
           imported_at = now(),
           updated_at = now()
         returning (xmax = 0) as inserted
@@ -496,6 +523,7 @@ async function main() {
           pr.defensive_safety_driving, pr.tdem_card_id, pr.card_last5,
           pr.birthdate, pr.age, pr.english_first_name, pr.english_last_name,
           pr.exam_score_2025, pr.supervisor_score_2025, pr.complain_score, pr.accident_score, pr.total_score,
+          pr.sick_leave_limit, pr.private_leave_limit, pr.annual_leave_limit,
         ],
       );
       if (upserted[0]?.inserted) insertedProfiles++;

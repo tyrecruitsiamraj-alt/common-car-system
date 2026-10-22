@@ -102,6 +102,9 @@ const TMA_COLUMNS: {
   { key: 'end_date', label: 'วันสิ้นสุดงาน', render: (p) => tmaDate(p?.end_date) },
   { key: 'resignation_reason', label: 'เหตุผลลาออก', render: (p) => tmaText(p?.resignation_reason) },
   { key: 'experience_years', label: 'ประสบการณ์ (ปี)', render: (p) => tmaText(p?.experience_years) },
+  { key: 'sick_leave_limit', label: 'สิทธิลาป่วย (วัน)', render: (p) => tmaText(p?.sick_leave_limit) },
+  { key: 'private_leave_limit', label: 'สิทธิลากิจ (วัน)', render: (p) => tmaText(p?.private_leave_limit) },
+  { key: 'annual_leave_limit', label: 'สิทธิลาพักร้อน (วัน)', render: (p) => tmaText(p?.annual_leave_limit) },
   { key: 'birthdate', label: 'วันเกิด', render: (p) => tmaDate(p?.birthdate) },
   { key: 'age', label: 'อายุ', render: (p) => tmaText(p?.age) },
   { key: 'exam_score_2025', label: 'คะแนนสอบ 2025', render: (p) => tmaText(p?.exam_score_2025) },
@@ -200,6 +203,8 @@ const WLEmployees: React.FC = () => {
   const isMobile = useIsMobile();
   const { hasPermission } = useAuth();
   const canEdit = hasPermission('staff');
+  // ข้อมูลเสริม TMA (ไซต์ รถที่มอบหมาย บัตร TDEM คะแนนประเมิน ฯลฯ) เป็นข้อมูลส่วนบุคคล — Admin/Supervisor เท่านั้น
+  const canViewTma = hasPermission('supervisor');
   const [tab, setTab] = useState<DriverTab>('common');
   const [filter, setFilter] = useState<EmployeeStatus>('active');
   const [searchInput, setSearchInput] = useState('');
@@ -295,7 +300,7 @@ const WLEmployees: React.FC = () => {
   // ข้อมูลเสริมจาก Database TMA.xlsx ที่ seed ไว้ (driver_tma_profiles) — โหลดทั้งชุดครั้งเดียวมาทำ map ด้วย employee_id
   // ไม่ผูกกับ pagination ของตารางพนักงาน (คนละ query กัน) โหมดสาธิตไม่มีข้อมูลชุดนี้
   useEffect(() => {
-    if (isDemoMode()) {
+    if (isDemoMode() || !canViewTma) {
       setTmaProfiles(new Map());
       return;
     }
@@ -317,7 +322,7 @@ const WLEmployees: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [reloadToken]);
+  }, [reloadToken, canViewTma]);
 
   // ลบแถวสุดท้ายของหน้าสุดท้ายแล้วหน้าว่าง → ถอยกลับหนึ่งหน้าอัตโนมัติ
   useEffect(() => {
@@ -587,9 +592,11 @@ const WLEmployees: React.FC = () => {
           </div>
         ) : (
           <div className="space-y-1.5">
-            <p className="text-[11px] text-muted-foreground">
-              เลื่อนตารางไปทางขวาเพื่อดูข้อมูลเสริมจาก Database TMA.xlsx (รถที่มอบหมาย บัตร TDEM คะแนนประเมิน ฯลฯ)
-            </p>
+            {canViewTma ? (
+              <p className="text-[11px] text-muted-foreground">
+                เลื่อนตารางไปทางขวาเพื่อดูข้อมูลเสริมจาก Database TMA.xlsx (รถที่มอบหมาย บัตร TDEM คะแนนประเมิน ฯลฯ)
+              </p>
+            ) : null}
             <div className="glass-card rounded-xl border border-border overflow-x-auto">
               <table className="text-sm min-w-max">
                 <thead>
@@ -603,7 +610,7 @@ const WLEmployees: React.FC = () => {
                     <th className="px-4 py-3 text-left text-muted-foreground font-medium whitespace-nowrap">เบอร์โทร</th>
                     <th className="px-4 py-3 text-left text-muted-foreground font-medium whitespace-nowrap">ตำแหน่ง</th>
                     <th className="px-4 py-3 text-center text-muted-foreground font-medium whitespace-nowrap">สถานะ</th>
-                    {TMA_COLUMNS.map((col) => (
+                    {canViewTma && TMA_COLUMNS.map((col) => (
                       <th
                         key={col.key}
                         className="px-4 py-3 text-left text-muted-foreground font-medium whitespace-nowrap"
@@ -654,7 +661,7 @@ const WLEmployees: React.FC = () => {
                                 : 'ไม่ใช้งาน'}
                           </span>
                         </td>
-                        {TMA_COLUMNS.map((col) => (
+                        {canViewTma && TMA_COLUMNS.map((col) => (
                           <td key={col.key} className="px-4 py-3 text-muted-foreground whitespace-nowrap">
                             {col.render(profile)}
                           </td>
@@ -678,7 +685,7 @@ const WLEmployees: React.FC = () => {
 
       <DriverEditDialog
         employee={editEmployee}
-        tmaProfile={editEmployee ? tmaProfiles.get(editEmployee.id) : undefined}
+        tmaProfile={canViewTma && editEmployee ? tmaProfiles.get(editEmployee.id) : undefined}
         open={editDialogOpen}
         onOpenChange={(open) => {
           setEditDialogOpen(open);

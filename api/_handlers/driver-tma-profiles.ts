@@ -1,5 +1,5 @@
 import { dbQuery } from '../_lib/postgres.js';
-import { sendError, handleApiError, withAuthStaffWrite, type ApiRes, type AuthedReq } from '../_lib/http.js';
+import { sendError, handleApiError, withAuth, type ApiRes, type AuthedReq } from '../_lib/http.js';
 import { readJsonBody, getString } from '../_lib/body.js';
 import { tableInAppSchema } from '../_lib/schema.js';
 
@@ -11,6 +11,7 @@ const tbl = tableInAppSchema('driver_tma_profiles');
  * จากฟอร์มเพิ่ม/แก้ไขผู้ขับในหน้า `/fleet/drivers` ได้ด้วย (ดู EDITABLE_* ด้านล่าง — ต้องตรงกับ
  * src/lib/driverTmaProfileFieldDefs.ts ฝั่ง frontend)
  * ใช้แสดงเสริมในหน้ารายละเอียดผู้ขับ (`/fleet/drivers/:id`)
+ * เป็นข้อมูลส่วนบุคคล — endpoint นี้จำกัดสิทธิ์ไว้เฉพาะ Admin/Supervisor เท่านั้น (ดู withAuth ท้ายไฟล์)
  */
 
 type Row = {
@@ -30,6 +31,9 @@ type Row = {
   experience_years: string | number | null;
   driver_type: string | null;
   under_driver_co: string | null;
+  sick_leave_limit: string | number | null;
+  private_leave_limit: string | number | null;
+  annual_leave_limit: string | number | null;
   boss_type: string | null;
   assigned_user_name: string | null;
   assigned_user_tel: string | null;
@@ -101,6 +105,9 @@ function toPublicRow(row: Row) {
     experience_years: toNum(row.experience_years),
     driver_type: row.driver_type ?? undefined,
     under_driver_co: row.under_driver_co ?? undefined,
+    sick_leave_limit: toNum(row.sick_leave_limit),
+    private_leave_limit: toNum(row.private_leave_limit),
+    annual_leave_limit: toNum(row.annual_leave_limit),
     boss_type: row.boss_type ?? undefined,
     assigned_user_name: row.assigned_user_name ?? undefined,
     assigned_user_tel: row.assigned_user_tel ?? undefined,
@@ -176,6 +183,9 @@ const NUMERIC_FIELDS = [
   'complain_score',
   'accident_score',
   'total_score',
+  'sick_leave_limit',
+  'private_leave_limit',
+  'annual_leave_limit',
 ] as const;
 
 type EditableField = (typeof TEXT_FIELDS)[number] | (typeof DATE_FIELDS)[number] | (typeof NUMERIC_FIELDS)[number];
@@ -288,4 +298,5 @@ async function handler(req: AuthedReq, res: ApiRes): Promise<void> {
   }
 }
 
-export default withAuthStaffWrite(handler);
+// ข้อมูลเสริม TMA เป็นข้อมูลส่วนบุคคลของผู้ขับ — ดู/แก้ไขได้เฉพาะ Admin และ Supervisor เท่านั้น ไม่ใช่ staff
+export default withAuth(handler, { roles: ['supervisor', 'admin'] });

@@ -92,6 +92,9 @@ export interface DriverTmaProfile {
   experience_years?: number;
   driver_type?: string;
   under_driver_co?: string;
+  sick_leave_limit?: number;
+  private_leave_limit?: number;
+  annual_leave_limit?: number;
   boss_type?: string;
   assigned_user_name?: string;
   assigned_user_tel?: string;

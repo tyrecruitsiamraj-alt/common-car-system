@@ -33,6 +33,7 @@ import DriverTmaProfileFields, {
 import { driverTmaProfileToFields, saveDriverTmaProfileFields } from '@/lib/driverTmaProfileEdit';
 import type { DriverTmaProfile, Employee, EmployeeChangeType, EmployeeStatusHistory } from '@/types';
 import { toast } from 'sonner';
+import { useAuth } from '@/contexts/AuthContext';
 
 const TITLE_PREFIX_NONE = '__none__';
 
@@ -51,6 +52,9 @@ type Props = {
 };
 
 export default function DriverEditDialog({ employee, tmaProfile, open, onOpenChange, onUpdated }: Props) {
+  const { hasPermission } = useAuth();
+  // ข้อมูลเสริม TMA เป็นข้อมูลส่วนบุคคล — แก้ไขได้เฉพาะ Admin/Supervisor เท่านั้น
+  const canEditTma = hasPermission('supervisor');
   const [titlePrefix, setTitlePrefix] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -161,10 +165,12 @@ export default function DriverEditDialog({ employee, tmaProfile, open, onOpenCha
         last_name: lastName,
         phone,
       });
-      try {
-        await saveDriverTmaProfileFields(employee.id, tmaFields);
-      } catch (err) {
-        toast.error(err instanceof Error ? err.message : 'บันทึกข้อมูลเสริมไม่สำเร็จ');
+      if (canEditTma) {
+        try {
+          await saveDriverTmaProfileFields(employee.id, tmaFields);
+        } catch (err) {
+          toast.error(err instanceof Error ? err.message : 'บันทึกข้อมูลเสริมไม่สำเร็จ');
+        }
       }
       toast.success('บันทึกชื่อแล้ว');
       onUpdated(updated);
@@ -243,10 +249,12 @@ export default function DriverEditDialog({ employee, tmaProfile, open, onOpenCha
                 required
               />
             </div>
-            <div className="space-y-1.5 border-t border-border pt-3">
-              <p className="text-xs font-medium text-muted-foreground">ข้อมูลเสริม (TMA)</p>
-              <DriverTmaProfileFields idPrefix="edit-driver-tma" value={tmaFields} onChange={setTmaFields} />
-            </div>
+            {canEditTma ? (
+              <div className="space-y-1.5 border-t border-border pt-3">
+                <p className="text-xs font-medium text-muted-foreground">ข้อมูลเสริม (TMA)</p>
+                <DriverTmaProfileFields idPrefix="edit-driver-tma" value={tmaFields} onChange={setTmaFields} />
+              </div>
+            ) : null}
             <div className="flex flex-wrap gap-2 justify-end pt-1">
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
                 ยกเลิก
