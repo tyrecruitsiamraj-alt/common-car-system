@@ -26,7 +26,12 @@ import {
 import { formatEmployeeDisplayName, TITLE_PREFIX_OPTIONS } from '@/lib/titlePrefixOptions';
 import { DRIVER_DIRECTORY_POSITIONS } from '@/lib/driverListPositions';
 import { toYmdLocal } from '@/lib/dateTh';
-import type { Employee, EmployeeChangeType, EmployeeStatusHistory } from '@/types';
+import DriverTmaProfileFields, {
+  EMPTY_DRIVER_TMA_PROFILE_FIELDS,
+  type DriverTmaProfileFieldsValue,
+} from '@/components/wl/DriverTmaProfileFields';
+import { driverTmaProfileToFields, saveDriverTmaProfileFields } from '@/lib/driverTmaProfileEdit';
+import type { DriverTmaProfile, Employee, EmployeeChangeType, EmployeeStatusHistory } from '@/types';
 import { toast } from 'sonner';
 
 const TITLE_PREFIX_NONE = '__none__';
@@ -39,16 +44,18 @@ const CHANGE_TYPE_LABEL: Record<EmployeeChangeType, string> = {
 
 type Props = {
   employee: Employee | null;
+  tmaProfile?: DriverTmaProfile;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onUpdated: (employee: Employee) => void;
 };
 
-export default function DriverEditDialog({ employee, open, onOpenChange, onUpdated }: Props) {
+export default function DriverEditDialog({ employee, tmaProfile, open, onOpenChange, onUpdated }: Props) {
   const [titlePrefix, setTitlePrefix] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [phone, setPhone] = useState('');
+  const [tmaFields, setTmaFields] = useState<DriverTmaProfileFieldsValue>(EMPTY_DRIVER_TMA_PROFILE_FIELDS);
   const [saving, setSaving] = useState(false);
 
   const [changeType, setChangeType] = useState<EmployeeChangeType | null>(null);
@@ -69,6 +76,7 @@ export default function DriverEditDialog({ employee, open, onOpenChange, onUpdat
     setFirstName(employee.first_name);
     setLastName(employee.last_name);
     setPhone(employee.phone);
+    setTmaFields(driverTmaProfileToFields(tmaProfile));
     setChangeType(null);
     setEffectiveDate(toYmdLocal(new Date()));
     setNewPosition('');
@@ -76,7 +84,7 @@ export default function DriverEditDialog({ employee, open, onOpenChange, onUpdat
     setChangeNote('');
     setShowHistory(false);
     setHistory([]);
-  }, [employee]);
+  }, [employee, tmaProfile]);
 
   const loadHistory = async () => {
     if (!employee) return;
@@ -153,6 +161,11 @@ export default function DriverEditDialog({ employee, open, onOpenChange, onUpdat
         last_name: lastName,
         phone,
       });
+      try {
+        await saveDriverTmaProfileFields(employee.id, tmaFields);
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'บันทึกข้อมูลเสริมไม่สำเร็จ');
+      }
       toast.success('บันทึกชื่อแล้ว');
       onUpdated(updated);
       onOpenChange(false);
@@ -229,6 +242,10 @@ export default function DriverEditDialog({ employee, open, onOpenChange, onUpdat
                 onChange={(e) => setPhone(e.target.value)}
                 required
               />
+            </div>
+            <div className="space-y-1.5 border-t border-border pt-3">
+              <p className="text-xs font-medium text-muted-foreground">ข้อมูลเสริม (TMA)</p>
+              <DriverTmaProfileFields idPrefix="edit-driver-tma" value={tmaFields} onChange={setTmaFields} />
             </div>
             <div className="flex flex-wrap gap-2 justify-end pt-1">
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>

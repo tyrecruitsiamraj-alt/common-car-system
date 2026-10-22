@@ -1,13 +1,15 @@
 import { dbQuery } from '../_lib/postgres.js';
-import { sendError, handleApiError, withAuthDataRoute, type ApiRes, type AuthedReq } from '../_lib/http.js';
-import { getString } from '../_lib/body.js';
+import { sendError, handleApiError, withAuthStaffWrite, type ApiRes, type AuthedReq } from '../_lib/http.js';
+import { readJsonBody, getString } from '../_lib/body.js';
 import { tableInAppSchema } from '../_lib/schema.js';
 
 const tbl = tableInAppSchema('driver_tma_profiles');
 
 /**
- * ข้อมูลเสริมของคนขับจาก "Database TMA.xlsx" (Toyota Motor Asia) — อ่านอย่างเดียว
- * (ข้อมูลนี้ import เข้าเป็นชุดผ่าน scripts/import-tma-driver-profiles.mjs ไม่ได้แก้ผ่าน UI)
+ * ข้อมูลเสริมของคนขับจาก "Database TMA.xlsx" (Toyota Motor Asia)
+ * import เข้าเป็นชุดผ่าน scripts/import-tma-driver-profiles.mjs ได้ และยังแก้ไขทีละคนผ่าน PATCH
+ * จากฟอร์มเพิ่ม/แก้ไขผู้ขับในหน้า `/fleet/drivers` ได้ด้วย (ดู EDITABLE_* ด้านล่าง — ต้องตรงกับ
+ * src/lib/driverTmaProfileFieldDefs.ts ฝั่ง frontend)
  * ใช้แสดงเสริมในหน้ารายละเอียดผู้ขับ (`/fleet/drivers/:id`)
  */
 
@@ -130,8 +132,135 @@ function toPublicRow(row: Row) {
   };
 }
 
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+const isDateYmd = (v: unknown): v is string => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v);
+
+/**
+ * ฟิลด์ที่แก้ไขผ่าน UI ได้ (ต้องตรงกับ DRIVER_TMA_PROFILE_FIELDS ฝั่ง frontend
+ * ใน src/lib/driverTmaProfileFieldDefs.ts) — ฟิลด์อื่น (id/employee_id/source_file/imported_at/
+ * created_at/updated_at และฟิลด์ว่างเปล่าในไฟล์ต้นทาง) ยังคงแก้ได้เฉพาะผ่านสคริปต์ import เท่านั้น
+ */
+const TEXT_FIELDS = [
+  'assigned_user_name',
+  'assigned_user_tel',
+  'boss_type',
+  'under_driver_co',
+  'apartment',
+  'tdem_card_id',
+  'card_last5',
+  'resignation_reason',
+  'site',
+  'sub_site',
+  'tma_driver_code',
+  'driver_name_eng',
+  'tma_status',
+  'line_id',
+  'car_model',
+  'car_color',
+  'car_no',
+  'car_sticker',
+  'driver_picture_url',
+  'driver_license_image_url',
+] as const;
+
+const DATE_FIELDS = ['start_date', 'end_date', 'birthdate'] as const;
+
+const NUMERIC_FIELDS = [
+  'experience_years',
+  'age',
+  'exam_score_2025',
+  'supervisor_score_2025',
+  'complain_score',
+  'accident_score',
+  'total_score',
+] as const;
+
+type EditableField = (typeof TEXT_FIELDS)[number] | (typeof DATE_FIELDS)[number] | (typeof NUMERIC_FIELDS)[number];
+
+const EDITABLE_FIELDS: EditableField[] = [...TEXT_FIELDS, ...DATE_FIELDS, ...NUMERIC_FIELDS];
+const DATE_FIELD_SET: readonly string[] = DATE_FIELDS;
+const NUMERIC_FIELD_SET: readonly string[] = NUMERIC_FIELDS;
+
+const sqlCastFor = (field: EditableField): string =>
+  DATE_FIELD_SET.includes(field) ? '::date' : NUMERIC_FIELD_SET.includes(field) ? '::numeric' : '';
+
+function parseNumericOrNull(v: unknown): number | null {
+  if (v === null || v === undefined) return null;
+  const n = typeof v === 'number' ? v : Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
 async function handler(req: AuthedReq, res: ApiRes): Promise<void> {
   const method = (req.method || 'GET').toUpperCase();
+
+  if (method === 'PATCH') {
+    try {
+      const raw = await readJsonBody(req);
+      if (!isPlainObject(raw)) return sendError(res, 400, 'Bad request', 'Invalid JSON body');
+
+      const employee_id = getString(raw.employee_id);
+      if (!employee_id) return sendError(res, 400, 'Bad request', 'employee_id is required');
+
+      const { rows: curRows } = await dbQuery<Row>(
+        `select * from ${tbl} where employee_id = $1 limit 1`,
+        [employee_id],
+      );
+      const cur = curRows[0] as unknown as Record<string, unknown> | undefined;
+
+      const next: Record<EditableField, string | number | null> = {} as Record<
+        EditableField,
+        string | number | null
+      >;
+      for (const field of EDITABLE_FIELDS) {
+        const isDate = DATE_FIELD_SET.includes(field);
+        const isNumeric = NUMERIC_FIELD_SET.includes(field);
+        if (raw[field] === undefined) {
+          const curVal = cur ? cur[field] : null;
+          next[field] = isDate
+            ? toYmd(curVal as string | Date | null) ?? null
+            : isNumeric
+              ? parseNumericOrNull(curVal)
+              : ((curVal as string | null) ?? null);
+          continue;
+        }
+        if (isDate) {
+          next[field] = isDateYmd(raw[field]) ? (raw[field] as string) : null;
+        } else if (isNumeric) {
+          next[field] = parseNumericOrNull(raw[field]);
+        } else {
+          next[field] = getString(raw[field]);
+        }
+      }
+
+      const values: (string | number | null)[] = [employee_id, ...EDITABLE_FIELDS.map((f) => next[f])];
+      const setClauses = EDITABLE_FIELDS.map((f, i) => `${f} = $${i + 2}${sqlCastFor(f)}`).join(', ');
+      const insertCols = EDITABLE_FIELDS.join(', ');
+      const insertPlaceholders = EDITABLE_FIELDS.map((f, i) => `$${i + 2}${sqlCastFor(f)}`).join(', ');
+
+      const rows = cur
+        ? (
+            await dbQuery<Row>(
+              `update ${tbl} set ${setClauses}, updated_at = now() where employee_id = $1 returning *`,
+              values,
+            )
+          ).rows
+        : (
+            await dbQuery<Row>(
+              `insert into ${tbl} (employee_id, ${insertCols}) values ($1, ${insertPlaceholders}) returning *`,
+              values,
+            )
+          ).rows;
+
+      if (rows.length === 0) return sendError(res, 500, 'Failed to save driver TMA profile');
+      return res.status(200).json(toPublicRow(rows[0]));
+    } catch (e) {
+      return handleApiError(res, e, 'driver-tma-profiles PATCH', { userId: req.user.sub });
+    }
+  }
+
   if (method !== 'GET') return sendError(res, 405, 'Method not allowed');
 
   try {
@@ -159,4 +288,4 @@ async function handler(req: AuthedReq, res: ApiRes): Promise<void> {
   }
 }
 
-export default withAuthDataRoute(handler);
+export default withAuthStaffWrite(handler);

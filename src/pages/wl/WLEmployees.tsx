@@ -678,6 +678,7 @@ const WLEmployees: React.FC = () => {
 
       <DriverEditDialog
         employee={editEmployee}
+        tmaProfile={editEmployee ? tmaProfiles.get(editEmployee.id) : undefined}
         open={editDialogOpen}
         onOpenChange={(open) => {
           setEditDialogOpen(open);
