@@ -216,8 +216,8 @@ const WLEmployees: React.FC = () => {
   const isMobile = useIsMobile();
   const { hasPermission } = useAuth();
   const canEdit = hasPermission('staff');
-  // ข้อมูลเสริม TMA (ไซต์ รถที่มอบหมาย บัตร TDEM คะแนนประเมิน ฯลฯ) เป็นข้อมูลส่วนบุคคล — Admin/Supervisor เท่านั้น
-  const canViewTma = hasPermission('supervisor');
+  // ข้อมูลเสริม TMA (ไซต์ รถที่มอบหมาย บัตร TDEM คะแนนประเมิน ฯลฯ) — ทุกตำแหน่งดูได้เหมือนกัน
+  const canViewTma = hasPermission('staff');
   const [tab, setTab] = useState<DriverTab>('common');
   const [filter, setFilter] = useState<EmployeeStatus>('active');
   const [searchInput, setSearchInput] = useState('');

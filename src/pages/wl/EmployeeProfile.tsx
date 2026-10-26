@@ -178,8 +178,8 @@ function TmaProfileSection({ profile: p }: { profile: DriverTmaProfile }) {
 const EmployeeProfile: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const { hasPermission } = useAuth();
-  // ข้อมูลเสริม TMA เป็นข้อมูลส่วนบุคคล — ดูได้เฉพาะ Admin/Supervisor เท่านั้น
-  const canViewTma = hasPermission('supervisor');
+  // ข้อมูลเสริม TMA — ทุกตำแหน่งดูได้เหมือนกัน
+  const canViewTma = hasPermission('staff');
   const [employee, setEmployee] = useState<Employee | null>(null);
   const [wlCandidate, setWlCandidate] = useState<Candidate | null>(null);
   const [bookings, setBookings] = useState<VehicleBooking[]>([]);

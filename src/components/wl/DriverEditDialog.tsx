@@ -53,8 +53,8 @@ type Props = {
 
 export default function DriverEditDialog({ employee, tmaProfile, open, onOpenChange, onUpdated }: Props) {
   const { hasPermission } = useAuth();
-  // ข้อมูลเสริม TMA เป็นข้อมูลส่วนบุคคล — แก้ไขได้เฉพาะ Admin/Supervisor เท่านั้น
-  const canEditTma = hasPermission('supervisor');
+  // ข้อมูลเสริม TMA — ทุกตำแหน่งแก้ไขได้เหมือนกัน
+  const canEditTma = hasPermission('staff');
   const [titlePrefix, setTitlePrefix] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');

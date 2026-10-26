@@ -41,8 +41,8 @@ type Props = {
 
 export default function QuickAddDriverForm({ id, onCreated, defaultPosition }: Props) {
   const { hasPermission } = useAuth();
-  // ข้อมูลเสริม TMA เป็นข้อมูลส่วนบุคคล — กรอก/แก้ไขได้เฉพาะ Admin/Supervisor เท่านั้น
-  const canEditTma = hasPermission('supervisor');
+  // ข้อมูลเสริม TMA — ทุกตำแหน่งกรอก/แก้ไขได้เหมือนกัน
+  const canEditTma = hasPermission('staff');
   const [open, setOpen] = useState(false);
   const [titlePrefix, setTitlePrefix] = useState('');
   const [firstName, setFirstName] = useState('');
