@@ -28,9 +28,6 @@ import type { User, UserRole } from '@/types';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
-/** ตรงกับ DELETED_EMAIL_DOMAIN ฝั่ง api/_handlers/app-users.ts — ใช้บอกว่าอีเมลนี้ถูกลบไปแล้วหลังปิดใช้งาน */
-const isScrubbedEmail = (email: string) => email.toLowerCase().endsWith('@deleted.invalid');
-
 const UserPermissionsSettingsPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [users, setUsers] = useState<User[]>([]);
@@ -81,6 +78,11 @@ const UserPermissionsSettingsPage: React.FC = () => {
               ? body.error
               : 'บันทึกไม่สำเร็จ';
         toast.error(msg);
+        return;
+      }
+      if (patch.is_active === false) {
+        setUsers((prev) => prev.filter((u) => u.id !== id));
+        toast.success('ลบผู้ใช้งานออกจากระบบแล้ว');
         return;
       }
       const updated = body as User;
@@ -194,7 +196,6 @@ const UserPermissionsSettingsPage: React.FC = () => {
                 const isEditor = editorUserId === u.id;
                 const canDeleteComplaints = deleteComplaintsUserIds.has(u.id);
                 const savingDelete = savingDeleteUserId === u.id;
-                const scrubbed = isScrubbedEmail(u.email);
                 return (
                   <div
                     key={u.id}
@@ -203,11 +204,11 @@ const UserPermissionsSettingsPage: React.FC = () => {
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-foreground truncate">{u.full_name}</p>
                       <p className="text-[11px] text-muted-foreground md:hidden truncate">
-                        {scrubbed ? '—' : u.email}
+                        {u.is_active ? u.email : '—'}
                       </p>
                     </div>
                     <p className="text-xs text-muted-foreground truncate hidden md:block">
-                      {scrubbed ? '—' : u.email}
+                      {u.is_active ? u.email : '—'}
                     </p>
 
                     <div className="flex items-center gap-2">
@@ -235,24 +236,17 @@ const UserPermissionsSettingsPage: React.FC = () => {
                       <Label className="text-[10px] text-muted-foreground md:hidden shrink-0">สถานะ</Label>
                       <button
                         type="button"
-                        disabled={busy || (!u.is_active && scrubbed)}
-                        onClick={() => {
-                          if (u.is_active) {
-                            setConfirmDisableUser(u);
-                          } else {
-                            void updateUser(u.id, { is_active: true });
-                          }
-                        }}
-                        title={!u.is_active && scrubbed ? 'ผู้ใช้นี้ถูกลบแล้ว ต้องสมัครสมาชิกใหม่เท่านั้น' : undefined}
+                        disabled={busy}
+                        onClick={() => setConfirmDisableUser(u)}
                         className={cn(
                           'text-xs px-2.5 py-1 rounded-full transition-colors',
                           u.is_active
                             ? 'bg-emerald-500/15 text-emerald-800 hover:bg-emerald-500/25'
-                            : 'bg-muted text-muted-foreground hover:bg-muted/80',
-                          (busy || (!u.is_active && scrubbed)) && 'opacity-60 cursor-not-allowed',
+                            : 'bg-red-500/15 text-red-800 hover:bg-red-500/25',
+                          busy && 'opacity-60 cursor-not-allowed',
                         )}
                       >
-                        {u.is_active ? 'ใช้งาน' : scrubbed ? 'ถูกลบ' : 'ปิดใช้'}
+                        {u.is_active ? 'ใช้งาน' : 'ลบออกจากระบบ'}
                       </button>
                     </div>
 
@@ -329,10 +323,11 @@ const UserPermissionsSettingsPage: React.FC = () => {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>ปิดใช้งานผู้ใช้นี้ถาวร?</AlertDialogTitle>
+            <AlertDialogTitle>ลบผู้ใช้งานนี้ออกจากระบบถาวร?</AlertDialogTitle>
             <AlertDialogDescription>
-              ชื่อและอีเมลของ “{confirmDisableUser?.full_name}” จะถูกลบออกจากระบบทันทีเพื่อป้องกันข้อมูลรั่วไหล
-              และไม่สามารถกู้คืนได้ หากต้องการใช้งานอีกครั้งจะต้องสมัครสมาชิกใหม่เท่านั้น
+              แถวของ “{confirmDisableUser?.full_name}” จะถูกลบออกจากระบบทั้งหมดทันที (ไม่ใช่แค่ปิดสถานะ)
+              และไม่สามารถกู้คืนได้ หากต้องการกลับมาใช้งานอีกครั้งต้องสมัครสมาชิกใหม่เท่านั้น
+              (บัญชีที่สมัครใหม่จะได้ตำแหน่ง Staff เสมอ ปรับตำแหน่งได้เฉพาะ admin)
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -344,7 +339,7 @@ const UserPermissionsSettingsPage: React.FC = () => {
                 if (target) void updateUser(target.id, { is_active: false });
               }}
             >
-              ยืนยันปิดใช้งานและลบข้อมูล
+              ยืนยันลบผู้ใช้งาน
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
