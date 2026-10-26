@@ -1,5 +1,5 @@
 import { dbQuery } from '../_lib/postgres.js';
-import { sendError, handleApiError, withAuth, type ApiRes, type AuthedReq } from '../_lib/http.js';
+import { sendError, handleApiError, withAuthStaffWrite, type ApiRes, type AuthedReq } from '../_lib/http.js';
 import { readJsonBody, getString } from '../_lib/body.js';
 import { tableInAppSchema } from '../_lib/schema.js';
 
@@ -11,7 +11,7 @@ const tbl = tableInAppSchema('driver_tma_profiles');
  * จากฟอร์มเพิ่ม/แก้ไขผู้ขับในหน้า `/fleet/drivers` ได้ด้วย (ดู EDITABLE_* ด้านล่าง — ต้องตรงกับ
  * src/lib/driverTmaProfileFieldDefs.ts ฝั่ง frontend)
  * ใช้แสดงเสริมในหน้ารายละเอียดผู้ขับ (`/fleet/drivers/:id`)
- * เป็นข้อมูลส่วนบุคคล — endpoint นี้จำกัดสิทธิ์ไว้เฉพาะ Admin/Supervisor เท่านั้น (ดู withAuth ท้ายไฟล์)
+ * ทุกตำแหน่ง (staff ขึ้นไป) ดู/แก้ไขได้เหมือนกัน (ดู withAuthStaffWrite ท้ายไฟล์)
  */
 
 type Row = {
@@ -298,5 +298,5 @@ async function handler(req: AuthedReq, res: ApiRes): Promise<void> {
   }
 }
 
-// ข้อมูลเสริม TMA เป็นข้อมูลส่วนบุคคลของผู้ขับ — ดู/แก้ไขได้เฉพาะ Admin และ Supervisor เท่านั้น ไม่ใช่ staff
-export default withAuth(handler, { roles: ['supervisor', 'admin'] });
+// ข้อมูลเสริม TMA ของผู้ขับ — staff ขึ้นไปดู/แก้ไขได้เหมือนกันหมด
+export default withAuthStaffWrite(handler);
