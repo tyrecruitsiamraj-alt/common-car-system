@@ -254,24 +254,28 @@ const UserPermissionsSettingsPage: React.FC = () => {
                       <Label className="text-[10px] text-muted-foreground md:hidden shrink-0">แก้เวลา</Label>
                       <button
                         type="button"
-                        disabled={savingEditor || !u.is_active}
+                        disabled={savingEditor || !u.is_active || u.role !== 'supervisor'}
                         onClick={() => void assignCompletedTimeEditor(isEditor ? null : u.id)}
                         className={cn(
                           'text-xs px-2.5 py-1.5 rounded-lg border transition-colors w-full md:w-auto',
-                          isEditor
+                          isEditor || u.role === 'admin'
                             ? 'border-amber-500/50 bg-amber-500/15 text-amber-900 font-semibold'
                             : 'border-border bg-secondary/40 text-muted-foreground hover:bg-secondary hover:text-foreground',
-                          (savingEditor || !u.is_active) && 'opacity-60 cursor-not-allowed',
+                          (savingEditor || !u.is_active || u.role !== 'supervisor') && 'opacity-60 cursor-not-allowed',
                         )}
                         title={
-                          !u.is_active
-                            ? 'ต้องเปิดใช้งานบัญชีก่อนมอบหมายสิทธิ์'
-                            : isEditor
-                              ? 'คลิกเพื่อยกเลิกสิทธิ์'
-                              : 'มอบหมายให้แก้เวลาหลังปิดงาน'
+                          u.role === 'admin'
+                            ? 'admin แก้เวลาได้เสมอโดยไม่ต้องมอบหมาย'
+                            : u.role !== 'supervisor'
+                              ? 'มอบหมายได้เฉพาะตำแหน่ง Supervisor เท่านั้น'
+                              : !u.is_active
+                                ? 'ต้องเปิดใช้งานบัญชีก่อนมอบหมายสิทธิ์'
+                                : isEditor
+                                  ? 'คลิกเพื่อยกเลิกสิทธิ์'
+                                  : 'มอบหมายให้แก้เวลาหลังปิดงาน'
                         }
                       >
-                        {isEditor ? '✓ ได้รับมอบหมาย' : 'มอบหมาย'}
+                        {u.role === 'admin' ? '✓ admin' : isEditor ? '✓ ได้รับมอบหมาย' : 'มอบหมาย'}
                       </button>
                     </div>
 

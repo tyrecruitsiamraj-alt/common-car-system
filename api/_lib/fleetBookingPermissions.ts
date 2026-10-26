@@ -51,7 +51,8 @@ export async function getCompletedTimeEditorUserId(): Promise<string | null> {
   return rows[0]?.completed_time_editor_user_id ?? null;
 }
 
-export async function userCanEditCompletedBookingTimes(userId: string): Promise<boolean> {
+export async function userCanEditCompletedBookingTimes(userId: string, role: string): Promise<boolean> {
+  if (role === 'admin') return true;
   const editorId = await getCompletedTimeEditorUserId();
   if (!editorId || !userId) return false;
   return editorId === userId;
@@ -75,11 +76,12 @@ export async function setCompletedTimeEditorUserId(
     throw new Error('fleet_booking_permissions table not ready');
   }
   if (editorUserId) {
+    // มอบหมายได้เฉพาะตำแหน่ง Supervisor เท่านั้น — admin ผ่านเสมออยู่แล้วไม่ต้องมอบหมาย, staff มอบหมายไม่ได้
     const { rows } = await dbQuery<{ id: string }>(
-      `select id from ${usersTbl} where id = $1::uuid and is_active = true limit 1`,
+      `select id from ${usersTbl} where id = $1::uuid and is_active = true and role = 'supervisor' limit 1`,
       [editorUserId],
     );
-    if (!rows[0]) throw new Error('User not found or inactive');
+    if (!rows[0]) throw new Error('User not found, inactive, or not a supervisor');
   }
   await dbQuery(
     `

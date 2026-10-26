@@ -55,14 +55,14 @@ async function handler(req: AuthedReq, res: ApiRes): Promise<void> {
           return sendError(res, 403, 'Forbidden', 'เฉพาะ admin');
         }
         const { rows } = await dbQuery<UserRow>(
-          `select id, email, full_name, role, is_active from ${usersTbl} where is_active = true order by full_name, email`,
+          `select id, email, full_name, role, is_active from ${usersTbl} where is_active = true and role = 'supervisor' order by full_name, email`,
         );
         return res.status(200).json(rows.map(editorPayload));
       }
 
       const editor = await getCompletedTimeEditorProfile();
       const editorUserId = await getCompletedTimeEditorUserId();
-      const canEdit = await userCanEditCompletedBookingTimes(req.user.sub);
+      const canEdit = await userCanEditCompletedBookingTimes(req.user.sub, req.user.role);
       return res.status(200).json({
         completed_time_editor_user_id: editorUserId,
         completed_time_editor: editor ? editorPayload(editor) : null,
@@ -97,7 +97,7 @@ async function handler(req: AuthedReq, res: ApiRes): Promise<void> {
       return res.status(200).json({
         completed_time_editor_user_id: editorUserId,
         completed_time_editor: editor ? editorPayload(editor) : null,
-        can_edit_completed_booking_times: await userCanEditCompletedBookingTimes(req.user.sub),
+        can_edit_completed_booking_times: await userCanEditCompletedBookingTimes(req.user.sub, req.user.role),
       });
     }
 

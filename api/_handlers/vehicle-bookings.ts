@@ -483,7 +483,7 @@ async function handler(req: AuthedReq, res: ApiRes): Promise<void> {
         if (!editCompletedTimes) {
           return sendError(res, 409, 'Conflict', 'การจองนี้เสร็จสิ้นแล้ว — แก้ไขไม่ได้');
         }
-        if (!(await userCanEditCompletedBookingTimes(req.user.sub))) {
+        if (!(await userCanEditCompletedBookingTimes(req.user.sub, req.user.role))) {
           return sendError(
             res,
             403,
