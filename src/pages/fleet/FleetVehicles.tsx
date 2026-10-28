@@ -15,6 +15,8 @@ import {
 } from '@/components/ui/dialog';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import ToyotaModelPicker from '@/components/fleet/ToyotaModelPicker';
+import { describeVehicleModelLabel } from '@/lib/toyotaModelOptions';
 
 async function apiFailureMessage(r: Response): Promise<string> {
   const j = (await r.json().catch(() => ({}))) as { message?: string; error?: string; path?: string };
@@ -24,29 +26,6 @@ async function apiFailureMessage(r: Response): Promise<string> {
   return s;
 }
 
-/** รุ่น Toyota เท่านั้น — เก็บในคอลัมน์ `label` ของตาราง vehicles */
-const TOYOTA_MODEL_OPTIONS = [
-  'Toyota Yaris',
-  'Toyota Yaris Ativ',
-  'Toyota Vios',
-  'Toyota Corolla Altis',
-  'Toyota Corolla Cross',
-  'Toyota Camry',
-  'Toyota Fortuner',
-  'Toyota Hilux Revo',
-  'Toyota Hilux Champion',
-  'Toyota Innova',
-  'Toyota Innova Zenix',
-  'Toyota Alphard',
-  'Toyota Veloz',
-  'Toyota Avanza',
-  'Toyota Rush',
-  'Toyota C-HR',
-  'Toyota Hiace',
-  'Toyota Commuter',
-  'Toyota Granvia',
-] as const;
-
 const FleetVehicles: React.FC = () => {
   const { hasPermission } = useAuth();
   const canEdit = hasPermission('staff');
@@ -54,6 +33,7 @@ const FleetVehicles: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [plate, setPlate] = useState('');
   const [model, setModel] = useState('');
+  const [modelPickerKey, setModelPickerKey] = useState(0);
   const [saving, setSaving] = useState(false);
   const [editVehicle, setEditVehicle] = useState<Vehicle | null>(null);
   const [editPlate, setEditPlate] = useState('');
@@ -112,6 +92,7 @@ const FleetVehicles: React.FC = () => {
       toast.success('เพิ่มรถแล้ว');
       setPlate('');
       setModel('');
+      setModelPickerKey((k) => k + 1);
       load();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'บันทึกไม่สำเร็จ');
@@ -167,42 +148,27 @@ const FleetVehicles: React.FC = () => {
       <div className="space-y-6">
         <form onSubmit={submit} className="glass-card rounded-xl p-4 border border-border space-y-3">
           <p className="text-sm font-medium text-foreground">เพิ่มรถ</p>
-          <div className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-3 sm:items-end">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:items-start">
             <div className="space-y-1.5">
               <Label htmlFor="plate">ทะเบียนรถ</Label>
               <Input id="plate" value={plate} onChange={(e) => setPlate(e.target.value)} placeholder="กข 1234" />
             </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="model">รุ่นรถ (Toyota)</Label>
-              <select
-                id="model"
-                value={model}
-                onChange={(e) => setModel(e.target.value)}
-                className="w-full h-10 rounded-md border border-border bg-background px-3 text-sm"
-                required
-              >
-                <option value="">— เลือกรุ่น —</option>
-                {TOYOTA_MODEL_OPTIONS.map((name) => (
-                  <option key={name} value={name}>
-                    {name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <button
-              type="submit"
-              disabled={saving}
-              className="h-10 px-6 rounded-lg bg-primary text-primary-foreground text-sm font-medium disabled:opacity-60 whitespace-nowrap"
-            >
-              {saving ? 'กำลังบันทึก…' : 'บันทึก'}
-            </button>
+            <ToyotaModelPicker key={modelPickerKey} idPrefix="add" onChange={setModel} />
           </div>
+          <button
+            type="submit"
+            disabled={saving}
+            className="px-6 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium disabled:opacity-60 whitespace-nowrap"
+          >
+            {saving ? 'กำลังบันทึก…' : 'บันทึก'}
+          </button>
         </form>
 
-        <div className="glass-card rounded-xl border border-border overflow-hidden">
-          <div className="grid grid-cols-[1fr_1fr_auto] gap-0 border-b border-border text-xs font-medium text-muted-foreground uppercase tracking-wide">
+        <div className="glass-card rounded-xl border border-border overflow-hidden overflow-x-auto">
+          <div className="grid grid-cols-[1fr_1fr_1fr_auto] gap-0 border-b border-border text-xs font-medium text-muted-foreground uppercase tracking-wide min-w-[36rem]">
             <div className="px-4 py-2">ทะเบียนรถ</div>
             <div className="px-4 py-2">รุ่นรถ</div>
+            <div className="px-4 py-2">Model</div>
             {canEdit ? <div className="px-4 py-2 w-20" /> : null}
           </div>
           {loading ? (
@@ -210,20 +176,24 @@ const FleetVehicles: React.FC = () => {
           ) : list.length === 0 ? (
             <div className="p-4 text-sm text-muted-foreground">ยังไม่มีรถ — เพิ่มจากฟอร์มด้านบน</div>
           ) : (
-            <ul className="divide-y divide-border">
-              {list.map((v) => (
-                <li key={v.id} className="grid grid-cols-[1fr_1fr_auto] gap-0 text-sm items-center">
-                  <div className="px-4 py-3 font-mono font-medium text-foreground">{v.plate_no}</div>
-                  <div className="px-4 py-3 text-foreground">{v.label?.trim() ? v.label : '—'}</div>
-                  {canEdit ? (
-                    <div className="px-4 py-3">
-                      <Button type="button" size="sm" variant="outline" className="h-7 text-xs" onClick={() => openEdit(v)}>
-                        แก้ไข
-                      </Button>
-                    </div>
-                  ) : null}
-                </li>
-              ))}
+            <ul className="divide-y divide-border min-w-[36rem]">
+              {list.map((v) => {
+                const { model: vModel, trim: vTrim } = describeVehicleModelLabel(v.label);
+                return (
+                  <li key={v.id} className="grid grid-cols-[1fr_1fr_1fr_auto] gap-0 text-sm items-center">
+                    <div className="px-4 py-3 font-mono font-medium text-foreground">{v.plate_no}</div>
+                    <div className="px-4 py-3 text-foreground">{vModel}</div>
+                    <div className="px-4 py-3 text-muted-foreground">{vTrim}</div>
+                    {canEdit ? (
+                      <div className="px-4 py-3">
+                        <Button type="button" size="sm" variant="outline" className="h-7 text-xs" onClick={() => openEdit(v)}>
+                          แก้ไข
+                        </Button>
+                      </div>
+                    ) : null}
+                  </li>
+                );
+              })}
             </ul>
           )}
         </div>
@@ -241,26 +211,12 @@ const FleetVehicles: React.FC = () => {
                 <Label htmlFor="edit-plate">ทะเบียนรถ</Label>
                 <Input id="edit-plate" value={editPlate} onChange={(e) => setEditPlate(e.target.value)} required />
               </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="edit-model">รุ่นรถ (Toyota)</Label>
-                <select
-                  id="edit-model"
-                  value={editModel}
-                  onChange={(e) => setEditModel(e.target.value)}
-                  className="w-full h-10 rounded-md border border-border bg-background px-3 text-sm"
-                  required
-                >
-                  <option value="">— เลือกรุ่น —</option>
-                  {TOYOTA_MODEL_OPTIONS.map((name) => (
-                    <option key={name} value={name}>
-                      {name}
-                    </option>
-                  ))}
-                  {editModel && !TOYOTA_MODEL_OPTIONS.includes(editModel as (typeof TOYOTA_MODEL_OPTIONS)[number]) ? (
-                    <option value={editModel}>{editModel}</option>
-                  ) : null}
-                </select>
-              </div>
+              <ToyotaModelPicker
+                key={editVehicle.id}
+                idPrefix="edit"
+                initialValue={editModel}
+                onChange={setEditModel}
+              />
               <div className="flex gap-2 justify-end">
                 <Button type="button" variant="outline" onClick={() => setEditVehicle(null)}>
                   ยกเลิก
