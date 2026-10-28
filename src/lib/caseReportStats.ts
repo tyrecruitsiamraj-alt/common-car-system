@@ -51,9 +51,9 @@ export function buildMonthlyTrend(dates: string[], months = 6): { label: string;
   });
 }
 
-export type MonthlyStatusPoint = { label: string; wrong: number; right: number; excluded: number };
+export type MonthlyStatusPoint = { label: string; wrong: number; right: number; excluded: number; total: number };
 
-/** แนวโน้มเคสรายเดือนแยกตามสถานะ (ฝ่ายผิด / ฝ่ายถูก / ฝ่ายผิดไม่นับเคส) N เดือนล่าสุด (รวมเดือนปัจจุบัน) */
+/** แนวโน้มเคสรายเดือนแยกตามสถานะ (ฝ่ายผิด / ฝ่ายถูก / ฝ่ายผิดไม่นับเคส) พร้อมยอดรวม N เดือนล่าสุด (รวมเดือนปัจจุบัน) */
 export function buildMonthlyStatusTrend(
   entries: { date: string; status?: string | null }[],
   months = 6,
@@ -78,7 +78,7 @@ export function buildMonthlyStatusTrend(
     const [y, m] = key.split('-');
     const label = format(new Date(Number(y), Number(m) - 1, 1), 'MMM yy', { locale: th });
     const bucket = counts.get(key) ?? { wrong: 0, right: 0, excluded: 0 };
-    return { label, ...bucket };
+    return { label, ...bucket, total: bucket.wrong + bucket.right + bucket.excluded };
   });
 }
 

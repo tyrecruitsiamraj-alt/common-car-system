@@ -69,8 +69,8 @@ describe('buildMonthlyStatusTrend', () => {
       3,
     );
     expect(trend).toHaveLength(3);
-    expect(trend[trend.length - 1]).toMatchObject({ wrong: 2, right: 1, excluded: 1 });
-    expect(trend[0]).toMatchObject({ wrong: 0, right: 0, excluded: 0 });
+    expect(trend[trend.length - 1]).toMatchObject({ wrong: 2, right: 1, excluded: 1, total: 4 });
+    expect(trend[0]).toMatchObject({ wrong: 0, right: 0, excluded: 0, total: 0 });
   });
 });
 

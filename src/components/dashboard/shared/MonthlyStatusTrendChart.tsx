@@ -15,13 +15,14 @@ const statusConfig = {
   wrong: { label: 'ฝ่ายผิด', color: '#dc2626' },
   right: { label: 'ฝ่ายถูก', color: '#059669' },
   excluded: { label: 'ไม่นับเคส', color: '#64748b' },
+  total: { label: 'รวมทั้งหมด', color: '#2563eb' },
 };
 
 type View = 'line' | 'bar';
 
 const MonthlyStatusTrendChart: React.FC<Props> = ({ title, subtitle, data, loading }) => {
   const [view, setView] = useState<View>('line');
-  const total = data.reduce((sum, p) => sum + p.wrong + p.right + p.excluded, 0);
+  const totalCount = data.reduce((sum, p) => sum + p.total, 0);
 
   return (
     <div className="rounded-xl border border-slate-200/80 bg-white p-5 shadow-sm">
@@ -31,7 +32,7 @@ const MonthlyStatusTrendChart: React.FC<Props> = ({ title, subtitle, data, loadi
           <p className="text-xs text-slate-500 mt-0.5">{subtitle}</p>
         </div>
         <div className="flex flex-col items-end gap-2">
-          <p className="text-lg font-semibold text-slate-900 tabular-nums">{loading ? '…' : total}</p>
+          <p className="text-lg font-semibold text-slate-900 tabular-nums">{loading ? '…' : totalCount}</p>
           <div className="inline-flex rounded-full bg-slate-100 p-0.5 gap-0.5">
             {(['line', 'bar'] as const).map((v) => (
               <button
@@ -64,6 +65,14 @@ const MonthlyStatusTrendChart: React.FC<Props> = ({ title, subtitle, data, loadi
               <Line type="monotone" dataKey="wrong" stroke="var(--color-wrong)" strokeWidth={2.5} dot={{ r: 3 }} />
               <Line type="monotone" dataKey="right" stroke="var(--color-right)" strokeWidth={2.5} dot={{ r: 3 }} />
               <Line type="monotone" dataKey="excluded" stroke="var(--color-excluded)" strokeWidth={2.5} dot={{ r: 3 }} />
+              <Line
+                type="monotone"
+                dataKey="total"
+                stroke="var(--color-total)"
+                strokeWidth={2.5}
+                strokeDasharray="5 3"
+                dot={{ r: 3 }}
+              />
             </LineChart>
           ) : (
             <BarChart data={data} margin={{ left: 0, right: 8, top: 8, bottom: 0 }}>
@@ -75,6 +84,7 @@ const MonthlyStatusTrendChart: React.FC<Props> = ({ title, subtitle, data, loadi
               <Bar dataKey="wrong" fill="var(--color-wrong)" radius={[4, 4, 0, 0]} maxBarSize={16} />
               <Bar dataKey="right" fill="var(--color-right)" radius={[4, 4, 0, 0]} maxBarSize={16} />
               <Bar dataKey="excluded" fill="var(--color-excluded)" radius={[4, 4, 0, 0]} maxBarSize={16} />
+              <Bar dataKey="total" fill="var(--color-total)" radius={[4, 4, 0, 0]} maxBarSize={16} />
             </BarChart>
           )}
         </ChartContainer>
