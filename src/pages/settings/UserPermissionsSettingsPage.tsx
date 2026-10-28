@@ -125,7 +125,7 @@ const UserPermissionsSettingsPage: React.FC = () => {
         else next.delete(userId);
         return next;
       });
-      toast.success(nextGranted ? 'ให้สิทธิ์ลบข้อมูล Complaints แล้ว' : 'ยกเลิกสิทธิ์ลบข้อมูล Complaints แล้ว');
+      toast.success(nextGranted ? 'ให้สิทธิ์ลบข้อมูลแบบฟอร์มแล้ว' : 'ยกเลิกสิทธิ์ลบข้อมูลแบบฟอร์มแล้ว');
     } finally {
       setSavingDeleteUserId(null);
     }
@@ -155,7 +155,8 @@ const UserPermissionsSettingsPage: React.FC = () => {
                 complete แล้วได้ (เริ่ม / สิ้นสุด / เวลาปิด)
               </li>
               <li>
-                <strong className="text-foreground font-medium">ลบข้อมูล Complaints</strong> — มอบให้ผู้ใช้ได้หลายคนพร้อมกัน
+                <strong className="text-foreground font-medium">แก้ไข/ลบข้อมูลแบบฟอร์ม</strong> (รถเข้าศูนย์/นายบิน/การลา/ความเร็ว)
+                — staff แก้ไขได้ทุกคน, supervisor ขึ้นไปแก้ไข/ลบได้เสมอ, staff ที่ต้องการสิทธิ์ลบเพิ่มเติมมอบหมายได้ที่นี่
                 (admin ลบได้เสมอโดยไม่ต้องมอบหมาย)
               </li>
             </ul>
@@ -186,7 +187,7 @@ const UserPermissionsSettingsPage: React.FC = () => {
               </span>
               <span className="flex items-center gap-1">
                 <Trash2 className="h-3 w-3" />
-                ลบข้อมูล Complaints
+                ลบข้อมูลแบบฟอร์ม
               </span>
             </div>
 
@@ -196,6 +197,8 @@ const UserPermissionsSettingsPage: React.FC = () => {
                 const isEditor = editorUserId === u.id;
                 const canDeleteComplaints = deleteComplaintsUserIds.has(u.id);
                 const savingDelete = savingDeleteUserId === u.id;
+                /** admin และ supervisor ลบได้เสมอตามบทบาท ไม่ต้องมอบหมายเพิ่ม — toggle นี้มีไว้ให้ staff เท่านั้น */
+                const hasDeleteByRole = u.role === 'admin' || u.role === 'supervisor';
                 return (
                   <div
                     key={u.id}
@@ -280,29 +283,29 @@ const UserPermissionsSettingsPage: React.FC = () => {
                     </div>
 
                     <div className="flex items-center gap-2">
-                      <Label className="text-[10px] text-muted-foreground md:hidden shrink-0">ลบ Complaints</Label>
+                      <Label className="text-[10px] text-muted-foreground md:hidden shrink-0">ลบแบบฟอร์ม</Label>
                       <button
                         type="button"
-                        disabled={savingDelete || !u.is_active || u.role === 'admin'}
+                        disabled={savingDelete || !u.is_active || hasDeleteByRole}
                         onClick={() => void toggleDeleteComplaints(u.id, !canDeleteComplaints)}
                         className={cn(
                           'text-xs px-2.5 py-1.5 rounded-lg border transition-colors w-full md:w-auto',
-                          canDeleteComplaints || u.role === 'admin'
+                          canDeleteComplaints || hasDeleteByRole
                             ? 'border-red-500/50 bg-red-500/15 text-red-900 font-semibold'
                             : 'border-border bg-secondary/40 text-muted-foreground hover:bg-secondary hover:text-foreground',
-                          (savingDelete || !u.is_active || u.role === 'admin') && 'opacity-60 cursor-not-allowed',
+                          (savingDelete || !u.is_active || hasDeleteByRole) && 'opacity-60 cursor-not-allowed',
                         )}
                         title={
-                          u.role === 'admin'
-                            ? 'admin ลบได้เสมอโดยไม่ต้องมอบหมาย'
+                          hasDeleteByRole
+                            ? `${u.role} ลบได้เสมอตามบทบาทโดยไม่ต้องมอบหมาย`
                             : !u.is_active
                               ? 'ต้องเปิดใช้งานบัญชีก่อนมอบหมายสิทธิ์'
                               : canDeleteComplaints
                                 ? 'คลิกเพื่อยกเลิกสิทธิ์'
-                                : 'มอบสิทธิ์ลบข้อมูล Complaints'
+                                : 'มอบสิทธิ์ลบข้อมูลแบบฟอร์ม'
                         }
                       >
-                        {u.role === 'admin' ? '✓ admin' : canDeleteComplaints ? '✓ ลบได้' : 'มอบสิทธิ์'}
+                        {hasDeleteByRole ? `✓ ${u.role}` : canDeleteComplaints ? '✓ ลบได้' : 'มอบสิทธิ์'}
                       </button>
                     </div>
                   </div>

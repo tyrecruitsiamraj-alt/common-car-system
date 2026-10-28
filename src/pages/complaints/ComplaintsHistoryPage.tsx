@@ -1,28 +1,37 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
-import { ArrowLeft, Trash2 } from 'lucide-react';
+import { ArrowLeft, Pencil, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { apiFetch } from '@/lib/apiFetch';
+import { useAuth } from '@/contexts/AuthContext';
 import { ISSUE_REPORT_TYPES } from '@/lib/issueReportConfig';
 import { summarizeIssueReportRow, type IssueReportRow } from '@/lib/issueReportStats';
 import { DELETE_COMPLAINTS_CAPABILITY, fetchCapabilityStatus } from '@/lib/userPermissions';
+import IssueReportEditDialog from '@/components/complaints/IssueReportEditDialog';
 
 const CATEGORY_LABEL: Record<string, string> = Object.fromEntries(
   ISSUE_REPORT_TYPES.map((t) => [t.slug, t.label]),
 );
 
 const ComplaintsHistoryPage: React.FC = () => {
+  const { hasPermission } = useAuth();
   const [searchParams] = useSearchParams();
   const [rows, setRows] = useState<IssueReportRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState(searchParams.get('employee') ?? searchParams.get('reporter') ?? '');
   const [category, setCategory] = useState(searchParams.get('category') ?? 'all');
-  const [canDelete, setCanDelete] = useState(false);
+  const [canDeleteGrant, setCanDeleteGrant] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [editingRow, setEditingRow] = useState<IssueReportRow | null>(null);
+
+  /** เงื่อนไขพื้นฐาน: admin bypass, supervisor ลบได้เสมอ, staff ต้องได้รับสิทธิ์เพิ่มจากหน้าผู้ใช้งาน */
+  const canDelete = hasPermission('supervisor') || canDeleteGrant;
+  /** แก้ไขได้ทุก role ที่ login อยู่ (staff ขึ้นไป) */
+  const canEdit = hasPermission('staff');
 
   useEffect(() => {
     let cancelled = false;
@@ -34,7 +43,7 @@ const ComplaintsHistoryPage: React.FC = () => {
       .then(([issueReports, perm]) => {
         if (cancelled) return;
         setRows(Array.isArray(issueReports) ? (issueReports as IssueReportRow[]) : []);
-        setCanDelete(perm?.granted ?? false);
+        setCanDeleteGrant(perm?.granted ?? false);
       })
       .catch(() => {
         if (!cancelled) setRows([]);
@@ -129,7 +138,7 @@ const ComplaintsHistoryPage: React.FC = () => {
                 <TableHead>พนักงาน (ถูกรายงาน)</TableHead>
                 <TableHead>ผู้แจ้ง</TableHead>
                 <TableHead>รายละเอียด</TableHead>
-                {canDelete ? <TableHead /> : null}
+                {canEdit || canDelete ? <TableHead /> : null}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -146,26 +155,44 @@ const ComplaintsHistoryPage: React.FC = () => {
                     {r.reporter_phone ? <div className="text-xs text-muted-foreground">{r.reporter_phone}</div> : null}
                   </TableCell>
                   <TableCell className="max-w-xs text-xs text-muted-foreground">{summarizeIssueReportRow(r)}</TableCell>
-                  {canDelete ? (
-                    <TableCell>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="text-red-600 hover:bg-red-50 hover:text-red-700"
-                        disabled={deletingId === r.id}
-                        onClick={() => void handleDelete(r)}
-                      >
-                        <Trash2 className="h-3.5 w-3.5 mr-1" />
-                        {deletingId === r.id ? 'กำลังลบ…' : 'ลบ'}
-                      </Button>
+                  {canEdit || canDelete ? (
+                    <TableCell className="whitespace-nowrap">
+                      <div className="flex items-center gap-1">
+                        {canEdit ? (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setEditingRow(r)}
+                          >
+                            <Pencil className="h-3.5 w-3.5 mr-1" />
+                            แก้ไข
+                          </Button>
+                        ) : null}
+                        {canDelete ? (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="text-red-600 hover:bg-red-50 hover:text-red-700"
+                            disabled={deletingId === r.id}
+                            onClick={() => void handleDelete(r)}
+                          >
+                            <Trash2 className="h-3.5 w-3.5 mr-1" />
+                            {deletingId === r.id ? 'กำลังลบ…' : 'ลบ'}
+                          </Button>
+                        ) : null}
+                      </div>
                     </TableCell>
                   ) : null}
                 </TableRow>
               ))}
               {filtered.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={canDelete ? 6 : 5} className="py-8 text-center text-sm text-muted-foreground">
+                  <TableCell
+                    colSpan={canEdit || canDelete ? 6 : 5}
+                    className="py-8 text-center text-sm text-muted-foreground"
+                  >
                     ไม่พบข้อมูล
                   </TableCell>
                 </TableRow>
@@ -174,6 +201,25 @@ const ComplaintsHistoryPage: React.FC = () => {
           </Table>
         </div>
       </div>
+
+      {editingRow
+        ? (() => {
+            const editConfig = ISSUE_REPORT_TYPES.find((t) => t.slug === editingRow.category);
+            if (!editConfig) return null;
+            return (
+              <IssueReportEditDialog
+                row={editingRow}
+                config={editConfig}
+                open
+                onOpenChange={(open) => !open && setEditingRow(null)}
+                onSaved={(updated) => {
+                  setRows((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
+                  setEditingRow(null);
+                }}
+              />
+            );
+          })()
+        : null}
     </main>
   );
 };

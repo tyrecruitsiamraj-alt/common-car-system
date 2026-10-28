@@ -35,7 +35,7 @@ function computeDaysInclusive(
   return String(Math.max(0, diff - subtractDays));
 }
 
-function fieldBlock(label: string, required: boolean | undefined, input: React.ReactNode) {
+export function fieldBlock(label: string, required: boolean | undefined, input: React.ReactNode) {
   return (
     <div className="space-y-1.5">
       <Label className="text-sm font-medium leading-snug">

@@ -144,10 +144,59 @@ async function handlePost(req: ApiReq, res: ApiRes): Promise<void> {
   }
 }
 
+async function handlePatch(req: AuthedReq, res: ApiRes): Promise<void> {
+  try {
+    const id = getString(req.query?.id);
+    if (!id) return sendError(res, 400, 'Bad request', 'id is required');
+
+    const { rows: curRows } = await dbQuery<Row>(`select * from ${tbl} where id = $1 limit 1`, [id]);
+    const cur = curRows[0];
+    if (!cur) return sendError(res, 404, 'Not found');
+
+    const raw = await readJsonBody(req);
+    if (typeof raw !== 'object' || raw === null) {
+      return sendError(res, 400, 'Bad request', 'Invalid JSON body');
+    }
+    const b = raw as Record<string, unknown>;
+
+    const report_date = b.report_date !== undefined ? parseDate(b.report_date) : toYmd(cur.report_date) ?? null;
+    const employee_id = b.employee_id !== undefined ? getString(b.employee_id) : cur.employee_id;
+    const employee_name = b.employee_name !== undefined ? getString(b.employee_name) : cur.employee_name;
+    const position = b.position !== undefined ? getString(b.position) : cur.position;
+    const reporter_name = b.reporter_name !== undefined ? getString(b.reporter_name) : cur.reporter_name;
+    const reporter_phone = b.reporter_phone !== undefined ? getString(b.reporter_phone) : cur.reporter_phone;
+    const data = typeof b.data === 'object' && b.data !== null ? b.data : cur.data ?? {};
+
+    const { rows } = await dbQuery<Row>(
+      `
+      update ${tbl} set
+        report_date = $2::date,
+        employee_id = $3,
+        employee_name = $4,
+        position = $5,
+        reporter_name = $6,
+        reporter_phone = $7,
+        data = $8::jsonb
+      where id = $1
+      returning *
+      `,
+      [id, report_date, employee_id, employee_name, position, reporter_name, reporter_phone, JSON.stringify(data)],
+    );
+
+    const row = rows[0];
+    if (!row) return sendError(res, 404, 'Not found');
+    return res.status(200).json(toPublicRow(row));
+  } catch (e) {
+    return handleApiError(res, e, 'issue-reports PATCH', { userId: req.user.sub });
+  }
+}
+
 async function handleDelete(req: AuthedReq, res: ApiRes): Promise<void> {
   try {
     const allowed =
-      req.user.role === 'admin' || (await userHasCapability(req.user.sub, DELETE_COMPLAINTS_CAPABILITY));
+      req.user.role === 'admin' ||
+      req.user.role === 'supervisor' ||
+      (await userHasCapability(req.user.sub, DELETE_COMPLAINTS_CAPABILITY));
     if (!allowed) return sendError(res, 403, 'Forbidden', 'ไม่มีสิทธิ์ลบข้อมูลนี้');
 
     const id = getString(req.query?.id);
@@ -162,12 +211,14 @@ async function handleDelete(req: AuthedReq, res: ApiRes): Promise<void> {
 }
 
 const protectedGet = withAuthStaffWrite(handleGet);
+const protectedPatch = withAuthStaffWrite(handlePatch);
 const protectedDelete = withAuth(handleDelete);
 
 export default async function issueReportsHandler(req: ApiReq, res: ApiRes): Promise<void> {
   const method = (req.method || 'GET').toUpperCase();
   if (method === 'POST') return handlePost(req, res);
   if (method === 'GET') return protectedGet(req, res);
+  if (method === 'PATCH') return protectedPatch(req, res);
   if (method === 'DELETE') return protectedDelete(req, res);
   return sendError(res, 405, 'Method not allowed');
 }
