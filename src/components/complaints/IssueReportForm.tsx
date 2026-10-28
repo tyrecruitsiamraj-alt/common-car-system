@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import SearchablePicker, { type SearchablePickerOption } from '@/components/shared/SearchablePicker';
+import ToyotaModelPicker from '@/components/fleet/ToyotaModelPicker';
 import { apiFetch } from '@/lib/apiFetch';
 import { formatEmployeeDisplayName } from '@/lib/titlePrefixOptions';
 import type { IssueReportConfig } from '@/lib/issueReportConfig';
@@ -59,6 +60,8 @@ const IssueReportForm: React.FC<Props> = ({ config, cancelHref }) => {
   const [reporterName, setReporterName] = useState('');
   const [reporterPhone, setReporterPhone] = useState('');
   const [saving, setSaving] = useState(false);
+  /** เพิ่มขึ้นทุกครั้งที่บันทึกสำเร็จ — ใช้เป็น key บังคับ ToyotaModelPicker รีเซ็ตกลับ (ตัวมันเองไม่ใช่ controlled component) */
+  const [formVersion, setFormVersion] = useState(0);
 
   const needsDriverDirectory = config.fields.some((f) => f.type === 'employee-picker');
 
@@ -137,6 +140,7 @@ const IssueReportForm: React.FC<Props> = ({ config, cancelHref }) => {
       setPickerIds({});
       setReporterName('');
       setReporterPhone('');
+      setFormVersion((v) => v + 1);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'บันทึกไม่สำเร็จ');
     } finally {
@@ -148,6 +152,16 @@ const IssueReportForm: React.FC<Props> = ({ config, cancelHref }) => {
     <form onSubmit={(e) => void submit(e)} className="space-y-5">
       <div className="rounded-2xl border border-border/80 bg-card p-4 sm:p-6 space-y-4">
         {config.fields.map((f) => {
+          if (f.type === 'vehicle-model-picker') {
+            return (
+              <ToyotaModelPicker
+                key={`${f.key}-${formVersion}`}
+                idPrefix={`${f.key}-${formVersion}`}
+                initialValue={values[f.key] ?? ''}
+                onChange={(label) => setField(f.key, label)}
+              />
+            );
+          }
           let input: React.ReactNode;
           if (f.type === 'employee-picker') {
             input = (

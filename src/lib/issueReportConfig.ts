@@ -1,7 +1,14 @@
 import type { LucideIcon } from 'lucide-react';
 import { Wrench, UserX, CalendarOff, Gauge } from 'lucide-react';
 
-export type IssueFieldType = 'text' | 'date' | 'textarea' | 'select' | 'employee-picker' | 'computed-days';
+export type IssueFieldType =
+  | 'text'
+  | 'date'
+  | 'textarea'
+  | 'select'
+  | 'employee-picker'
+  | 'vehicle-model-picker'
+  | 'computed-days';
 
 export type IssueField = {
   key: string;
@@ -15,6 +22,7 @@ export type IssueField = {
   otherField?: { key: string; label: string; placeholder?: string };
   /** type: 'employee-picker' — คีย์ของฟิลด์ที่จะเติมรหัสพนักงานอัตโนมัติเมื่อเลือกชื่อ */
   linkedCodeField?: string;
+  /** type: 'vehicle-model-picker' — เลือกรุ่นรถ Toyota + รุ่นย่อย/เกรด (Model) เหมือนหน้า /fleet/vehicles */
   /**
    * type: 'computed-days' — คำนวณจำนวนวัน (รวมวันเริ่ม-สิ้นสุด) จากอีก 2 ฟิลด์วันที่
    * subtractDays: หักออกจากผลรวม (เช่น "จำนวนวันที่ใช้ได้" ต้องหักวันที่บิน+วันที่กลับออก 2 วัน เพราะ 2 วันนี้ไม่ว่าง)
@@ -46,13 +54,7 @@ export const ISSUE_REPORT_TYPES: IssueReportConfig[] = [
       { key: 'report_date', label: 'วันที่', type: 'date', required: true },
       { key: 'employee_name', label: 'ชื่อ-นามสกุล', type: 'employee-picker', required: true },
       { key: 'vehicle_plate', label: 'ทะเบียนรถ', type: 'text', required: true, placeholder: 'เช่น กข 1234' },
-      {
-        key: 'vehicle_model',
-        label: 'รุ่นรถ',
-        type: 'select',
-        required: true,
-        options: ['Fortuner', 'Camry', 'Cross', 'Majesty', 'Alphard', 'Ventury', 'Commuter', 'Innova'],
-      },
+      { key: 'vehicle_model', label: 'รุ่นรถ', type: 'vehicle-model-picker', required: true },
       { key: 'mileage', label: 'เลขไมล์', type: 'text', required: true, placeholder: 'เช่น 45,000' },
       {
         key: 'service_type',
@@ -198,13 +200,7 @@ export const ISSUE_REPORT_TYPES: IssueReportConfig[] = [
         options: ['Position', 'Common', 'Support Driver', 'TEMP'],
       },
       { key: 'vehicle_plate', label: 'ทะเบียนรถ', type: 'text', required: true, placeholder: 'เช่น กข 1234' },
-      {
-        key: 'vehicle_model',
-        label: 'รุ่นรถ',
-        type: 'select',
-        required: true,
-        options: ['Fortuner', 'Camry', 'Cross', 'Majesty', 'Alphard', 'Ventury', 'Commuter', 'Innova'],
-      },
+      { key: 'vehicle_model', label: 'รุ่นรถ', type: 'vehicle-model-picker', required: true },
       {
         key: 'detection_method',
         label: 'ความเร็ว',

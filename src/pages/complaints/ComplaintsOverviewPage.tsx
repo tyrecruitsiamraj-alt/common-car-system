@@ -253,7 +253,7 @@ function CaseDetailDialog({
                   <TableRow key={row.id}>
                     {fields.map((f) => {
                       const value = getIssueFieldValue(row, f);
-                      if (f.type === 'select' && value !== '-') {
+                      if ((f.type === 'select' || f.type === 'vehicle-model-picker') && value !== '-') {
                         const color = getBadgeColor(value);
                         return (
                           <TableCell key={f.key} className="whitespace-nowrap">
