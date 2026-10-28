@@ -4,6 +4,7 @@ import {
   bucketEmployeeAge,
   bucketTopCategories,
   bucketYearsOfService,
+  buildMonthlyStatusTrend,
   buildMonthlyTrend,
   countDistinctValues,
   getEmployeeAgeLabel,
@@ -50,6 +51,26 @@ describe('buildMonthlyTrend', () => {
     expect(trend).toHaveLength(3);
     expect(trend[trend.length - 1].count).toBe(2);
     expect(trend[0].count).toBe(0);
+  });
+});
+
+describe('buildMonthlyStatusTrend', () => {
+  it('buckets entries by month and status, leaving unmatched statuses out of every count', () => {
+    const now = new Date();
+    const ymd = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-10`;
+    const trend = buildMonthlyStatusTrend(
+      [
+        { date: ymd, status: 'ฝ่ายผิด' },
+        { date: ymd, status: 'ฝ่ายผิด' },
+        { date: ymd, status: 'ฝ่ายถูก' },
+        { date: ymd, status: 'ฝ่ายผิดไม่นับเคส' },
+        { date: ymd, status: 'สถานะที่ไม่รู้จัก' },
+      ],
+      3,
+    );
+    expect(trend).toHaveLength(3);
+    expect(trend[trend.length - 1]).toMatchObject({ wrong: 2, right: 1, excluded: 1 });
+    expect(trend[0]).toMatchObject({ wrong: 0, right: 0, excluded: 0 });
   });
 });
 

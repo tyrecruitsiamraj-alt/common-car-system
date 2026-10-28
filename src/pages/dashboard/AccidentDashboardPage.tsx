@@ -6,7 +6,7 @@ import { ExternalLink, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import TopStatCard from '@/components/dashboard/shared/TopStatCard';
 import CategoryBreakdownChart from '@/components/dashboard/shared/CategoryBreakdownChart';
-import MonthlyTrendChart from '@/components/dashboard/shared/MonthlyTrendChart';
+import MonthlyStatusTrendChart from '@/components/dashboard/shared/MonthlyStatusTrendChart';
 import AccidentCaseTable from '@/components/dashboard/accidents/AccidentCaseTable';
 import DetailListDialog from '@/components/shared/DetailListDialog';
 import { apiFetch } from '@/lib/apiFetch';
@@ -15,7 +15,7 @@ import {
   bucketEmployeeAge,
   bucketTopCategories,
   bucketYearsOfService,
-  buildMonthlyTrend,
+  buildMonthlyStatusTrend,
   countDistinctValues,
   getEmployeeAgeLabel,
   getYearsOfServiceLabel,
@@ -135,7 +135,10 @@ const AccidentDashboardPage: React.FC = () => {
     () => bucketTopCategories(cases.map((c) => c.root_cause)),
     [cases],
   );
-  const trend = useMemo(() => buildMonthlyTrend(cases.map((c) => c.case_date)), [cases]);
+  const statusTrend = useMemo(
+    () => buildMonthlyStatusTrend(cases.map((c) => ({ date: c.case_date, status: c.case_status }))),
+    [cases],
+  );
 
   function openBreakdown(field: FieldKey) {
     setDrilldown({ view: 'breakdown', field });
@@ -347,10 +350,10 @@ const AccidentDashboardPage: React.FC = () => {
         </div>
 
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-          <MonthlyTrendChart
-            title="แนวโน้มเคสรายเดือน"
-            subtitle="จำนวนเคสอุบัติเหตุ 6 เดือนล่าสุด"
-            data={trend}
+          <MonthlyStatusTrendChart
+            title="แนวโน้มเคสรายเดือน แยกตามสถานะ"
+            subtitle="ฝ่ายผิด / ฝ่ายถูก / ไม่นับเคส — 6 เดือนล่าสุด"
+            data={statusTrend}
             loading={loading}
           />
           <CategoryBreakdownChart

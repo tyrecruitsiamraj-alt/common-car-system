@@ -51,6 +51,37 @@ export function buildMonthlyTrend(dates: string[], months = 6): { label: string;
   });
 }
 
+export type MonthlyStatusPoint = { label: string; wrong: number; right: number; excluded: number };
+
+/** แนวโน้มเคสรายเดือนแยกตามสถานะ (ฝ่ายผิด / ฝ่ายถูก / ฝ่ายผิดไม่นับเคส) N เดือนล่าสุด (รวมเดือนปัจจุบัน) */
+export function buildMonthlyStatusTrend(
+  entries: { date: string; status?: string | null }[],
+  months = 6,
+): MonthlyStatusPoint[] {
+  const now = new Date();
+  const keys: string[] = [];
+  for (let i = months - 1; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    keys.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+  }
+  const counts = new Map<string, { wrong: number; right: number; excluded: number }>();
+  for (const { date, status } of entries) {
+    const key = monthKey(date);
+    const bucket = counts.get(key) ?? { wrong: 0, right: 0, excluded: 0 };
+    const s = (status ?? '').trim();
+    if (s === 'ฝ่ายผิด') bucket.wrong += 1;
+    else if (s === 'ฝ่ายถูก') bucket.right += 1;
+    else if (s === 'ฝ่ายผิดไม่นับเคส') bucket.excluded += 1;
+    counts.set(key, bucket);
+  }
+  return keys.map((key) => {
+    const [y, m] = key.split('-');
+    const label = format(new Date(Number(y), Number(m) - 1, 1), 'MMM yy', { locale: th });
+    const bucket = counts.get(key) ?? { wrong: 0, right: 0, excluded: 0 };
+    return { label, ...bucket };
+  });
+}
+
 export function isSameMonthAsNow(dateYmd: string, now = new Date()): boolean {
   const d = parseISO(dateYmd);
   return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
