@@ -148,7 +148,7 @@ const FleetVehicles: React.FC = () => {
       <div className="space-y-6">
         <form onSubmit={submit} className="glass-card rounded-xl p-4 border border-border space-y-3">
           <p className="text-sm font-medium text-foreground">เพิ่มรถ</p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:items-start">
+          <div className="grid grid-cols-1 sm:grid-cols-[1fr_2fr] gap-3 sm:items-start">
             <div className="space-y-1.5">
               <Label htmlFor="plate">ทะเบียนรถ</Label>
               <Input id="plate" value={plate} onChange={(e) => setPlate(e.target.value)} placeholder="กข 1234" />
@@ -200,7 +200,7 @@ const FleetVehicles: React.FC = () => {
       </div>
 
       <Dialog open={editVehicle !== null} onOpenChange={(open) => !open && setEditVehicle(null)}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>แก้ไขรถ</DialogTitle>
             <DialogDescription>แก้ทะเบียนหรือรุ่นรถที่คีย์ผิด</DialogDescription>
