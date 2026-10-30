@@ -13,7 +13,11 @@ import {
   WORK_HOURS_PERIOD_LABELS,
   type WorkHoursPeriod,
   type WorkHoursSummaryResponse,
+  type WorkHoursTrendResponse,
 } from '@/lib/workHoursConfig';
+import WorkHoursTrendCharts from '@/components/work-hours/WorkHoursTrendCharts';
+
+const TREND_MONTH_OPTIONS = [3, 6, 12] as const;
 
 const currency = (n: number) => `${n.toLocaleString('th-TH')} บาท`;
 
@@ -37,6 +41,9 @@ const WorkHoursDashboardPage: React.FC = () => {
   const [detailEmployee, setDetailEmployee] = useState<{ id: string; name: string } | null>(null);
   const [detailData, setDetailData] = useState<WorkHoursSummaryResponse | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [trendMonths, setTrendMonths] = useState<(typeof TREND_MONTH_OPTIONS)[number]>(6);
+  const [trendData, setTrendData] = useState<WorkHoursTrendResponse | null>(null);
+  const [trendLoading, setTrendLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
@@ -62,6 +69,22 @@ const WorkHoursDashboardPage: React.FC = () => {
       cancelled = true;
     };
   }, [period]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setTrendLoading(true);
+    apiFetch(`/api/work-hours-trend?months=${trendMonths}`)
+      .then(async (r) => {
+        if (cancelled || !r.ok) return;
+        setTrendData((await r.json()) as WorkHoursTrendResponse);
+      })
+      .finally(() => {
+        if (!cancelled) setTrendLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [trendMonths]);
 
   useEffect(() => {
     if (!detailEmployee) {
@@ -141,6 +164,28 @@ const WorkHoursDashboardPage: React.FC = () => {
                 accent="#ec4899"
               />
               <StatCard label="ประมาณการค่า OT" value={currency(data.summary.estimated_ot_cost)} accent="#f59e0b" />
+            </div>
+
+            <div>
+              <div className="mb-3 flex items-center justify-between flex-wrap gap-2">
+                <h2 className="text-sm font-semibold text-slate-900">แนวโน้มรายเดือน</h2>
+                <div className="flex gap-1 rounded-xl bg-slate-100 p-1">
+                  {TREND_MONTH_OPTIONS.map((m) => (
+                    <button
+                      key={m}
+                      type="button"
+                      onClick={() => setTrendMonths(m)}
+                      className={cn(
+                        'px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors',
+                        m === trendMonths ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700',
+                      )}
+                    >
+                      {m} เดือน
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <WorkHoursTrendCharts trend={trendData?.trend ?? []} loading={trendLoading} />
             </div>
 
             <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden">

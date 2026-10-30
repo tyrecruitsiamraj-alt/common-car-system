@@ -31,6 +31,7 @@ import appUsersHandler from './app-users.js';
 import holidaysHandler from './holidays.js';
 import otSettingsHandler from './ot-settings.js';
 import workHoursSummaryHandler from './work-hours-summary.js';
+import workHoursTrendHandler from './work-hours-trend.js';
 export type ApiHandler = (req: ApiReq, res: ApiRes) => Promise<void>;
 
 /** Route table — Login + WL + Dashboard; clients/jobs ใช้ภายใน WL (มอบหมายงาน) */
@@ -58,6 +59,7 @@ export const apiRoutes: Record<string, ApiHandler> = {
   '/api/holidays': holidaysHandler as ApiHandler,
   '/api/ot-settings': otSettingsHandler as ApiHandler,
   '/api/work-hours-summary': workHoursSummaryHandler as ApiHandler,
+  '/api/work-hours-trend': workHoursTrendHandler as ApiHandler,
   '/api/geocode': geocodeHandler as ApiHandler,
   '/api/branding': brandingHandler as ApiHandler,
   '/api/auth/login': loginHandler as ApiHandler,

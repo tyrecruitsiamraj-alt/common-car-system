@@ -70,3 +70,34 @@ export type WorkHoursSummaryResponse = {
   employees: WorkHoursEmployeeSummary[];
   daily?: WorkHoursDailyEntry[];
 };
+
+export type WorkHoursTrendPoint = {
+  month: string;
+  from: string;
+  to: string;
+  total_employees: number;
+  active_count: number;
+  idle_count: number;
+  total_hours: number;
+  total_normal_hours: number;
+  total_ot_hours: number;
+  estimated_ot_cost: number;
+};
+
+export type WorkHoursTrendResponse = {
+  months: number;
+  trend: WorkHoursTrendPoint[];
+};
+
+const THAI_MONTHS_SHORT = [
+  'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.',
+  'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.',
+];
+
+/** "2026-03" -> "มี.ค. 69" (ปี พ.ศ. 2 หลัก) */
+export function workHoursTrendMonthLabel(key: string): string {
+  const [y, m] = key.split('-');
+  const idx = Number(m) - 1;
+  const buddhistYearShort = (Number(y) + 543) % 100;
+  return `${THAI_MONTHS_SHORT[idx] ?? key} ${String(buddhistYearShort).padStart(2, '0')}`;
+}

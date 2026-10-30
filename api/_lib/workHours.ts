@@ -60,3 +60,16 @@ export function dateToYmd(d: Date): string {
 export function avgHoursPerDay(totalHours: number, daysWorked: number): number {
   return daysWorked > 0 ? totalHours / daysWorked : 0;
 }
+
+export type MonthBucket = { key: string; year: number; month: number; from: string; to: string };
+
+/** ไล่ N เดือนย้อนหลังจาก anchor (รวมเดือนของ anchor) เรียงจากเก่าไปใหม่ — key เป็น YYYY-MM */
+export function lastMonthBuckets(count: number, anchor: Date): MonthBucket[] {
+  const buckets: MonthBucket[] = [];
+  for (let i = count - 1; i >= 0; i -= 1) {
+    const d = new Date(anchor.getFullYear(), anchor.getMonth() - i, 1);
+    const { from, to } = periodBounds('month', d);
+    buckets.push({ key: `${d.getFullYear()}-${pad(d.getMonth() + 1)}`, year: d.getFullYear(), month: d.getMonth(), from, to });
+  }
+  return buckets;
+}
