@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { KeyRound, LogOut, UserCircle, ChevronDown, UserCog } from 'lucide-react';
+import { KeyRound, LogOut, UserCircle, ChevronDown, UserCog, Clock } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useBranding } from '@/contexts/BrandingContext';
 import { getAppShellBackgroundStyle } from '@/lib/brandingStorage';
@@ -11,6 +11,8 @@ import { BrandMark, BrandTitle } from '@/components/shared/BrandMark';
 import BottomDockNav from '@/components/layout/bottom-nav/BottomDockNav';
 import { DOCK_NAV_ITEMS, isDockPathActive } from '@/components/layout/bottom-nav/dockNavConfig';
 import { ISSUE_REPORT_TYPES } from '@/lib/issueReportConfig';
+import { ACCESS_WORK_HOURS_CAPABILITY } from '@/lib/workHoursConfig';
+import { fetchCapabilityStatus } from '@/lib/userPermissions';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -35,6 +37,21 @@ const AppLayout: React.FC = () => {
       setFormsOpen(true);
     }
   }, [location.pathname]);
+
+  const [workHoursGranted, setWorkHoursGranted] = useState(false);
+
+  useEffect(() => {
+    if (hasPermission('supervisor')) return;
+    let cancelled = false;
+    fetchCapabilityStatus(ACCESS_WORK_HOURS_CAPABILITY).then((res) => {
+      if (!cancelled) setWorkHoursGranted(res?.granted ?? false);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [hasPermission]);
+
+  const canAccessWorkHours = hasPermission('supervisor') || workHoursGranted;
 
   return (
     <div
@@ -192,6 +209,22 @@ const AppLayout: React.FC = () => {
               >
                 <UserCog className="w-4 h-4 shrink-0" />
                 <span className="truncate">ผู้ใช้งาน</span>
+              </button>
+            )}
+
+            {canAccessWorkHours && (
+              <button
+                type="button"
+                onClick={() => navigate('/work-hours')}
+                className={cn(
+                  'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-left transition-all touch-manipulation',
+                  location.pathname.startsWith('/work-hours')
+                    ? 'bg-amber-500/15 text-amber-900 font-medium'
+                    : 'text-amber-700/90 hover:text-amber-900 hover:bg-amber-500/10',
+                )}
+              >
+                <Clock className="w-4 h-4 shrink-0" />
+                <span className="truncate">ชั่วโมงทำงาน</span>
               </button>
             )}
           </nav>

@@ -28,6 +28,9 @@ import fleetExamSubmissionsHandler from './fleet-exam-submissions.js';
 import fleetBookingPermissionsHandler from './fleet-booking-permissions.js';
 import userPermissionsHandler from './user-permissions.js';
 import appUsersHandler from './app-users.js';
+import holidaysHandler from './holidays.js';
+import otSettingsHandler from './ot-settings.js';
+import workHoursSummaryHandler from './work-hours-summary.js';
 export type ApiHandler = (req: ApiReq, res: ApiRes) => Promise<void>;
 
 /** Route table — Login + WL + Dashboard; clients/jobs ใช้ภายใน WL (มอบหมายงาน) */
@@ -52,6 +55,9 @@ export const apiRoutes: Record<string, ApiHandler> = {
   '/api/fleet-booking-permissions': fleetBookingPermissionsHandler as ApiHandler,
   '/api/user-permissions': userPermissionsHandler as ApiHandler,
   '/api/app-users': appUsersHandler as ApiHandler,
+  '/api/holidays': holidaysHandler as ApiHandler,
+  '/api/ot-settings': otSettingsHandler as ApiHandler,
+  '/api/work-hours-summary': workHoursSummaryHandler as ApiHandler,
   '/api/geocode': geocodeHandler as ApiHandler,
   '/api/branding': brandingHandler as ApiHandler,
   '/api/auth/login': loginHandler as ApiHandler,

@@ -32,6 +32,8 @@ import PublicIssueReportPage from "@/pages/complaints/PublicIssueReportPage";
 import ChangePasswordPage from "@/pages/ChangePasswordPage";
 import AppearanceSettingsPage from "@/pages/settings/AppearanceSettingsPage";
 import UserPermissionsSettingsPage from "@/pages/settings/UserPermissionsSettingsPage";
+import WorkHoursDashboardPage from "@/pages/work-hours/WorkHoursDashboardPage";
+import WorkHoursSettingsPage from "@/pages/work-hours/WorkHoursSettingsPage";
 import AdminRoute from "@/components/auth/AdminRoute";
 import NotFound from "./pages/NotFound";
 
@@ -87,6 +89,8 @@ function AppRoutes() {
         <Route path="/complaints/overview" element={<ComplaintsOverviewPage />} />
         <Route path="/complaints/history" element={<ComplaintsHistoryPage />} />
         <Route path="/complaints/:slug" element={<IssueReportPage />} />
+        <Route path="/work-hours" element={<WorkHoursDashboardPage />} />
+        <Route path="/work-hours/settings" element={<WorkHoursSettingsPage />} />
         <Route path="/account/change-password" element={<ChangePasswordPage />} />
         <Route
           path="/settings"
