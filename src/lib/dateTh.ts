@@ -69,6 +69,28 @@ export function formatYmdDmyBe(ymd: string | undefined | null): string {
   return `${String(p.d).padStart(2, '0')}/${String(p.m).padStart(2, '0')}/${ceToBeYear(p.y)}`;
 }
 
+/** เลื่อนเดือนจาก ymd ใดๆ (วันที่ 1 ของเดือนที่ได้เสมอ) */
+export function shiftMonths(ymd: string, delta: number): string {
+  const p = parseYmd(ymd);
+  if (!p) return ymd;
+  return toYmdLocal(new Date(p.y, p.m - 1 + delta, 1));
+}
+
+/** เลื่อนปีจาก ymd ใดๆ (วันที่ 1 มกราคมของปีที่ได้เสมอ) */
+export function shiftYears(ymd: string, delta: number): string {
+  const p = parseYmd(ymd);
+  if (!p) return ymd;
+  return toYmdLocal(new Date(p.y + delta, 0, 1));
+}
+
+/** "2026-10-05" -> "ตุลาคม 2569" */
+export function monthYearLabelBe(ymd: string): string {
+  const p = parseYmd(ymd);
+  if (!p) return ymd;
+  const label = THAI_MONTHS.find((m) => m.value === p.m)?.label ?? '';
+  return `${label} ${ceToBeYear(p.y)}`;
+}
+
 export function beYearRange(centerCeYear: number, delta = 15): number[] {
   const centerBe = ceToBeYear(centerCeYear);
   const out: number[] = [];

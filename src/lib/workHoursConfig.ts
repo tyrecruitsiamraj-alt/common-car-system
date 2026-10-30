@@ -3,10 +3,10 @@ export type WorkHoursPeriod = 'day' | 'week' | 'month' | 'year';
 export const WORK_HOURS_PERIODS: WorkHoursPeriod[] = ['day', 'week', 'month', 'year'];
 
 export const WORK_HOURS_PERIOD_LABELS: Record<WorkHoursPeriod, string> = {
-  day: 'วันนี้',
-  week: 'สัปดาห์นี้',
-  month: 'เดือนนี้',
-  year: 'ปีนี้',
+  day: 'รายวัน',
+  week: 'รายสัปดาห์',
+  month: 'รายเดือน',
+  year: 'รายปี',
 };
 
 /** ต้องตรงกับฝั่ง backend (api/_handlers/work-hours-summary.ts, holidays.ts, ot-settings.ts) */

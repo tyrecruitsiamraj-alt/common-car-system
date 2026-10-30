@@ -1,14 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Settings as SettingsIcon } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Settings as SettingsIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import SearchablePicker from '@/components/shared/SearchablePicker';
+import MonthNav from '@/components/work-hours/MonthNav';
 import { cn } from '@/lib/utils';
 import { apiFetch } from '@/lib/apiFetch';
 import { getBadgeColor } from '@/lib/badgeColors';
+import { ceToBeYear, parseYmd, shiftYears, toYmdLocal } from '@/lib/dateTh';
 import {
   WORK_HOURS_PERIODS,
   WORK_HOURS_PERIOD_LABELS,
@@ -19,6 +22,57 @@ import {
 import WorkHoursTrendCharts from '@/components/work-hours/WorkHoursTrendCharts';
 
 const TREND_MONTH_OPTIONS = [3, 6, 12] as const;
+const todayYmd = () => toYmdLocal(new Date());
+
+function AnchorPicker({ period, value, onChange }: { period: WorkHoursPeriod; value: string; onChange: (ymd: string) => void }) {
+  if (period === 'month') {
+    return <MonthNav value={value} onChange={onChange} disableNext />;
+  }
+  if (period === 'year') {
+    const year = parseYmd(value)?.y ?? new Date().getFullYear();
+    const isCurrentYear = year === new Date().getFullYear();
+    return (
+      <div className="flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-1 py-1">
+        <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => onChange(shiftYears(value, -1))}>
+          <ChevronLeft className="h-4 w-4" />
+        </Button>
+        <span className="min-w-[3.5rem] text-center text-xs font-semibold text-slate-900">{ceToBeYear(year)}</span>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7"
+          disabled={isCurrentYear}
+          onClick={() => onChange(shiftYears(value, 1))}
+        >
+          <ChevronRight className="h-4 w-4" />
+        </Button>
+        {!isCurrentYear ? (
+          <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => onChange(todayYmd())}>
+            ปีนี้
+          </Button>
+        ) : null}
+      </div>
+    );
+  }
+  const isToday = value === todayYmd();
+  return (
+    <div className="flex items-center gap-1.5">
+      <Input
+        type="date"
+        value={value}
+        max={todayYmd()}
+        onChange={(e) => onChange(e.target.value || todayYmd())}
+        className="h-8 w-[150px] text-xs"
+      />
+      {!isToday ? (
+        <Button type="button" variant="ghost" size="sm" className="h-8 px-2 text-xs" onClick={() => onChange(todayYmd())}>
+          วันนี้
+        </Button>
+      ) : null}
+    </div>
+  );
+}
 
 const currency = (n: number) => `${n.toLocaleString('th-TH')} บาท`;
 
@@ -36,6 +90,7 @@ function StatCard({ label, value, accent }: { label: string; value: string; acce
 
 const WorkHoursDashboardPage: React.FC = () => {
   const [period, setPeriod] = useState<WorkHoursPeriod>('month');
+  const [anchorDate, setAnchorDate] = useState(todayYmd());
   const [data, setData] = useState<WorkHoursSummaryResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -43,6 +98,7 @@ const WorkHoursDashboardPage: React.FC = () => {
   const [detailData, setDetailData] = useState<WorkHoursSummaryResponse | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [trendMonths, setTrendMonths] = useState<(typeof TREND_MONTH_OPTIONS)[number]>(6);
+  const [trendEndMonth, setTrendEndMonth] = useState(todayYmd());
   const [trendEmployeeId, setTrendEmployeeId] = useState('');
   const [trendData, setTrendData] = useState<WorkHoursTrendResponse | null>(null);
   const [trendLoading, setTrendLoading] = useState(true);
@@ -51,7 +107,7 @@ const WorkHoursDashboardPage: React.FC = () => {
     let cancelled = false;
     setLoading(true);
     setError(null);
-    apiFetch(`/api/work-hours-summary?period=${period}`)
+    apiFetch(`/api/work-hours-summary?period=${period}&date=${anchorDate}`)
       .then(async (r) => {
         if (cancelled) return;
         if (!r.ok) {
@@ -70,13 +126,13 @@ const WorkHoursDashboardPage: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [period]);
+  }, [period, anchorDate]);
 
   useEffect(() => {
     let cancelled = false;
     setTrendLoading(true);
     const employeeParam = trendEmployeeId ? `&employee_id=${trendEmployeeId}` : '';
-    apiFetch(`/api/work-hours-trend?months=${trendMonths}${employeeParam}`)
+    apiFetch(`/api/work-hours-trend?months=${trendMonths}&date=${trendEndMonth}${employeeParam}`)
       .then(async (r) => {
         if (cancelled || !r.ok) return;
         setTrendData((await r.json()) as WorkHoursTrendResponse);
@@ -87,7 +143,7 @@ const WorkHoursDashboardPage: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [trendMonths, trendEmployeeId]);
+  }, [trendMonths, trendEndMonth, trendEmployeeId]);
 
   useEffect(() => {
     if (!detailEmployee) {
@@ -96,7 +152,7 @@ const WorkHoursDashboardPage: React.FC = () => {
     }
     let cancelled = false;
     setDetailLoading(true);
-    apiFetch(`/api/work-hours-summary?period=${period}&employee_id=${detailEmployee.id}`)
+    apiFetch(`/api/work-hours-summary?period=${period}&date=${anchorDate}&employee_id=${detailEmployee.id}`)
       .then(async (r) => {
         if (cancelled || !r.ok) return;
         setDetailData((await r.json()) as WorkHoursSummaryResponse);
@@ -107,7 +163,7 @@ const WorkHoursDashboardPage: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [detailEmployee, period]);
+  }, [detailEmployee, period, anchorDate]);
 
   return (
     <main className="min-h-[calc(100dvh-4rem)] -mx-4 sm:-mx-5 md:-mx-6 lg:-mx-8 px-4 py-6 text-slate-900 md:px-8">
@@ -127,7 +183,10 @@ const WorkHoursDashboardPage: React.FC = () => {
                 <button
                   key={p}
                   type="button"
-                  onClick={() => setPeriod(p)}
+                  onClick={() => {
+                    setPeriod(p);
+                    setAnchorDate(todayYmd());
+                  }}
                   className={cn(
                     'px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors',
                     p === period ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700',
@@ -137,6 +196,7 @@ const WorkHoursDashboardPage: React.FC = () => {
                 </button>
               ))}
             </div>
+            <AnchorPicker period={period} value={anchorDate} onChange={setAnchorDate} />
             <Button type="button" variant="outline" size="sm" asChild>
               <Link to="/work-hours/settings">
                 <SettingsIcon className="h-3.5 w-3.5 mr-1.5" />
@@ -173,6 +233,7 @@ const WorkHoursDashboardPage: React.FC = () => {
               <div className="mb-3 flex items-center justify-between flex-wrap gap-2">
                 <h2 className="text-sm font-semibold text-slate-900">แนวโน้มรายเดือน</h2>
                 <div className="flex flex-wrap items-center gap-2">
+                  <MonthNav value={trendEndMonth} onChange={setTrendEndMonth} disableNext />
                   <SearchablePicker
                     value={trendEmployeeId}
                     onValueChange={setTrendEmployeeId}

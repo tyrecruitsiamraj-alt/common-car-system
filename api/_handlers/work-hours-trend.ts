@@ -34,8 +34,10 @@ async function handler(req: AuthedReq, res: ApiRes) {
     const monthsParam = Number(getString(req.query?.months) ?? '6');
     const months = Number.isFinite(monthsParam) ? Math.min(12, Math.max(1, Math.round(monthsParam))) : 6;
     const employeeId = getString(req.query?.employee_id);
+    const dateParam = getString(req.query?.date);
+    const anchor = dateParam && !Number.isNaN(new Date(dateParam).getTime()) ? new Date(dateParam) : new Date();
 
-    const buckets = lastMonthBuckets(months, new Date());
+    const buckets = lastMonthBuckets(months, anchor);
     const rangeFrom = buckets[0].from;
     const rangeTo = buckets[buckets.length - 1].to;
 
