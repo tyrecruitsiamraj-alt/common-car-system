@@ -163,17 +163,19 @@ async function handler(req: AuthedReq, res: ApiRes) {
       }
     }
 
-    const employeeSummaries = [...byEmployee.values()].map((acc) => ({
-      employee_id: acc.employee_id,
-      name: acc.name,
-      position: acc.position,
-      total_hours: Math.round(acc.total_hours * 100) / 100,
-      normal_hours: Math.round(acc.normal_hours * 100) / 100,
-      ot_hours: Math.round(acc.ot_hours * 100) / 100,
-      ot_cost: Math.round(acc.ot_cost),
-      days_worked: acc.days.size,
-      status: (acc.total_hours > threshold ? 'active' : 'idle') as 'active' | 'idle',
-    }));
+    const employeeSummaries = [...byEmployee.values()]
+      .map((acc) => ({
+        employee_id: acc.employee_id,
+        name: acc.name,
+        position: acc.position,
+        total_hours: Math.round(acc.total_hours * 100) / 100,
+        normal_hours: Math.round(acc.normal_hours * 100) / 100,
+        ot_hours: Math.round(acc.ot_hours * 100) / 100,
+        ot_cost: Math.round(acc.ot_cost),
+        days_worked: acc.days.size,
+        status: (acc.total_hours > threshold ? 'active' : 'idle') as 'active' | 'idle',
+      }))
+      .sort((a, b) => b.total_hours - a.total_hours);
 
     const totalHoursAll = employeeSummaries.reduce((s, e) => s + e.total_hours, 0);
     const totalOtHoursAll = employeeSummaries.reduce((s, e) => s + e.ot_hours, 0);
