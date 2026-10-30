@@ -33,6 +33,7 @@ async function handler(req: AuthedReq, res: ApiRes) {
   try {
     const monthsParam = Number(getString(req.query?.months) ?? '6');
     const months = Number.isFinite(monthsParam) ? Math.min(12, Math.max(1, Math.round(monthsParam))) : 6;
+    const employeeId = getString(req.query?.employee_id);
 
     const buckets = lastMonthBuckets(months, new Date());
     const rangeFrom = buckets[0].from;
@@ -40,7 +41,12 @@ async function handler(req: AuthedReq, res: ApiRes) {
 
     const [{ rows: settingsRows }, { rows: employees }, { rows: holidayRows }] = await Promise.all([
       dbQuery<OtSettingsRow>(`select * from ${otSettingsTbl} where id = true limit 1`, []),
-      dbQuery<EmployeeRow>(`select id from ${employeesTbl} where status = 'active'`, []),
+      dbQuery<EmployeeRow>(
+        employeeId
+          ? `select id from ${employeesTbl} where id = $1::uuid`
+          : `select id from ${employeesTbl} where status = 'active'`,
+        employeeId ? [employeeId] : [],
+      ),
       dbQuery<{ holiday_date: string | Date }>(
         `select holiday_date from ${holidaysTbl} where holiday_date >= $1::date and holiday_date <= $2::date`,
         [rangeFrom, rangeTo],
@@ -57,11 +63,16 @@ async function handler(req: AuthedReq, res: ApiRes) {
       holidayRows.map((h) => (h.holiday_date instanceof Date ? h.holiday_date.toISOString().slice(0, 10) : h.holiday_date)),
     );
 
+    const bookingParams: unknown[] = [rangeFrom, rangeTo];
+    let bookingWhere = `where completed_at is not null and starts_at::date >= $1::date and starts_at::date <= $2::date`;
+    if (employeeId) {
+      bookingParams.push(employeeId);
+      bookingWhere += ` and employee_id = $${bookingParams.length}::uuid`;
+    }
+
     const { rows: bookings } = await dbQuery<BookingRow>(
-      `select employee_id, starts_at, completed_at
-       from ${bookingsTbl}
-       where completed_at is not null and starts_at::date >= $1::date and starts_at::date <= $2::date`,
-      [rangeFrom, rangeTo],
+      `select employee_id, starts_at, completed_at from ${bookingsTbl} ${bookingWhere}`,
+      bookingParams,
     );
 
     type Acc = { total_hours: number; normal_hours: number; ot_hours: number; ot_cost: number; days: Set<string> };
@@ -102,11 +113,13 @@ async function handler(req: AuthedReq, res: ApiRes) {
       let totalOtHoursAll = 0;
       let totalOtCostAll = 0;
       let activeCount = 0;
+      let singleEmployeeDays = 0;
       for (const acc of accMap.values()) {
         totalHoursAll += acc.total_hours;
         totalNormalHoursAll += acc.normal_hours;
         totalOtHoursAll += acc.ot_hours;
         totalOtCostAll += acc.ot_cost;
+        singleEmployeeDays = acc.days.size;
         if (avgHoursPerDay(acc.total_hours, acc.days.size) > threshold) activeCount += 1;
       }
       return {
@@ -120,10 +133,11 @@ async function handler(req: AuthedReq, res: ApiRes) {
         total_normal_hours: Math.round(totalNormalHoursAll * 100) / 100,
         total_ot_hours: Math.round(totalOtHoursAll * 100) / 100,
         estimated_ot_cost: Math.round(totalOtCostAll),
+        avg_hours_per_day: employeeId ? Math.round(avgHoursPerDay(totalHoursAll, singleEmployeeDays) * 100) / 100 : null,
       };
     });
 
-    return res.status(200).json({ months, trend });
+    return res.status(200).json({ months, threshold, employee_scoped: !!employeeId, trend });
   } catch (e) {
     return handleApiError(res, e, 'work-hours-trend GET', { userId: req.user.sub });
   }

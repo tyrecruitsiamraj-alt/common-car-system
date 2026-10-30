@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import SearchablePicker from '@/components/shared/SearchablePicker';
 import { cn } from '@/lib/utils';
 import { apiFetch } from '@/lib/apiFetch';
 import { getBadgeColor } from '@/lib/badgeColors';
@@ -42,6 +43,7 @@ const WorkHoursDashboardPage: React.FC = () => {
   const [detailData, setDetailData] = useState<WorkHoursSummaryResponse | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [trendMonths, setTrendMonths] = useState<(typeof TREND_MONTH_OPTIONS)[number]>(6);
+  const [trendEmployeeId, setTrendEmployeeId] = useState('');
   const [trendData, setTrendData] = useState<WorkHoursTrendResponse | null>(null);
   const [trendLoading, setTrendLoading] = useState(true);
 
@@ -73,7 +75,8 @@ const WorkHoursDashboardPage: React.FC = () => {
   useEffect(() => {
     let cancelled = false;
     setTrendLoading(true);
-    apiFetch(`/api/work-hours-trend?months=${trendMonths}`)
+    const employeeParam = trendEmployeeId ? `&employee_id=${trendEmployeeId}` : '';
+    apiFetch(`/api/work-hours-trend?months=${trendMonths}${employeeParam}`)
       .then(async (r) => {
         if (cancelled || !r.ok) return;
         setTrendData((await r.json()) as WorkHoursTrendResponse);
@@ -84,7 +87,7 @@ const WorkHoursDashboardPage: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [trendMonths]);
+  }, [trendMonths, trendEmployeeId]);
 
   useEffect(() => {
     if (!detailEmployee) {
@@ -169,23 +172,38 @@ const WorkHoursDashboardPage: React.FC = () => {
             <div>
               <div className="mb-3 flex items-center justify-between flex-wrap gap-2">
                 <h2 className="text-sm font-semibold text-slate-900">แนวโน้มรายเดือน</h2>
-                <div className="flex gap-1 rounded-xl bg-slate-100 p-1">
-                  {TREND_MONTH_OPTIONS.map((m) => (
-                    <button
-                      key={m}
-                      type="button"
-                      onClick={() => setTrendMonths(m)}
-                      className={cn(
-                        'px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors',
-                        m === trendMonths ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700',
-                      )}
-                    >
-                      {m} เดือน
-                    </button>
-                  ))}
+                <div className="flex flex-wrap items-center gap-2">
+                  <SearchablePicker
+                    value={trendEmployeeId}
+                    onValueChange={setTrendEmployeeId}
+                    options={data.employees.map((e) => ({ value: e.employee_id, label: e.name, keywords: e.position }))}
+                    placeholder="ทั้งหมด — พิมพ์ชื่อพนักงาน…"
+                    aria-label="ดูแนวโน้มเฉพาะพนักงาน"
+                    className="w-56"
+                  />
+                  <div className="flex gap-1 rounded-xl bg-slate-100 p-1">
+                    {TREND_MONTH_OPTIONS.map((m) => (
+                      <button
+                        key={m}
+                        type="button"
+                        onClick={() => setTrendMonths(m)}
+                        className={cn(
+                          'px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors',
+                          m === trendMonths ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700',
+                        )}
+                      >
+                        {m} เดือน
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
-              <WorkHoursTrendCharts trend={trendData?.trend ?? []} loading={trendLoading} />
+              <WorkHoursTrendCharts
+                trend={trendData?.trend ?? []}
+                loading={trendLoading}
+                employeeScoped={!!trendEmployeeId}
+                threshold={trendData?.threshold}
+              />
             </div>
 
             <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden">

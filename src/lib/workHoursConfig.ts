@@ -82,10 +82,13 @@ export type WorkHoursTrendPoint = {
   total_normal_hours: number;
   total_ot_hours: number;
   estimated_ot_cost: number;
+  avg_hours_per_day: number | null;
 };
 
 export type WorkHoursTrendResponse = {
   months: number;
+  threshold: number;
+  employee_scoped: boolean;
   trend: WorkHoursTrendPoint[];
 };
 
