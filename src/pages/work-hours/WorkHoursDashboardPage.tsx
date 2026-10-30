@@ -183,6 +183,9 @@ const WorkHoursDashboardPage: React.FC = () => {
                             >
                               {e.status === 'active' ? 'วิ่งงาน' : 'ว่าง'}
                             </Badge>
+                            <p className="mt-1 text-[11px] text-muted-foreground tabular-nums">
+                              {e.total_hours} / {data.settings.full_time_threshold_hours} ชม.
+                            </p>
                           </TableCell>
                           <TableCell className="text-right tabular-nums font-semibold">{currency(e.ot_cost)}</TableCell>
                           <TableCell className="text-right">
