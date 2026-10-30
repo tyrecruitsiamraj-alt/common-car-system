@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { periodBounds, splitWorkHours } from '../../api/_lib/workHours.js';
+import { avgHoursPerDay, periodBounds, splitWorkHours } from '../../api/_lib/workHours.js';
 
 describe('splitWorkHours', () => {
   it('counts a shift entirely inside 08:00-17:00 as all normal hours', () => {
@@ -35,6 +35,16 @@ describe('splitWorkHours', () => {
     expect(totalHours).toBe(0);
     expect(normalHours).toBe(0);
     expect(otHours).toBe(0);
+  });
+});
+
+describe('avgHoursPerDay', () => {
+  it('divides total hours by days worked', () => {
+    expect(avgHoursPerDay(80, 10)).toBe(8);
+  });
+
+  it('returns 0 when no days worked, instead of dividing by zero', () => {
+    expect(avgHoursPerDay(0, 0)).toBe(0);
   });
 });
 

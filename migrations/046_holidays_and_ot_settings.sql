@@ -14,7 +14,7 @@ create table if not exists ot_settings (
   id boolean primary key default true check (id),
   ot_rate_1_5x numeric not null default 50,
   ot_rate_3x numeric not null default 100,
-  full_time_threshold_hours numeric not null default 176,
+  full_time_threshold_hours numeric not null default 8,
   supervisor_ot_alert_hours numeric not null default 50,
   updated_at timestamptz not null default now(),
   updated_by_user_id uuid null references users (id) on delete set null

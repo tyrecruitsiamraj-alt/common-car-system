@@ -36,6 +36,7 @@ export type WorkHoursEmployeeSummary = {
   ot_hours: number;
   ot_cost: number;
   days_worked: number;
+  avg_hours_per_day: number;
   status: 'active' | 'idle';
 };
 

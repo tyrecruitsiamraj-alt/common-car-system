@@ -149,7 +149,7 @@ const WorkHoursDashboardPage: React.FC = () => {
                   รายละเอียดพนักงาน — {WORK_HOURS_PERIOD_LABELS[period]} ({data.from} ถึง {data.to})
                 </h2>
                 <span className="text-[11px] text-slate-400">
-                  เกณฑ์ชั่วโมงเต็มเวลา {data.settings.full_time_threshold_hours} ชม.
+                  เกณฑ์ชั่วโมงเต็มเวลา {data.settings.full_time_threshold_hours} ชม./วัน
                 </span>
               </div>
               <div className="overflow-x-auto">
@@ -184,7 +184,7 @@ const WorkHoursDashboardPage: React.FC = () => {
                               {e.status === 'active' ? 'วิ่งงาน' : 'ว่าง'}
                             </Badge>
                             <p className="mt-1 text-[11px] text-muted-foreground tabular-nums">
-                              {e.total_hours} / {data.settings.full_time_threshold_hours} ชม.
+                              {e.avg_hours_per_day} / {data.settings.full_time_threshold_hours} ชม./วัน
                             </p>
                           </TableCell>
                           <TableCell className="text-right tabular-nums font-semibold">{currency(e.ot_cost)}</TableCell>

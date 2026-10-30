@@ -3,7 +3,13 @@ import { withAuth, sendError, handleApiError, type ApiRes, type AuthedReq } from
 import { getString } from '../_lib/body.js';
 import { tableInAppSchema } from '../_lib/schema.js';
 import { userHasCapability } from '../_lib/userPermissions.js';
-import { ACCESS_WORK_HOURS_CAPABILITY, periodBounds, splitWorkHours, type WorkHoursPeriod } from '../_lib/workHours.js';
+import {
+  ACCESS_WORK_HOURS_CAPABILITY,
+  avgHoursPerDay,
+  periodBounds,
+  splitWorkHours,
+  type WorkHoursPeriod,
+} from '../_lib/workHours.js';
 
 const bookingsTbl = tableInAppSchema('vehicle_bookings');
 const employeesTbl = tableInAppSchema('employees');
@@ -164,17 +170,21 @@ async function handler(req: AuthedReq, res: ApiRes) {
     }
 
     const employeeSummaries = [...byEmployee.values()]
-      .map((acc) => ({
-        employee_id: acc.employee_id,
-        name: acc.name,
-        position: acc.position,
-        total_hours: Math.round(acc.total_hours * 100) / 100,
-        normal_hours: Math.round(acc.normal_hours * 100) / 100,
-        ot_hours: Math.round(acc.ot_hours * 100) / 100,
-        ot_cost: Math.round(acc.ot_cost),
-        days_worked: acc.days.size,
-        status: (acc.total_hours > threshold ? 'active' : 'idle') as 'active' | 'idle',
-      }))
+      .map((acc) => {
+        const avgPerDay = avgHoursPerDay(acc.total_hours, acc.days.size);
+        return {
+          employee_id: acc.employee_id,
+          name: acc.name,
+          position: acc.position,
+          total_hours: Math.round(acc.total_hours * 100) / 100,
+          normal_hours: Math.round(acc.normal_hours * 100) / 100,
+          ot_hours: Math.round(acc.ot_hours * 100) / 100,
+          ot_cost: Math.round(acc.ot_cost),
+          days_worked: acc.days.size,
+          avg_hours_per_day: Math.round(avgPerDay * 100) / 100,
+          status: (avgPerDay > threshold ? 'active' : 'idle') as 'active' | 'idle',
+        };
+      })
       .sort((a, b) => b.total_hours - a.total_hours);
 
     const totalHoursAll = employeeSummaries.reduce((s, e) => s + e.total_hours, 0);

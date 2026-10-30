@@ -55,3 +55,8 @@ export function splitWorkHours(startsAt: Date, completedAt: Date): { totalHours:
 export function dateToYmd(d: Date): string {
   return ymd(d);
 }
+
+/** ชั่วโมงทำงานเฉลี่ยต่อวันที่มีงานจริง ใช้เทียบกับเกณฑ์ชั่วโมงทำงานเต็มเวลา (ชม./วัน) */
+export function avgHoursPerDay(totalHours: number, daysWorked: number): number {
+  return daysWorked > 0 ? totalHours / daysWorked : 0;
+}

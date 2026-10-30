@@ -25,8 +25,8 @@ const RATE_FIELDS: { key: keyof OtSettings; label: string; unit: string; hint: s
   {
     key: 'full_time_threshold_hours',
     label: 'เกณฑ์ชั่วโมงทำงานเต็มเวลา',
-    unit: 'ชม./เดือน',
-    hint: 'เกินเกณฑ์นี้ = สถานะ "วิ่งงาน" ไม่เกิน = "ว่าง"',
+    unit: 'ชม./วัน',
+    hint: 'เทียบจากชั่วโมงทำงานเฉลี่ยต่อวันที่มีงานจริง — เกินเกณฑ์นี้ = สถานะ "วิ่งงาน" ไม่เกิน = "ว่าง"',
   },
   {
     key: 'supervisor_ot_alert_hours',
