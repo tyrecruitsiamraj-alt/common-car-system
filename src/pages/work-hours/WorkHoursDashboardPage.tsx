@@ -159,6 +159,7 @@ const WorkHoursDashboardPage: React.FC = () => {
                       <TableHead>ชื่อพนักงาน</TableHead>
                       <TableHead>ตำแหน่ง</TableHead>
                       <TableHead className="text-right">ชม.รวม</TableHead>
+                      <TableHead className="text-right">ชม.ทำงานจริง (ปกติ)</TableHead>
                       <TableHead className="text-right">ชม. OT</TableHead>
                       <TableHead>สถานะ</TableHead>
                       <TableHead className="text-right">ค่า OT โดยประมาณ</TableHead>
@@ -173,6 +174,7 @@ const WorkHoursDashboardPage: React.FC = () => {
                           <TableCell className="font-medium">{e.name}</TableCell>
                           <TableCell className="text-muted-foreground">{e.position}</TableCell>
                           <TableCell className="text-right tabular-nums">{e.total_hours} ชม.</TableCell>
+                          <TableCell className="text-right tabular-nums">{e.normal_hours} ชม.</TableCell>
                           <TableCell className="text-right tabular-nums">{e.ot_hours} ชม.</TableCell>
                           <TableCell>
                             <Badge
