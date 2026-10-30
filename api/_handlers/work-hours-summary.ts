@@ -178,6 +178,7 @@ async function handler(req: AuthedReq, res: ApiRes) {
       .sort((a, b) => b.total_hours - a.total_hours);
 
     const totalHoursAll = employeeSummaries.reduce((s, e) => s + e.total_hours, 0);
+    const totalNormalHoursAll = employeeSummaries.reduce((s, e) => s + e.normal_hours, 0);
     const totalOtHoursAll = employeeSummaries.reduce((s, e) => s + e.ot_hours, 0);
     const totalOtCostAll = employeeSummaries.reduce((s, e) => s + e.ot_cost, 0);
     const activeCount = employeeSummaries.filter((e) => e.status === 'active').length;
@@ -197,6 +198,7 @@ async function handler(req: AuthedReq, res: ApiRes) {
         active_count: activeCount,
         idle_count: employeeSummaries.length - activeCount,
         total_hours: Math.round(totalHoursAll * 100) / 100,
+        total_normal_hours: Math.round(totalNormalHoursAll * 100) / 100,
         total_ot_hours: Math.round(totalOtHoursAll * 100) / 100,
         estimated_ot_cost: Math.round(totalOtCostAll),
       },

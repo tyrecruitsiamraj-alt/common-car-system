@@ -126,14 +126,19 @@ const WorkHoursDashboardPage: React.FC = () => {
 
         {data ? (
           <>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
               <StatCard label="พนักงานทั้งหมด" value={`${data.summary.total_employees} คน`} accent="#2563eb" />
               <StatCard label="วิ่งงาน (เกินเกณฑ์)" value={`${data.summary.active_count} คน`} accent="#22c55e" />
               <StatCard label="ว่าง (ไม่เกินเกณฑ์)" value={`${data.summary.idle_count} คน`} accent="#94a3b8" />
               <StatCard
-                label="ชม.รวมทั้งหมด"
-                value={`${data.summary.total_hours.toLocaleString('th-TH')} ชม.`}
+                label="ชั่วโมงทำงาน"
+                value={`${data.summary.total_normal_hours.toLocaleString('th-TH')} ชม.`}
                 accent="#8b5cf6"
+              />
+              <StatCard
+                label="ชั่วโมง OT"
+                value={`${data.summary.total_ot_hours.toLocaleString('th-TH')} ชม.`}
+                accent="#ec4899"
               />
               <StatCard label="ประมาณการค่า OT" value={currency(data.summary.estimated_ot_cost)} accent="#f59e0b" />
             </div>

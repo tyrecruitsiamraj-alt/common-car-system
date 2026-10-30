@@ -62,6 +62,7 @@ export type WorkHoursSummaryResponse = {
     active_count: number;
     idle_count: number;
     total_hours: number;
+    total_normal_hours: number;
     total_ot_hours: number;
     estimated_ot_cost: number;
   };
