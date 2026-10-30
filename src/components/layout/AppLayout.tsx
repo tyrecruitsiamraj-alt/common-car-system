@@ -17,6 +17,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Collapsible, CollapsibleContent } from '@/components/ui/collapsible';
 
 const AppLayout: React.FC = () => {
   const { user, logout, hasPermission } = useAuth();
@@ -96,7 +97,7 @@ const AppLayout: React.FC = () => {
               if (item.path === '/complaints/overview') {
                 const highlighted = active || formsOpen;
                 return (
-                  <div key={item.path}>
+                  <Collapsible key={item.path} open={formsOpen} onOpenChange={setFormsOpen}>
                     <div
                       className={cn(
                         'flex items-center rounded-xl transition-all touch-manipulation',
@@ -128,11 +129,11 @@ const AppLayout: React.FC = () => {
                         aria-expanded={formsOpen}
                       >
                         <ChevronDown
-                          className={cn('w-4 h-4 transition-transform', formsOpen && 'rotate-180')}
+                          className={cn('w-4 h-4 transition-transform duration-200', formsOpen && 'rotate-180')}
                         />
                       </button>
                     </div>
-                    {formsOpen ? (
+                    <CollapsibleContent className="overflow-hidden data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down">
                       <div className="mt-0.5 ml-4 pl-3 border-l border-border flex flex-col gap-0.5">
                         {ISSUE_REPORT_TYPES.map((sub) => {
                           const SubIcon = sub.icon;
@@ -155,8 +156,8 @@ const AppLayout: React.FC = () => {
                           );
                         })}
                       </div>
-                    ) : null}
-                  </div>
+                    </CollapsibleContent>
+                  </Collapsible>
                 );
               }
 
