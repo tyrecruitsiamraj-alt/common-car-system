@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { format } from 'date-fns';
 import { th } from 'date-fns/locale';
-import { ExternalLink, RefreshCw } from 'lucide-react';
+import { ExternalLink, FileSpreadsheet, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Select,
@@ -25,6 +25,7 @@ import {
   type TopValueSummary,
 } from '@/lib/caseReportStats';
 import { computeComplaintYearStats, listComplaintYears } from '@/lib/complaintDashboardStats';
+import { exportComplaintDashboardExcel } from '@/lib/complaintDashboardExcelExport';
 import type { Complaint } from '@/types';
 
 function formatTopValue(top: TopValueSummary | null, unit = 'เคส'): string {
@@ -104,6 +105,28 @@ const ComplaintDashboardPage: React.FC = () => {
                   <ExternalLink className="h-3.5 w-3.5 mr-1.5" />
                   เปิดฟอร์มแจ้งเรื่อง
                 </Link>
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="bg-white/10 border-white/20 text-white hover:bg-white/20 hover:text-white"
+                disabled={loading || yearCases.length === 0}
+                onClick={() =>
+                  exportComplaintDashboardExcel(
+                    yearCases,
+                    stats,
+                    selectedYear,
+                    yearsOfService,
+                    employeeAge,
+                    trend,
+                    categoryBuckets,
+                    complaintTypeBuckets,
+                  )
+                }
+              >
+                <FileSpreadsheet className="h-3.5 w-3.5 mr-1.5" />
+                Export Excel
               </Button>
             </div>
           </div>
