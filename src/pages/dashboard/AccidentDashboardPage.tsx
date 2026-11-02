@@ -9,7 +9,9 @@ import CategoryBreakdownChart from '@/components/dashboard/shared/CategoryBreakd
 import MonthlyStatusTrendChart from '@/components/dashboard/shared/MonthlyStatusTrendChart';
 import AccidentCaseTable from '@/components/dashboard/accidents/AccidentCaseTable';
 import DetailListDialog from '@/components/shared/DetailListDialog';
+import ExportExcelButton from '@/components/shared/ExportExcelButton';
 import { apiFetch } from '@/lib/apiFetch';
+import { exportAccidentsExcel } from '@/lib/accidentsExcelExport';
 import {
   breakdownValues,
   bucketEmployeeAge,
@@ -212,6 +214,11 @@ const AccidentDashboardPage: React.FC = () => {
               <RefreshCw className="h-4 w-4 mr-2" />
               รีเฟรช
             </Button>
+            <ExportExcelButton
+              className="bg-white"
+              onClick={() => exportAccidentsExcel(cases)}
+              disabled={loading || cases.length === 0}
+            />
             <Button type="button" variant="outline" className="bg-white" asChild>
               <Link to="/accidents/report" target="_blank" rel="noreferrer">
                 <ExternalLink className="h-4 w-4 mr-2" />
