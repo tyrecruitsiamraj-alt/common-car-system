@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Clock, LayoutDashboard, Shield, Timer, Trash2, Users } from 'lucide-react';
+import { Clock, Shield, Timer, Trash2, Users } from 'lucide-react';
 import PageHeader from '@/components/shared/PageHeader';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -25,7 +25,6 @@ import {
   setUserCapabilityGrant,
 } from '@/lib/userPermissions';
 import { ACCESS_WORK_HOURS_CAPABILITY } from '@/lib/workHoursConfig';
-import { ACCESS_SATISFACTION_DASHBOARD_CAPABILITY } from '@/lib/satisfactionDashboardStats';
 import type { User, UserRole } from '@/types';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -36,30 +35,26 @@ const UserPermissionsSettingsPage: React.FC = () => {
   const [editorUserId, setEditorUserId] = useState<string | null>(null);
   const [deleteComplaintsUserIds, setDeleteComplaintsUserIds] = useState<Set<string>>(new Set());
   const [workHoursUserIds, setWorkHoursUserIds] = useState<Set<string>>(new Set());
-  const [satisfactionDashboardUserIds, setSatisfactionDashboardUserIds] = useState<Set<string>>(new Set());
   const [savingUserId, setSavingUserId] = useState<string | null>(null);
   const [savingEditor, setSavingEditor] = useState(false);
   const [savingDeleteUserId, setSavingDeleteUserId] = useState<string | null>(null);
   const [savingWorkHoursUserId, setSavingWorkHoursUserId] = useState<string | null>(null);
-  const [savingSatisfactionDashboardUserId, setSavingSatisfactionDashboardUserId] = useState<string | null>(null);
   const [confirmDisableUser, setConfirmDisableUser] = useState<User | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [usersRes, perms, deletePerm, workHoursPerm, satisfactionDashboardPerm] = await Promise.all([
+      const [usersRes, perms, deletePerm, workHoursPerm] = await Promise.all([
         apiFetch('/api/app-users'),
         fetchFleetBookingPermissions(),
         fetchCapabilityStatus(DELETE_COMPLAINTS_CAPABILITY),
         fetchCapabilityStatus(ACCESS_WORK_HOURS_CAPABILITY),
-        fetchCapabilityStatus(ACCESS_SATISFACTION_DASHBOARD_CAPABILITY),
       ]);
       const list = usersRes.ok ? ((await usersRes.json()) as User[]) : [];
       setUsers(Array.isArray(list) ? list : []);
       setEditorUserId(perms?.completed_time_editor_user_id ?? null);
       setDeleteComplaintsUserIds(new Set(deletePerm?.grantedUserIds ?? []));
       setWorkHoursUserIds(new Set(workHoursPerm?.grantedUserIds ?? []));
-      setSatisfactionDashboardUserIds(new Set(satisfactionDashboardPerm?.grantedUserIds ?? []));
     } catch {
       setUsers([]);
       toast.error('โหลดรายชื่อผู้ใช้ไม่สำเร็จ');
@@ -161,26 +156,6 @@ const UserPermissionsSettingsPage: React.FC = () => {
     }
   };
 
-  const toggleSatisfactionDashboardAccess = async (userId: string, nextGranted: boolean) => {
-    setSavingSatisfactionDashboardUserId(userId);
-    try {
-      const res = await setUserCapabilityGrant(userId, ACCESS_SATISFACTION_DASHBOARD_CAPABILITY, nextGranted);
-      if (!res.ok) {
-        toast.error(res.message || 'บันทึกสิทธิ์ไม่สำเร็จ');
-        return;
-      }
-      setSatisfactionDashboardUserIds((prev) => {
-        const next = new Set(prev);
-        if (nextGranted) next.add(userId);
-        else next.delete(userId);
-        return next;
-      });
-      toast.success(nextGranted ? 'ให้สิทธิ์เข้าถึง Dashboard ความพึงพอใจแล้ว' : 'ยกเลิกสิทธิ์เข้าถึง Dashboard ความพึงพอใจแล้ว');
-    } finally {
-      setSavingSatisfactionDashboardUserId(null);
-    }
-  };
-
   return (
     <div>
       <PageHeader
@@ -215,8 +190,7 @@ const UserPermissionsSettingsPage: React.FC = () => {
               </li>
               <li>
                 <strong className="text-foreground font-medium">เข้าถึง Dashboard ความพึงพอใจ</strong> — เมนู "Dashboard
-                ความพึงพอใจ" (สรุปผล/กราฟ/Export Excel) เห็นเฉพาะ supervisor ขึ้นไปโดยอัตโนมัติ, staff
-                ที่ต้องการเข้าถึงมอบหมายได้ที่นี่
+                ความพึงพอใจ" เห็นเฉพาะ supervisor ขึ้นไปเท่านั้น ไม่มีการมอบสิทธิ์ให้ staff
               </li>
             </ul>
           </div>
@@ -235,7 +209,7 @@ const UserPermissionsSettingsPage: React.FC = () => {
               ผู้ใช้ทั้งหมด ({users.length})
             </div>
 
-            <div className="hidden md:grid md:grid-cols-[1.2fr_1.2fr_0.8fr_0.6fr_1fr_1fr_1fr_1fr] gap-2 px-4 py-2 text-[11px] font-medium text-muted-foreground border-b border-border/60">
+            <div className="hidden md:grid md:grid-cols-[1.2fr_1.2fr_0.8fr_0.6fr_1fr_1fr_1fr] gap-2 px-4 py-2 text-[11px] font-medium text-muted-foreground border-b border-border/60">
               <span>ชื่อ</span>
               <span>อีเมล</span>
               <span>บทบาท</span>
@@ -252,10 +226,6 @@ const UserPermissionsSettingsPage: React.FC = () => {
                 <Timer className="h-3 w-3" />
                 เข้าถึงชั่วโมงทำงาน
               </span>
-              <span className="flex items-center gap-1">
-                <LayoutDashboard className="h-3 w-3" />
-                Dashboard ความพึงพอใจ
-              </span>
             </div>
 
             <div className="divide-y divide-border/60">
@@ -267,15 +237,12 @@ const UserPermissionsSettingsPage: React.FC = () => {
                 /** admin และ supervisor ลบได้เสมอตามบทบาท ไม่ต้องมอบหมายเพิ่ม — toggle นี้มีไว้ให้ staff เท่านั้น */
                 const hasDeleteByRole = u.role === 'admin' || u.role === 'supervisor';
                 const hasWorkHoursByRole = u.role === 'admin' || u.role === 'supervisor';
-                const hasSatisfactionDashboardByRole = u.role === 'admin' || u.role === 'supervisor';
                 const canAccessWorkHours = workHoursUserIds.has(u.id);
                 const savingWorkHours = savingWorkHoursUserId === u.id;
-                const canAccessSatisfactionDashboard = satisfactionDashboardUserIds.has(u.id);
-                const savingSatisfactionDashboard = savingSatisfactionDashboardUserId === u.id;
                 return (
                   <div
                     key={u.id}
-                    className="px-4 py-3 grid grid-cols-1 md:grid-cols-[1.2fr_1.2fr_0.8fr_0.6fr_1fr_1fr_1fr_1fr] gap-3 md:gap-2 md:items-center"
+                    className="px-4 py-3 grid grid-cols-1 md:grid-cols-[1.2fr_1.2fr_0.8fr_0.6fr_1fr_1fr_1fr] gap-3 md:gap-2 md:items-center"
                   >
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-foreground truncate">{u.full_name}</p>
@@ -406,38 +373,6 @@ const UserPermissionsSettingsPage: React.FC = () => {
                         }
                       >
                         {hasWorkHoursByRole ? `✓ ${u.role}` : canAccessWorkHours ? '✓ เข้าถึงได้' : 'มอบสิทธิ์'}
-                      </button>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <Label className="text-[10px] text-muted-foreground md:hidden shrink-0">Dashboard ความพึงพอใจ</Label>
-                      <button
-                        type="button"
-                        disabled={savingSatisfactionDashboard || !u.is_active || hasSatisfactionDashboardByRole}
-                        onClick={() => void toggleSatisfactionDashboardAccess(u.id, !canAccessSatisfactionDashboard)}
-                        className={cn(
-                          'text-xs px-2.5 py-1.5 rounded-lg border transition-colors w-full md:w-auto',
-                          canAccessSatisfactionDashboard || hasSatisfactionDashboardByRole
-                            ? 'border-amber-500/50 bg-amber-500/15 text-amber-900 font-semibold'
-                            : 'border-border bg-secondary/40 text-muted-foreground hover:bg-secondary hover:text-foreground',
-                          (savingSatisfactionDashboard || !u.is_active || hasSatisfactionDashboardByRole) &&
-                            'opacity-60 cursor-not-allowed',
-                        )}
-                        title={
-                          hasSatisfactionDashboardByRole
-                            ? `${u.role} เข้าถึงได้เสมอตามบทบาทโดยไม่ต้องมอบหมาย`
-                            : !u.is_active
-                              ? 'ต้องเปิดใช้งานบัญชีก่อนมอบหมายสิทธิ์'
-                              : canAccessSatisfactionDashboard
-                                ? 'คลิกเพื่อยกเลิกสิทธิ์'
-                                : 'มอบสิทธิ์เข้าถึง Dashboard ความพึงพอใจ'
-                        }
-                      >
-                        {hasSatisfactionDashboardByRole
-                          ? `✓ ${u.role}`
-                          : canAccessSatisfactionDashboard
-                            ? '✓ เข้าถึงได้'
-                            : 'มอบสิทธิ์'}
                       </button>
                     </div>
                   </div>

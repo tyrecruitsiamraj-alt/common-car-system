@@ -11,7 +11,6 @@ import { BrandMark, BrandTitle } from '@/components/shared/BrandMark';
 import BottomDockNav from '@/components/layout/bottom-nav/BottomDockNav';
 import { DOCK_NAV_ITEMS, isDockPathActive } from '@/components/layout/bottom-nav/dockNavConfig';
 import { ACCESS_WORK_HOURS_CAPABILITY } from '@/lib/workHoursConfig';
-import { ACCESS_SATISFACTION_DASHBOARD_CAPABILITY } from '@/lib/satisfactionDashboardStats';
 import { fetchCapabilityStatus } from '@/lib/userPermissions';
 import {
   DropdownMenu,
@@ -59,20 +58,8 @@ const AppLayout: React.FC = () => {
 
   const canAccessWorkHours = hasPermission('supervisor') || workHoursGranted;
 
-  const [satisfactionDashboardGranted, setSatisfactionDashboardGranted] = useState(false);
-
-  useEffect(() => {
-    if (hasPermission('supervisor')) return;
-    let cancelled = false;
-    fetchCapabilityStatus(ACCESS_SATISFACTION_DASHBOARD_CAPABILITY).then((res) => {
-      if (!cancelled) setSatisfactionDashboardGranted(res?.granted ?? false);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [hasPermission]);
-
-  const canAccessSatisfactionDashboard = hasPermission('supervisor') || satisfactionDashboardGranted;
+  /** Dashboard ความพึงพอใจ: เห็นเฉพาะ supervisor ขึ้นไปเท่านั้น ไม่มีการมอบสิทธิ์ให้ staff */
+  const canAccessSatisfactionDashboard = hasPermission('supervisor');
 
   return (
     <div
