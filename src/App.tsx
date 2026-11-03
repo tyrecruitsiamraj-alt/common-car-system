@@ -24,6 +24,7 @@ import SupervisorDashboard from "@/pages/dashboard/SupervisorDashboard";
 import AccidentDashboardPage from "@/pages/dashboard/AccidentDashboardPage";
 import AccidentReportPage from "@/pages/accidents/AccidentReportPage";
 import ComplaintDashboardPage from "@/pages/dashboard/ComplaintDashboardPage";
+import SatisfactionDashboardPage from "@/pages/dashboard/SatisfactionDashboardPage";
 import ComplaintReportPage from "@/pages/complaints/ComplaintReportPage";
 import IssueReportPage from "@/pages/complaints/IssueReportPage";
 import ComplaintsOverviewPage from "@/pages/complaints/ComplaintsOverviewPage";
@@ -88,6 +89,7 @@ function AppRoutes() {
         <Route path="/complaints" element={<ComplaintDashboardPage />} />
         <Route path="/complaints/overview" element={<ComplaintsOverviewPage />} />
         <Route path="/complaints/history" element={<ComplaintsHistoryPage />} />
+        <Route path="/complaints/satisfaction/dashboard" element={<SatisfactionDashboardPage />} />
         <Route path="/complaints/:slug" element={<IssueReportPage />} />
         <Route path="/work-hours" element={<WorkHoursDashboardPage />} />
         <Route path="/work-hours/settings" element={<WorkHoursSettingsPage />} />

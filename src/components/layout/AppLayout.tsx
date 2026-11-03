@@ -9,7 +9,7 @@ import { isDemoMode, isRuntimeDemoFallback, clearRuntimeDemoFlag } from '@/lib/d
 import NotificationPanel from '@/components/notifications/NotificationPanel';
 import { BrandMark, BrandTitle } from '@/components/shared/BrandMark';
 import BottomDockNav from '@/components/layout/bottom-nav/BottomDockNav';
-import { DOCK_NAV_ITEMS, FORM_GROUP_TYPES, isDockPathActive } from '@/components/layout/bottom-nav/dockNavConfig';
+import { DOCK_NAV_ITEMS, isDockPathActive } from '@/components/layout/bottom-nav/dockNavConfig';
 import { ACCESS_WORK_HOURS_CAPABILITY } from '@/lib/workHoursConfig';
 import { fetchCapabilityStatus } from '@/lib/userPermissions';
 import {
@@ -27,13 +27,19 @@ const AppLayout: React.FC = () => {
   const navigate = useNavigate();
   const shellBg = getAppShellBackgroundStyle(config);
 
-  const [formsOpen, setFormsOpen] = useState(() =>
-    FORM_GROUP_TYPES.some((t) => t.path === location.pathname) || location.pathname === '/complaints/overview',
-  );
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => {
+    const initial: Record<string, boolean> = {};
+    for (const item of DOCK_NAV_ITEMS) {
+      if (item.subItems && isDockPathActive(item.path, location.pathname)) initial[item.path] = true;
+    }
+    return initial;
+  });
 
   useEffect(() => {
-    if (FORM_GROUP_TYPES.some((t) => t.path === location.pathname) || location.pathname === '/complaints/overview') {
-      setFormsOpen(true);
+    for (const item of DOCK_NAV_ITEMS) {
+      if (item.subItems && isDockPathActive(item.path, location.pathname)) {
+        setOpenGroups((prev) => (prev[item.path] ? prev : { ...prev, [item.path]: true }));
+      }
     }
   }, [location.pathname]);
 
@@ -110,10 +116,15 @@ const AppLayout: React.FC = () => {
               const Icon = item.icon;
               const active = isDockPathActive(item.path, location.pathname);
 
-              if (item.path === '/complaints/overview') {
-                const highlighted = active || formsOpen;
+              if (item.subItems) {
+                const isOpen = !!openGroups[item.path];
+                const highlighted = active || isOpen;
                 return (
-                  <Collapsible key={item.path} open={formsOpen} onOpenChange={setFormsOpen}>
+                  <Collapsible
+                    key={item.path}
+                    open={isOpen}
+                    onOpenChange={(v) => setOpenGroups((prev) => ({ ...prev, [item.path]: v }))}
+                  >
                     <div
                       className={cn(
                         'flex items-center rounded-xl transition-all touch-manipulation',
@@ -136,24 +147,25 @@ const AppLayout: React.FC = () => {
                       />
                       <button
                         type="button"
-                        onClick={() => setFormsOpen((v) => !v)}
+                        onClick={() => setOpenGroups((prev) => ({ ...prev, [item.path]: !isOpen }))}
                         className={cn(
                           'pr-3 pl-2 py-2.5 shrink-0 rounded-r-xl',
                           highlighted ? 'hover:bg-primary/15' : 'hover:bg-muted',
                         )}
-                        aria-label={formsOpen ? 'ย่อเมนูย่อยแบบฟอร์ม' : 'ขยายเมนูย่อยแบบฟอร์ม'}
-                        aria-expanded={formsOpen}
+                        aria-label={isOpen ? `ย่อเมนูย่อย${item.label}` : `ขยายเมนูย่อย${item.label}`}
+                        aria-expanded={isOpen}
                       >
                         <ChevronDown
-                          className={cn('w-4 h-4 transition-transform duration-200', formsOpen && 'rotate-180')}
+                          className={cn('w-4 h-4 transition-transform duration-200', isOpen && 'rotate-180')}
                         />
                       </button>
                     </div>
                     <CollapsibleContent className="overflow-hidden data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down">
                       <div className="mt-0.5 ml-4 pl-3 border-l border-border flex flex-col gap-0.5">
-                        {FORM_GROUP_TYPES.map((sub) => {
+                        {item.subItems.map((sub) => {
                           const SubIcon = sub.icon;
-                          const subActive = location.pathname === sub.path;
+                          const subActive =
+                            location.pathname === sub.path || location.pathname.startsWith(`${sub.path}/`);
                           return (
                             <button
                               key={sub.path}

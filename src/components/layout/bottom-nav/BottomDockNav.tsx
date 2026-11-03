@@ -3,8 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { LayoutDashboard } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from '@/components/ui/drawer';
-import { ISSUE_REPORT_TYPES } from '@/lib/issueReportConfig';
-import { DOCK_NAV_ITEMS, dockActiveIndex, isDockPathActive } from './dockNavConfig';
+import { DOCK_NAV_ITEMS, FORM_GROUP_TYPES, dockActiveIndex, isDockPathActive } from './dockNavConfig';
 import './bottomDockNav.css';
 
 type Props = {
@@ -73,7 +72,7 @@ const BottomDockNav: React.FC<Props> = ({ pathname, className }) => {
               <LayoutDashboard className="w-4 h-4 shrink-0 text-muted-foreground" />
               ภาพรวม
             </button>
-            {ISSUE_REPORT_TYPES.map((t) => {
+            {FORM_GROUP_TYPES.map((t) => {
               const Icon = t.icon;
               return (
                 <button
