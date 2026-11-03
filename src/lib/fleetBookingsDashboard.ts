@@ -1,13 +1,12 @@
-import { addDays, addMinutes, format, isSameDay, parseISO, startOfDay } from 'date-fns';
+import { addDays, format, isSameDay, parseISO, startOfDay } from 'date-fns';
 import { th } from 'date-fns/locale';
-import { formatThaiDate, formatThaiTimeRange } from '@/lib/thaiDateTimeFormat';
+import { formatThaiDate, formatThaiTimeRange, nowInBangkok } from '@/lib/thaiDateTimeFormat';
 import type {
   BookingListStatus,
   DashboardBookingRow,
   DashboardMetric,
 } from '@/components/fleet/FleetBookingsDashboard';
 import { formatBookingWorkOrderNo } from '@/lib/bookingWorkOrder';
-import { roundDateToMinuteStep } from '@/lib/bookingMinuteStep';
 import type { Employee, Vehicle, VehicleBooking } from '@/types';
 import { Ban, CalendarDays, CheckCircle2, Clock3, Wrench } from 'lucide-react';
 
@@ -85,7 +84,7 @@ export function isBookingOverdueNotCompleted(b: VehicleBooking, now = new Date()
 
 function formatBookingDateLabel(startsAt: string): string {
   const d = parseISO(startsAt);
-  const today = startOfDay(new Date());
+  const today = startOfDay(nowInBangkok());
   if (isSameDay(d, today)) return 'วันนี้';
   if (isSameDay(d, addDays(today, 1))) return 'พรุ่งนี้';
   return formatThaiDate(d);
@@ -157,7 +156,7 @@ export function buildTodayBookingDetails(
   bookings: VehicleBooking[],
   empLabel: (id: string) => string,
   vehMap: Map<string, Vehicle>,
-  day: Date = new Date(),
+  day: Date = nowInBangkok(),
 ): TodayBookingDetail[] {
   const onDay = bookingsOnDay(bookings, day);
   return onDay
@@ -170,7 +169,7 @@ export function buildTodayBookingsByStatus(
   status: 'inProgress' | 'completed' | 'cancelled',
   empLabel: (id: string) => string,
   vehMap: Map<string, Vehicle>,
-  day: Date = new Date(),
+  day: Date = nowInBangkok(),
 ): TodayBookingDetail[] {
   const onDay = bookingsOnDay(bookings, day);
   return onDay
@@ -198,7 +197,7 @@ export function buildMaintenanceVehicleDetails(vehicles: Vehicle[]): Maintenance
 
 export function computeTodaySummaryCounts(
   bookings: VehicleBooking[],
-  day: Date = new Date(),
+  day: Date = nowInBangkok(),
 ): { inProgress: number; completed: number; cancelled: number } {
   const onDay = bookingsOnDay(bookings, day);
   let inProgress = 0;
@@ -216,20 +215,12 @@ export function computeTodaySummaryCounts(
 export function computeDashboardMetrics(
   bookings: VehicleBooking[],
   vehicles: Vehicle[],
-  day: Date = new Date(),
+  day: Date = nowInBangkok(),
 ): DashboardMetric[] {
   const onDay = bookingsOnDay(bookings, day);
-  let inProgress = 0;
-  let completed = 0;
-  let cancelled = 0;
-  for (const b of onDay) {
-    const st = deriveBookingListStatus(b);
-    if (st === 'cancelled') cancelled += 1;
-    else if (st === 'completed') completed += 1;
-    else inProgress += 1;
-  }
+  const { inProgress, completed, cancelled } = computeTodaySummaryCounts(bookings, day);
   const maintenance = vehicles.filter((v) => v.is_active === false).length;
-  const dayBookingLabel = isSameDay(day, new Date()) ? "Today's bookings" : 'Selected day';
+  const dayBookingLabel = isSameDay(day, nowInBangkok()) ? "Today's bookings" : 'Selected day';
   const activeOnDay = onDay.length - cancelled;
 
   return [
@@ -279,7 +270,7 @@ export function computeDashboardMetrics(
 export function computeUtilization(
   bookings: VehicleBooking[],
   vehicles: Vehicle[],
-  day: Date = new Date(),
+  day: Date = nowInBangkok(),
 ): { pct: number; summary: string } {
   const activeVehicles = vehicles.filter((v) => v.is_active !== false);
   const onDay = bookingsOnDay(bookings, day);
@@ -287,7 +278,7 @@ export function computeUtilization(
   const usedCount = activeVehicles.filter((v) => usedIds.has(v.id)).length;
   const total = activeVehicles.length || 1;
   const pct = Math.round((usedCount / total) * 100);
-  const dayWord = isSameDay(day, new Date()) ? 'วันนี้' : 'วันที่เลือก';
+  const dayWord = isSameDay(day, nowInBangkok()) ? 'วันนี้' : 'วันที่เลือก';
   const summary =
     total > 0
       ? `${dayWord}มีรถพร้อมใช้งาน ${activeVehicles.length - usedCount} คัน จากทั้งหมด ${activeVehicles.length} คัน`
@@ -309,15 +300,4 @@ export function filterDashboardBookings(
       `${row.id} ${row.documentNo ?? ''} ${row.requester} ${row.department} ${row.route} ${row.vehicleName} ${row.plate} ${row.driver}`.toLowerCase();
     return text.includes(q);
   });
-}
-
-/** คำนวณ ends_at หลังกดเสร็จสิ้น */
-export function endsAtForMarkComplete(b: VehicleBooking, now = new Date()): string {
-  const start = parseISO(b.starts_at);
-  const tick = roundDateToMinuteStep(now);
-  let end = tick > start ? tick : roundDateToMinuteStep(addMinutes(start, 1));
-  const planned = roundDateToMinuteStep(parseISO(b.ends_at));
-  if (planned < end) end = planned;
-  if (end <= start) end = roundDateToMinuteStep(addMinutes(start, 1));
-  return end.toISOString();
 }

@@ -559,9 +559,8 @@ async function handler(req: AuthedReq, res: ApiRes): Promise<void> {
       if (starts) starts = roundDateToMinuteStep(starts);
       if (ends) ends = roundDateToMinuteStep(ends);
       if (completedAt) completedAt = roundDateToMinuteStep(completedAt);
-      if (completedAt && ends && completedAt > ends) completedAt = ends;
       if (completedAt && starts && completedAt < starts) {
-        return sendError(res, 400, 'Bad request', 'เวลาปิดงานต้องอยู่ในช่วงเริ่ม–สิ้นสุดที่จอง');
+        return sendError(res, 400, 'Bad request', 'เวลาปิดงานต้องไม่ก่อนเวลาเริ่มงาน');
       }
 
       if (!employee_id || !vehicle_id || !starts || !ends) {

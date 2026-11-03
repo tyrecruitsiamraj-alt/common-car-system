@@ -192,7 +192,7 @@ export function bookingDurationHours(b: VehicleBooking): number {
 
 export function isIncidentBooking(b: VehicleBooking): boolean {
   const n = (b.notes || '').trim();
-  return /อุบัติ|อุบัติเหตุ|accident|crash|ชน/i.test(n);
+  return /อุบัติ|อุบัติเหตุ|accident|crash|ชน(?!ะ|บท)/i.test(n);
 }
 
 export function topByKey(

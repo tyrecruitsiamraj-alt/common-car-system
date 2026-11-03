@@ -25,9 +25,9 @@ import {
   isBookingInProgress,
 } from '@/lib/fleetBookingsDashboard';
 import { fetchFleetBookingPermissions } from '@/lib/fleetBookingPermissions';
+import { isIncidentBooking } from '@/lib/fleetDashboardStats';
 import { formatBookingWorkOrderNo } from '@/lib/bookingWorkOrder';
 import {
-  BOOKABLE_DRIVER_POSITION,
   BOOKABLE_DRIVER_POSITIONS,
   computeBookingAvailability,
   resolveBookEmployeeOptions,
@@ -269,11 +269,6 @@ function abbrevJoined(items: string[], maxLen: number): string {
   const s = items.join(', ');
   if (s.length <= maxLen) return s;
   return `${s.slice(0, Math.max(0, maxLen - 1))}…`;
-}
-
-function isIncidentBooking(b: VehicleBooking): boolean {
-  const n = (b.notes || '').trim();
-  return /อุบัติ|อุบัติเหตุ|accident|crash|ชน/i.test(n);
 }
 
 function dayPlannerStatusForEmployee(bookings: VehicleBooking[], empId: string, day: Date): 'free' | 'busy' | 'incident' {
@@ -1812,7 +1807,7 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
 
   const editEmpPickerOptions = useMemo((): SearchablePickerOption[] => {
     return Array.from(empMap.values())
-      .filter((e) => e.position === BOOKABLE_DRIVER_POSITION || e.id === editEmp)
+      .filter((e) => BOOKABLE_DRIVER_POSITIONS.has(e.position) || e.id === editEmp)
       .map((e) => ({
         value: e.id,
         label: formatEmployeeDisplayName(e),
