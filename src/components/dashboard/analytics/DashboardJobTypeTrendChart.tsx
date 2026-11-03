@@ -7,7 +7,7 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from '@/components/ui/chart';
-import { JOB_TYPE_COLORS } from '@/components/dashboard/analytics/DashboardChartSection';
+import { JOB_TYPE_COLORS } from '@/lib/dashboard/jobTypeColors';
 import { BOOKING_JOB_TYPE_LABELS } from '@/lib/bookingUiMessages';
 import type { DashboardJobTypeTrendPoint } from '@/lib/dashboard/types';
 
@@ -51,11 +51,11 @@ const DashboardJobTypeTrendChart: React.FC<Props> = ({ series, loading }) => {
         <p className="text-lg font-semibold text-slate-900 tabular-nums">{loading ? '…' : total}</p>
       </div>
       {loading ? (
-        <div className="h-72 flex items-center justify-center text-sm text-slate-500">กำลังโหลด…</div>
+        <div className="h-56 flex items-center justify-center text-sm text-slate-500">กำลังโหลด…</div>
       ) : activeTypes.length === 0 ? (
-        <div className="h-72 flex items-center justify-center text-sm text-slate-500">ไม่มีข้อมูลในช่วงนี้</div>
+        <div className="h-56 flex items-center justify-center text-sm text-slate-500">ไม่มีข้อมูลในช่วงนี้</div>
       ) : (
-        <ChartContainer config={config} className="h-72 w-full aspect-auto">
+        <ChartContainer config={config} className="h-56 w-full aspect-auto">
           <LineChart data={series} margin={{ left: 0, right: 8, top: 8, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} />
             <XAxis

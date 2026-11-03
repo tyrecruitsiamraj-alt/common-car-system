@@ -6,7 +6,6 @@ import { formatThaiDateShort } from '@/lib/thaiDateTimeFormat';
 import DashboardFilterBar from '@/components/dashboard/analytics/DashboardFilterBar';
 import DashboardKpiCard from '@/components/dashboard/analytics/DashboardKpiCard';
 import DashboardChartSection from '@/components/dashboard/analytics/DashboardChartSection';
-import DashboardJobTypeTrendChart from '@/components/dashboard/analytics/DashboardJobTypeTrendChart';
 import DashboardDriverOverview from '@/components/dashboard/analytics/DashboardDriverOverview';
 import DashboardDriverUtilizationSection from '@/components/dashboard/analytics/DashboardDriverUtilizationSection';
 import DashboardEmployeeHoursReport from '@/components/dashboard/analytics/DashboardEmployeeHoursReport';
@@ -100,13 +99,11 @@ const DashboardShell: React.FC<Props> = ({
 
           <DashboardChartSection
             trendSeries={data.trendSeries}
+            jobTypeTrendSeries={data.jobTypeTrendSeries}
             statusSlices={data.statusSlices}
-            jobTypeSlices={data.jobTypeSlices}
             cancelReasonSlices={data.cancelReasonSlices}
             loading={loading}
           />
-
-          <DashboardJobTypeTrendChart series={data.jobTypeTrendSeries} loading={loading} />
 
           <DashboardDriverUtilizationSection utilization={data.driverUtilization} loading={loading} />
 
