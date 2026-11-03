@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
-import { CalendarPlus, LayoutGrid, Car, Users, BarChart3, AlertTriangle, MessageSquareWarning, ClipboardList, FileEdit } from 'lucide-react';
+import { CalendarPlus, LayoutGrid, Car, Users, BarChart3, AlertTriangle, MessageSquareWarning, ClipboardList } from 'lucide-react';
 import { ISSUE_REPORT_TYPES } from '@/lib/issueReportConfig';
 
 export type DockNavSubItem = {
@@ -16,10 +16,12 @@ export type DockNavItem = {
   subItems?: DockNavSubItem[];
 };
 
-/** แบบฟอร์มย่อยที่อยู่ใต้ dropdown "แบบฟอร์ม" เมนูซ้าย (ไม่รวมแบบที่แยกเป็นกลุ่มเมนูของตัวเอง) */
+/** แบบฟอร์มย่อยที่อยู่ใต้ dropdown "แบบฟอร์ม" เมนูซ้าย (ไม่รวมแบบที่แยกเป็นเมนูของตัวเอง) */
 export const FORM_GROUP_TYPES = ISSUE_REPORT_TYPES.filter((t) => (t.menuGroup ?? 'forms') === 'forms');
 
-/** แบบฟอร์มที่แยกเป็นกลุ่มเมนูของตัวเอง พร้อมหน้า Dashboard วิเคราะห์ผล เช่น แบบประเมินความพึงพอใจ */
+/** แบบฟอร์มที่แยกเป็นปุ่มเมนูซ้ายของตัวเอง เช่น แบบประเมินความพึงพอใจ — กดแล้วไปกรอกแบบฟอร์มทันที
+ *  (หน้า Dashboard วิเคราะห์ผลของฟอร์มเหล่านี้ไม่ได้อยู่ใน DOCK_NAV_ITEMS — มีสิทธิ์เข้าถึงจำกัด
+ *  จึงแสดงเป็นเมนูแยกต่างหากใน AppLayout เองแบบเดียวกับ "ชั่วโมงทำงาน") */
 const STANDALONE_TYPES = ISSUE_REPORT_TYPES.filter((t) => t.menuGroup === 'standalone');
 
 const FORMS_GROUP_ITEM: DockNavItem = {
@@ -29,20 +31,22 @@ const FORMS_GROUP_ITEM: DockNavItem = {
   subItems: FORM_GROUP_TYPES.map((t) => ({ path: t.path, label: t.label, icon: t.icon })),
 };
 
-/** ปุ่มหลักพาไปหน้า Dashboard วิเคราะห์ผล, เมนูย่อยพาไปกรอกแบบฟอร์มเดิม */
-const STANDALONE_GROUP_ITEMS: DockNavItem[] = STANDALONE_TYPES.map((t) => ({
-  path: `${t.path}/dashboard`,
-  label: t.label,
-  icon: t.icon,
-  subItems: [{ path: t.path, label: 'กรอกแบบฟอร์ม', icon: FileEdit }],
-}));
+const STANDALONE_ITEMS: DockNavItem[] = STANDALONE_TYPES.map((t) => ({ path: t.path, label: t.label, icon: t.icon }));
 
 function groupPaths(item: DockNavItem): string[] {
   return [item.path, ...(item.subItems ?? []).map((s) => s.path)];
 }
 
-/** เส้นทางทั้งหมดที่ไม่ถือเป็นหน้า Complaints หลัก (ฟอร์มกลุ่ม + กลุ่มเมนูที่แยกของตัวเอง) — แยกออกเพราะไม่ใช่เรื่องร้องเรียน */
-const NON_COMPLAINTS_PATHS = ['/complaints/history', ...groupPaths(FORMS_GROUP_ITEM), ...STANDALONE_GROUP_ITEMS.flatMap(groupPaths)];
+/** path หน้า Dashboard ของฟอร์มที่แยกเมนู — กันไม่ให้ "Complaints" ไฮไลต์ผิดตอนเปิดหน้านี้ (สิทธิ์จำกัด จึงไม่อยู่ใน DOCK_NAV_ITEMS) */
+const STANDALONE_DASHBOARD_PATHS = STANDALONE_TYPES.map((t) => `${t.path}/dashboard`);
+
+/** เส้นทางทั้งหมดที่ไม่ถือเป็นหน้า Complaints หลัก — แยกออกเพราะไม่ใช่เรื่องร้องเรียน */
+const NON_COMPLAINTS_PATHS = [
+  '/complaints/history',
+  ...groupPaths(FORMS_GROUP_ITEM),
+  ...STANDALONE_ITEMS.map((i) => i.path),
+  ...STANDALONE_DASHBOARD_PATHS,
+];
 
 function matchesAny(paths: string[], pathname: string): boolean {
   return paths.some((p) => pathname === p || pathname.startsWith(`${p}/`));
@@ -58,7 +62,7 @@ export const DOCK_NAV_ITEMS: DockNavItem[] = [
   { path: '/accidents', label: 'Accidents', icon: AlertTriangle },
   { path: '/complaints', label: 'Complaints', icon: MessageSquareWarning },
   FORMS_GROUP_ITEM,
-  ...STANDALONE_GROUP_ITEMS,
+  ...STANDALONE_ITEMS,
 ];
 
 export function isDockPathActive(path: string, pathname: string): boolean {
@@ -71,8 +75,7 @@ export function isDockPathActive(path: string, pathname: string): boolean {
   if (path === '/accidents') return p.startsWith('/accidents');
   if (path === '/complaints') return p.startsWith('/complaints') && !matchesAny(NON_COMPLAINTS_PATHS, p);
   if (path === '/complaints/overview') return matchesAny(groupPaths(FORMS_GROUP_ITEM), p);
-  const standalone = STANDALONE_GROUP_ITEMS.find((g) => g.path === path);
-  if (standalone) return matchesAny(groupPaths(standalone), p);
+  if (STANDALONE_ITEMS.some((i) => i.path === path)) return p === path;
   return false;
 }
 

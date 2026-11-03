@@ -3,6 +3,9 @@ import { th } from 'date-fns/locale';
 import { monthKey } from '@/lib/caseReportStats';
 import type { IssueReportRow } from '@/lib/issueReportStats';
 
+/** ต้องตรงกับ handler ฝั่ง backend ของสิทธิ์นี้ — ควบคุมว่าใครเห็นเมนู Dashboard ความพึงพอใจได้บ้าง (เหมือน ACCESS_WORK_HOURS_CAPABILITY) */
+export const ACCESS_SATISFACTION_DASHBOARD_CAPABILITY = 'access_satisfaction_dashboard';
+
 /** เกณฑ์มาตรฐาน — คะแนนตั้งแต่นี้ขึ้นไปถือว่า "ดี" ขึ้นไป ใช้เป็นเส้นเกณฑ์ในกราฟแนวโน้ม */
 export const GOOD_SCORE_THRESHOLD = 4;
 /** คะแนนตั้งแต่นี้ลงมาถือว่า "ควรปรับปรุง" */
