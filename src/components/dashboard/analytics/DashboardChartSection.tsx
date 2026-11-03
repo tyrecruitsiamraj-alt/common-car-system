@@ -59,79 +59,81 @@ const DashboardChartSection: React.FC<Props> = ({
   const totalStatus = statusSlices.reduce((sum, s) => sum + s.count, 0);
 
   return (
-    <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
-      <div className="rounded-xl border border-slate-200/80 bg-white p-5 shadow-sm">
-        <div className="flex items-start justify-between gap-2 mb-4">
-          <div>
-            <h3 className="text-sm font-semibold text-slate-900">แนวโน้มงานรายวัน</h3>
-            <p className="text-xs text-slate-500 mt-0.5">จำนวนใบจองต่อวันในช่วงที่เลือก</p>
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+        <div className="rounded-xl border border-slate-200/80 bg-white p-5 shadow-sm">
+          <div className="flex items-start justify-between gap-2 mb-4">
+            <div>
+              <h3 className="text-sm font-semibold text-slate-900">แนวโน้มงานรายวัน</h3>
+              <p className="text-xs text-slate-500 mt-0.5">จำนวนใบจองต่อวันในช่วงที่เลือก</p>
+            </div>
+            <p className="text-lg font-semibold text-slate-900 tabular-nums">{loading ? '…' : totalTrend}</p>
           </div>
-          <p className="text-lg font-semibold text-slate-900 tabular-nums">{loading ? '…' : totalTrend}</p>
+          {!loading && busiestDay && busiestDay.value > 0 ? (
+            <div className="mb-3 inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700">
+              วันที่มีงานมากสุด: {busiestDay.dateLabel} ({busiestDay.value} งาน)
+            </div>
+          ) : null}
+          {loading ? (
+            <div className="h-56 flex items-center justify-center text-sm text-slate-500">กำลังโหลด…</div>
+          ) : (
+            <ChartContainer config={trendConfig} className="h-56 w-full aspect-auto">
+              <LineChart data={trendSeries} margin={{ left: 0, right: 8, top: 8, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                <XAxis
+                  dataKey="dateLabel"
+                  tickLine={false}
+                  axisLine={false}
+                  fontSize={12}
+                  interval={Math.max(0, Math.ceil(trendSeries.length / 7) - 1)}
+                />
+                <YAxis tickLine={false} axisLine={false} fontSize={12} width={28} />
+                <ChartTooltip content={<ChartTooltipContent />} />
+                <Line
+                  type="monotone"
+                  dataKey="previousValue"
+                  stroke="var(--color-previousValue)"
+                  strokeWidth={2}
+                  dot={false}
+                  strokeDasharray="4 4"
+                />
+                <Line type="monotone" dataKey="value" stroke="var(--color-value)" strokeWidth={2.5} dot={false} />
+              </LineChart>
+            </ChartContainer>
+          )}
         </div>
-        {!loading && busiestDay && busiestDay.value > 0 ? (
-          <div className="mb-3 inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700">
-            วันที่มีงานมากสุด: {busiestDay.dateLabel} ({busiestDay.value} งาน)
+
+        <div className="rounded-xl border border-slate-200/80 bg-white p-5 shadow-sm">
+          <div className="flex items-start justify-between gap-2 mb-4">
+            <div>
+              <h3 className="text-sm font-semibold text-slate-900">งานตามสถานะ</h3>
+              <p className="text-xs text-slate-500 mt-0.5">สัดส่วนงานใน Work Queue</p>
+            </div>
+            <p className="text-lg font-semibold text-slate-900 tabular-nums">{loading ? '…' : totalStatus}</p>
           </div>
-        ) : null}
-        {loading ? (
-          <div className="h-56 flex items-center justify-center text-sm text-slate-500">กำลังโหลด…</div>
-        ) : (
-          <ChartContainer config={trendConfig} className="h-56 w-full aspect-auto">
-            <LineChart data={trendSeries} margin={{ left: 0, right: 8, top: 8, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} />
-              <XAxis
-                dataKey="dateLabel"
-                tickLine={false}
-                axisLine={false}
-                fontSize={12}
-                interval={Math.max(0, Math.ceil(trendSeries.length / 7) - 1)}
-              />
-              <YAxis tickLine={false} axisLine={false} fontSize={12} width={28} />
-              <ChartTooltip content={<ChartTooltipContent />} />
-              <Line
-                type="monotone"
-                dataKey="previousValue"
-                stroke="var(--color-previousValue)"
-                strokeWidth={2}
-                dot={false}
-                strokeDasharray="4 4"
-              />
-              <Line type="monotone" dataKey="value" stroke="var(--color-value)" strokeWidth={2.5} dot={false} />
-            </LineChart>
-          </ChartContainer>
-        )}
+          {loading ? (
+            <div className="h-56 flex items-center justify-center text-sm text-slate-500">กำลังโหลด…</div>
+          ) : barData.length === 0 ? (
+            <div className="h-56 flex items-center justify-center text-sm text-slate-500">ไม่มีข้อมูลในช่วงนี้</div>
+          ) : (
+            <ChartContainer config={{ count: { label: 'จำนวน', color: 'hsl(211 100% 50%)' } }} className="h-56 w-full aspect-auto">
+              <BarChart data={barData} layout="vertical" margin={{ left: 4, right: 16, top: 4, bottom: 4 }}>
+                <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                <XAxis type="number" tickLine={false} axisLine={false} fontSize={12} />
+                <YAxis type="category" dataKey="name" tickLine={false} axisLine={false} width={88} fontSize={11} />
+                <ChartTooltip content={<ChartTooltipContent />} />
+                <Bar dataKey="count" radius={[0, 4, 4, 0]}>
+                  {barData.map((entry) => (
+                    <Cell key={entry.name} fill={entry.fill} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ChartContainer>
+          )}
+        </div>
       </div>
 
       <DashboardJobTypeTrendChart series={jobTypeTrendSeries} loading={loading} />
-
-      <div className="rounded-xl border border-slate-200/80 bg-white p-5 shadow-sm">
-        <div className="flex items-start justify-between gap-2 mb-4">
-          <div>
-            <h3 className="text-sm font-semibold text-slate-900">งานตามสถานะ</h3>
-            <p className="text-xs text-slate-500 mt-0.5">สัดส่วนงานใน Work Queue</p>
-          </div>
-          <p className="text-lg font-semibold text-slate-900 tabular-nums">{loading ? '…' : totalStatus}</p>
-        </div>
-        {loading ? (
-          <div className="h-56 flex items-center justify-center text-sm text-slate-500">กำลังโหลด…</div>
-        ) : barData.length === 0 ? (
-          <div className="h-56 flex items-center justify-center text-sm text-slate-500">ไม่มีข้อมูลในช่วงนี้</div>
-        ) : (
-          <ChartContainer config={{ count: { label: 'จำนวน', color: 'hsl(211 100% 50%)' } }} className="h-56 w-full aspect-auto">
-            <BarChart data={barData} layout="vertical" margin={{ left: 4, right: 16, top: 4, bottom: 4 }}>
-              <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-              <XAxis type="number" tickLine={false} axisLine={false} fontSize={12} />
-              <YAxis type="category" dataKey="name" tickLine={false} axisLine={false} width={88} fontSize={11} />
-              <ChartTooltip content={<ChartTooltipContent />} />
-              <Bar dataKey="count" radius={[0, 4, 4, 0]}>
-                {barData.map((entry) => (
-                  <Cell key={entry.name} fill={entry.fill} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ChartContainer>
-        )}
-      </div>
     </div>
   );
 };

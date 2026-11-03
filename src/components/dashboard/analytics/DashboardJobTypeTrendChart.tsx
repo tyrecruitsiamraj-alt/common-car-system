@@ -32,6 +32,13 @@ type Props = {
   loading?: boolean;
 };
 
+type SparseLabelProps = {
+  x?: number;
+  y?: number;
+  value?: number;
+  index?: number;
+};
+
 const DashboardJobTypeTrendChart: React.FC<Props> = ({ series, loading }) => {
   const [view, setView] = useState<View>('line');
   const activeTypes = JOB_TYPE_ORDER.filter((type) => series.some((p) => p[type] > 0));
@@ -44,6 +51,20 @@ const DashboardJobTypeTrendChart: React.FC<Props> = ({ series, loading }) => {
     (sum, p) => sum + activeTypes.reduce((s, type) => s + p[type], 0),
     0,
   );
+
+  // โชว์ตัวเลขกำกับเฉพาะจุดที่ตรงกับ tick บนแกน X (ห่างเท่ากัน) ไม่ใช่ทุกจุด — กันกราฟรก
+  const labelStep = Math.max(1, Math.ceil(series.length / 7));
+  const renderSparseLabel = (color: string) => (props: SparseLabelProps) => {
+    const { x, y, value, index } = props;
+    if (x === undefined || y === undefined || index === undefined || index % labelStep !== 0 || !value) {
+      return null;
+    }
+    return (
+      <text x={x} y={y - 6} textAnchor="middle" fontSize={10} fill={color}>
+        {value}
+      </text>
+    );
+  };
 
   return (
     <div className="rounded-xl border border-slate-200/80 bg-white p-5 shadow-sm">
@@ -73,11 +94,11 @@ const DashboardJobTypeTrendChart: React.FC<Props> = ({ series, loading }) => {
         </div>
       </div>
       {loading ? (
-        <div className="h-56 flex items-center justify-center text-sm text-slate-500">กำลังโหลด…</div>
+        <div className="h-64 flex items-center justify-center text-sm text-slate-500">กำลังโหลด…</div>
       ) : activeTypes.length === 0 ? (
-        <div className="h-56 flex items-center justify-center text-sm text-slate-500">ไม่มีข้อมูลในช่วงนี้</div>
+        <div className="h-64 flex items-center justify-center text-sm text-slate-500">ไม่มีข้อมูลในช่วงนี้</div>
       ) : (
-        <ChartContainer config={config} className="h-56 w-full aspect-auto mt-3">
+        <ChartContainer config={config} className="h-64 w-full aspect-auto mt-3">
           {view === 'line' ? (
             <LineChart data={series} margin={{ left: 0, right: 8, top: 16, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} />
@@ -100,7 +121,7 @@ const DashboardJobTypeTrendChart: React.FC<Props> = ({ series, loading }) => {
                   strokeWidth={2}
                   dot={{ r: 2.5 }}
                 >
-                  <LabelList dataKey={type} position="top" fontSize={10} fill={`var(--color-${type})`} />
+                  <LabelList dataKey={type} content={renderSparseLabel(`var(--color-${type})`)} />
                 </Line>
               ))}
             </LineChart>
@@ -119,7 +140,7 @@ const DashboardJobTypeTrendChart: React.FC<Props> = ({ series, loading }) => {
               <ChartLegend content={<ChartLegendContent />} />
               {activeTypes.map((type) => (
                 <Bar key={type} dataKey={type} fill={`var(--color-${type})`} radius={[3, 3, 0, 0]} maxBarSize={14}>
-                  <LabelList dataKey={type} position="top" fontSize={10} fill={`var(--color-${type})`} />
+                  <LabelList dataKey={type} content={renderSparseLabel(`var(--color-${type})`)} />
                 </Bar>
               ))}
             </BarChart>
