@@ -6,7 +6,9 @@ import { formatThaiDateShort } from '@/lib/thaiDateTimeFormat';
 import DashboardFilterBar from '@/components/dashboard/analytics/DashboardFilterBar';
 import DashboardKpiCard from '@/components/dashboard/analytics/DashboardKpiCard';
 import DashboardChartSection from '@/components/dashboard/analytics/DashboardChartSection';
+import DashboardJobTypeTrendChart from '@/components/dashboard/analytics/DashboardJobTypeTrendChart';
 import DashboardDriverOverview from '@/components/dashboard/analytics/DashboardDriverOverview';
+import DashboardDriverUtilizationSection from '@/components/dashboard/analytics/DashboardDriverUtilizationSection';
 import DashboardEmployeeHoursReport from '@/components/dashboard/analytics/DashboardEmployeeHoursReport';
 import DashboardVehicleUsageReport from '@/components/dashboard/analytics/DashboardVehicleUsageReport';
 import DashboardWorkQueueTable from '@/components/dashboard/analytics/DashboardWorkQueueTable';
@@ -103,6 +105,10 @@ const DashboardShell: React.FC<Props> = ({
             cancelReasonSlices={data.cancelReasonSlices}
             loading={loading}
           />
+
+          <DashboardJobTypeTrendChart series={data.jobTypeTrendSeries} loading={loading} />
+
+          <DashboardDriverUtilizationSection utilization={data.driverUtilization} loading={loading} />
 
           <DashboardDriverOverview drivers={data.driverSlices} loading={loading} />
 

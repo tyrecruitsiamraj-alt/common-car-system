@@ -21,8 +21,10 @@ import type {
   DashboardCancelReasonSlice,
   DashboardData,
   DashboardDriverSlice,
+  DashboardDriverUtilization,
   DashboardFilters,
   DashboardJobTypeSlice,
+  DashboardJobTypeTrendPoint,
   DashboardKpi,
   DashboardSlaStatus,
   DashboardStatusSlice,
@@ -32,6 +34,7 @@ import type {
 } from '@/lib/dashboard/types';
 import { BOOKING_CANCEL_REASON_LABELS, BOOKING_JOB_TYPE_LABELS } from '@/lib/bookingUiMessages';
 import { nowInBangkok } from '@/lib/thaiDateTimeFormat';
+import { isDriverDirectoryPosition } from '@/lib/driverListPositions';
 import type {
   Employee,
   Vehicle,
@@ -262,9 +265,37 @@ function buildTrendSeries(
     const prevDay = prevDays[i] ?? prevDays[prevDays.length - 1];
     return {
       label: format(day, 'EEE', { locale: th }),
+      dateLabel: format(day, 'd MMM', { locale: th }),
       value: countOnDay(bookings, day),
       previousValue: prevDay ? countOnDay(previousBookings, prevDay) : 0,
     };
+  });
+}
+
+function buildJobTypeTrendSeries(
+  bookings: VehicleBooking[],
+  range: DashboardPeriodRange,
+): DashboardJobTypeTrendPoint[] {
+  const days = eachDayOfInterval({ start: range.from, end: range.to });
+  return days.map((day) => {
+    const point: DashboardJobTypeTrendPoint = {
+      label: format(day, 'EEE', { locale: th }),
+      dateLabel: format(day, 'd MMM', { locale: th }),
+      trip_sabuy: 0,
+      job_order: 0,
+      substitute: 0,
+      standby: 0,
+      unspecified: 0,
+    };
+    for (const b of bookings) {
+      const s = parseISO(b.starts_at);
+      if (!isWithinInterval(s, { start: startOfDay(day), end: endOfDay(day) })) continue;
+      const key = (b.job_type ?? 'unspecified') as keyof typeof point;
+      if (key in point && typeof point[key] === 'number') {
+        (point[key] as number) += 1;
+      }
+    }
+    return point;
   });
 }
 
@@ -365,6 +396,18 @@ function buildDriverSlices(items: DashboardWorkItem[], employees: Employee[]): D
     .slice(0, 6);
 }
 
+function buildDriverUtilization(
+  items: DashboardWorkItem[],
+  employees: Employee[],
+): DashboardDriverUtilization {
+  const totalDrivers = employees.filter(
+    (e) => isDriverDirectoryPosition(e.position) && e.status !== 'inactive',
+  ).length;
+  const activeDrivers = new Set(items.map((i) => i.ownerId)).size;
+  const share = totalDrivers > 0 ? Math.round((activeDrivers / totalDrivers) * 100) : 0;
+  return { totalDrivers, activeDrivers, share };
+}
+
 export function applyDashboardFilters(
   items: DashboardWorkItem[],
   filters: DashboardFilters,
@@ -410,10 +453,12 @@ export function buildDashboardData(
     generatedAt: now.toISOString(),
     kpis: buildKpis(filtered, prevItems),
     trendSeries: buildTrendSeries(inRange, range, inPrevRange),
+    jobTypeTrendSeries: buildJobTypeTrendSeries(inRange, range),
     statusSlices: buildStatusSlices(filtered),
     jobTypeSlices: buildJobTypeSlices(filtered),
     cancelReasonSlices: buildCancelReasonSlices(filtered),
     driverSlices: buildDriverSlices(filtered, employees),
+    driverUtilization: buildDriverUtilization(filtered, employees),
   };
 }
 

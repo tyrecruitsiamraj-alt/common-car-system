@@ -57,6 +57,7 @@ export interface DashboardWorkItem {
 
 export interface DashboardTrendPoint {
   label: string;
+  dateLabel: string;
   value: number;
   previousValue?: number;
 }
@@ -73,6 +74,16 @@ export interface DashboardJobTypeSlice {
   label: string;
   count: number;
   share: number;
+}
+
+export interface DashboardJobTypeTrendPoint {
+  label: string;
+  dateLabel: string;
+  trip_sabuy: number;
+  job_order: number;
+  substitute: number;
+  standby: number;
+  unspecified: number;
 }
 
 export interface DashboardCancelReasonSlice {
@@ -92,6 +103,15 @@ export interface DashboardDriverSlice {
   share: number;
 }
 
+export interface DashboardDriverUtilization {
+  /** คนขับทั้งหมดที่ลงทะเบียนในหน้า Drivers (ไม่รวมพ้นสภาพ) */
+  totalDrivers: number;
+  /** คนขับที่มีงาน >= 1 งานในช่วงที่เลือก */
+  activeDrivers: number;
+  /** activeDrivers / totalDrivers เป็น % ปัดเศษ */
+  share: number;
+}
+
 export interface DashboardFilters {
   status: 'all' | DashboardTaskStatus;
   ownerId: string;
@@ -105,10 +125,12 @@ export interface DashboardFilters {
 export interface DashboardData {
   kpis: DashboardKpi[];
   trendSeries: DashboardTrendPoint[];
+  jobTypeTrendSeries: DashboardJobTypeTrendPoint[];
   statusSlices: DashboardStatusSlice[];
   jobTypeSlices: DashboardJobTypeSlice[];
   cancelReasonSlices: DashboardCancelReasonSlice[];
   driverSlices: DashboardDriverSlice[];
+  driverUtilization: DashboardDriverUtilization;
   periodLabel: string;
   generatedAt: string;
 }

@@ -4,6 +4,7 @@ import {
   BarChart,
   CartesianGrid,
   Cell,
+  LabelList,
   Line,
   LineChart,
   XAxis,
@@ -32,7 +33,7 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 /** สีตามลำดับหมวดหมู่คงที่ — ไม่หมุนสี (แยกแยะได้แม้ตาบอดสี ตรวจแล้วด้วย dataviz validator) */
-const JOB_TYPE_COLORS: Record<string, string> = {
+export const JOB_TYPE_COLORS: Record<string, string> = {
   trip_sabuy: '#2a78d6',
   job_order: '#eb6834',
   substitute: '#1baf7a',
@@ -71,8 +72,19 @@ const DashboardChartSection: React.FC<Props> = ({
   const jobTypeBarData = jobTypeSlices.map((s) => ({
     name: s.label,
     count: s.count,
+    labelText: `${s.count} (${s.share}%)`,
     fill: JOB_TYPE_COLORS[s.jobType] ?? 'hsl(211 100% 50%)',
   }));
+
+  const topJobType = jobTypeSlices.reduce<DashboardJobTypeSlice | null>(
+    (top, s) => (!top || s.count > top.count ? s : top),
+    null,
+  );
+
+  const busiestDay = trendSeries.reduce<DashboardTrendPoint | null>(
+    (top, p) => (!top || p.value > top.value ? p : top),
+    null,
+  );
 
   const cancelReasonBarData = cancelReasonSlices.map((s) => ({
     name: s.label,
@@ -96,13 +108,24 @@ const DashboardChartSection: React.FC<Props> = ({
           </div>
           <p className="text-lg font-semibold text-slate-900 tabular-nums">{loading ? '…' : totalTrend}</p>
         </div>
+        {!loading && busiestDay && busiestDay.value > 0 ? (
+          <div className="mb-3 inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700">
+            วันที่มีงานมากสุด: {busiestDay.dateLabel} ({busiestDay.value} งาน)
+          </div>
+        ) : null}
         {loading ? (
           <div className="h-56 flex items-center justify-center text-sm text-slate-500">กำลังโหลด…</div>
         ) : (
           <ChartContainer config={trendConfig} className="h-56 w-full aspect-auto">
             <LineChart data={trendSeries} margin={{ left: 0, right: 8, top: 8, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} />
-              <XAxis dataKey="label" tickLine={false} axisLine={false} fontSize={12} />
+              <XAxis
+                dataKey="dateLabel"
+                tickLine={false}
+                axisLine={false}
+                fontSize={12}
+                interval={Math.max(0, Math.ceil(trendSeries.length / 7) - 1)}
+              />
               <YAxis tickLine={false} axisLine={false} fontSize={12} width={28} />
               <ChartTooltip content={<ChartTooltipContent />} />
               <Line
@@ -156,13 +179,18 @@ const DashboardChartSection: React.FC<Props> = ({
           </div>
           <p className="text-lg font-semibold text-slate-900 tabular-nums">{loading ? '…' : totalJobType}</p>
         </div>
+        {!loading && topJobType && topJobType.count > 0 ? (
+          <div className="mb-3 inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700">
+            มากสุด: {topJobType.label} ({topJobType.count} งาน, {topJobType.share}%)
+          </div>
+        ) : null}
         {loading ? (
           <div className="h-56 flex items-center justify-center text-sm text-slate-500">กำลังโหลด…</div>
         ) : jobTypeBarData.length === 0 ? (
           <div className="h-56 flex items-center justify-center text-sm text-slate-500">ไม่มีข้อมูลในช่วงนี้</div>
         ) : (
           <ChartContainer config={{ count: { label: 'จำนวน', color: 'hsl(211 100% 50%)' } }} className="h-56 w-full aspect-auto">
-            <BarChart data={jobTypeBarData} layout="vertical" margin={{ left: 4, right: 16, top: 4, bottom: 4 }}>
+            <BarChart data={jobTypeBarData} layout="vertical" margin={{ left: 4, right: 44, top: 4, bottom: 4 }}>
               <CartesianGrid strokeDasharray="3 3" horizontal={false} />
               <XAxis type="number" tickLine={false} axisLine={false} fontSize={12} />
               <YAxis type="category" dataKey="name" tickLine={false} axisLine={false} width={88} fontSize={11} />
@@ -171,6 +199,7 @@ const DashboardChartSection: React.FC<Props> = ({
                 {jobTypeBarData.map((entry) => (
                   <Cell key={entry.name} fill={entry.fill} />
                 ))}
+                <LabelList dataKey="labelText" position="right" fontSize={11} fill="hsl(215 20% 40%)" />
               </Bar>
             </BarChart>
           </ChartContainer>
