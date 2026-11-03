@@ -41,7 +41,11 @@ type SparseLabelProps = {
 
 const DashboardJobTypeTrendChart: React.FC<Props> = ({ series, loading }) => {
   const [view, setView] = useState<View>('line');
-  const activeTypes = JOB_TYPE_ORDER.filter((type) => series.some((p) => p[type] > 0));
+  // ประเภทงานจริงโชว์เสมอทุกเดือนแม้ไม่มีข้อมูล (เส้นราบที่ 0) เพื่อให้เทียบกันข้ามเดือนได้
+  // "ไม่ระบุ" ไม่ใช่ประเภทงานจริง จึงซ่อนเมื่อไม่มีข้อมูลเหมือนเดิม
+  const activeTypes = JOB_TYPE_ORDER.filter(
+    (type) => type !== 'unspecified' || series.some((p) => p[type] > 0),
+  );
 
   const config = Object.fromEntries(
     activeTypes.map((type) => [type, { label: JOB_TYPE_LABELS[type], color: JOB_TYPE_COLORS[type] }]),
