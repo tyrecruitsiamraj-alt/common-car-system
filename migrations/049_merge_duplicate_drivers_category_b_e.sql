@@ -33,7 +33,9 @@ insert into _driver_merge_map (retired_code, keep_code) values
   ('TD 0006', 'TD 0036'),  -- กิตติธเนศ พราวศรีศักดิ์
   ('TD0114', 'EMP-057');   -- พรพล จันทร์แก้ว (หมวด E, รหัสไม่มีเว้นวรรค คนละคนกับ 'TD 0114' ด้านบน)
 
-select 1 / 0 from (
+-- (หารด้วย count(*) ที่คำนวณจากข้อมูลจริง แทน literal 0 ตรงๆ เพราะ "select 1/0" เป็นค่าคงที่
+--  ที่ planner ของ Postgres จะพับ/ตรวจตอน plan เลยโดยไม่สนว่า subquery มีแถวหรือไม่)
+select 1 / (case when count(*) = 0 then 1 else 0 end) from (
   select m.retired_code
   from _driver_merge_map m
   where not exists (select 1 from employees e where e.employee_code = m.retired_code)
@@ -54,7 +56,7 @@ from _driver_merge_map m
 join employees old_e on old_e.employee_code = m.retired_code
 join employees new_e on new_e.employee_code = m.keep_code;
 
-select 1 / 0 from _driver_merge_pairs where retired_id = keep_id;
+select 1 / (case when count(*) = 0 then 1 else 0 end) from _driver_merge_pairs where retired_id = keep_id;
 
 update vehicle_bookings vb
 set employee_id = p.keep_id

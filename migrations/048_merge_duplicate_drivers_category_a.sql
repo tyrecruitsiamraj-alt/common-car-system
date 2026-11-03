@@ -25,9 +25,13 @@ create temporary table _driver_merge_map (
   keep_code text not null
 ) on commit drop;
 
+-- หมายเหตุ: ตัดคู่ 'เมฆา โกษารักษ์' (EMP-003 / SR 0383) ออกจากรอบนี้ — ทั้งสองรหัสมี vehicle_bookings
+-- ที่ status=active ช่วงเวลาทับกันจริง (EMP-003: 2026-07-31 22:00–2026-08-01 15:00 UTC,
+-- SR 0383: 2026-08-01 01:00–10:00 UTC ซึ่งอยู่ในช่วงแรกพอดี) การรวมจะชน exclusion constraint
+-- vehicle_bookings_employee_no_overlap ต้องให้คนตรวจสอบก่อนว่าจองซ้อนจริงหรือเป็นข้อมูลผิดพลาด
+-- แล้วค่อยรวมคู่นี้แยกต่างหาก
 insert into _driver_merge_map (retired_code, keep_code) values
   ('EMP-002', 'SR 0589'),
-  ('EMP-003', 'SR 0383'),
   ('EMP-004', 'SR 0879'),
   ('EMP-005', 'SR 1054'),
   ('EMP-006', 'SR 0016'),
@@ -70,7 +74,9 @@ insert into _driver_merge_map (retired_code, keep_code) values
 
 -- กันรันผิด: ถ้ารหัสไหนใน mapping หาไม่เจอในตาราง employees (ถูกแก้ไข/ลบไปก่อนรัน migration นี้)
 -- ให้ migration ทั้งไฟล์ fail และ rollback ทันที แทนที่จะรวมแบบขาดๆ หายๆ
-select 1 / 0 from (
+-- (หารด้วย count(*) ที่คำนวณจากข้อมูลจริง แทน literal 0 ตรงๆ เพราะ "select 1/0" เป็นค่าคงที่
+--  ที่ planner ของ Postgres จะพับ/ตรวจตอน plan เลยโดยไม่สนว่า subquery มีแถวหรือไม่)
+select 1 / (case when count(*) = 0 then 1 else 0 end) from (
   select m.retired_code
   from _driver_merge_map m
   where not exists (select 1 from employees e where e.employee_code = m.retired_code)
@@ -93,7 +99,7 @@ join employees old_e on old_e.employee_code = m.retired_code
 join employees new_e on new_e.employee_code = m.keep_code;
 
 -- กันรวมรหัสเข้ากับตัวเอง (เผื่อ mapping พิมพ์ผิด)
-select 1 / 0 from _driver_merge_pairs where retired_id = keep_id;
+select 1 / (case when count(*) = 0 then 1 else 0 end) from _driver_merge_pairs where retired_id = keep_id;
 
 -- 4) ย้ายประวัติที่มี FK จริงทั้งหมดไปยังรหัสที่เก็บไว้
 update vehicle_bookings vb
