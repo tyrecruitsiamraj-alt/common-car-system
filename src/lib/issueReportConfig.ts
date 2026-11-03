@@ -32,6 +32,14 @@ export type IssueField = {
   required?: boolean;
   options?: string[];
   placeholder?: string;
+  /**
+   * type: 'select' | 'multi-select' — ใช้แทน `options` เมื่อตัวเลือกของฟิลด์นี้ขึ้นกับค่าที่เลือกไว้ของอีกฟิลด์หนึ่ง
+   * (เช่น รายการย่อยของ "ประเภทการเข้าศูนย์" ขึ้นกับ "หมวดหลัก" ที่เลือกไว้)
+   * optionsDependOn = คีย์ของฟิลด์ควบคุม, optionsByGroup = ตัวเลือกของแต่ละค่าที่เป็นไปได้ของฟิลด์ควบคุมนั้น
+   * เมื่อเปลี่ยนค่าของฟิลด์ควบคุม ฟิลด์ที่ขึ้นกับมันจะถูกล้างค่าอัตโนมัติ (ตัวเลือกเก่าอาจไม่ตรงหมวดใหม่แล้ว)
+   */
+  optionsDependOn?: string;
+  optionsByGroup?: Record<string, string[]>;
   /** type: 'select' | 'multi-select' — เมื่อเลือกค่านี้ ให้โชว์ช่องกรอกเพิ่มเติม (เช่น เลือก "อื่นๆ") */
   otherTrigger?: string;
   otherField?: { key: string; label: string; placeholder?: string };
@@ -56,6 +64,16 @@ export type IssueReportConfig = {
   primaryDateField: string;
   /** 'forms' (ค่าเริ่มต้น) = อยู่ใต้ dropdown "แบบฟอร์ม" เมนูซ้าย, 'standalone' = แยกเป็นปุ่มเมนูของตัวเอง */
   menuGroup?: 'forms' | 'standalone';
+};
+
+/** หมวดหลัก (สาเหตุที่เข้าศูนย์) ของแบบฟอร์ม "รถเข้าศูนย์" — บอกภาพรวมว่าเป็นแผนปกติหรือปัญหาที่ต้องติดตาม */
+export const SERVICE_CATEGORY_OPTIONS = ['ซ่อมบำรุงตามแผน', 'ชำรุด-ซ่อมฉุกเฉิน', 'อุบัติเหตุ'];
+
+/** รายการย่อยของ "ประเภทการเข้าศูนย์" แยกตามหมวดหลักที่เลือก — เลือกได้มากกว่า 1 ข้อในหมวดเดียวกัน */
+export const SERVICE_TYPE_OPTIONS_BY_CATEGORY: Record<string, string[]> = {
+  'ซ่อมบำรุงตามแผน': ['เช็คระยะ', 'เปลี่ยนยาง', 'เปลี่ยนแบตเตอรี่', 'เปลี่ยนน้ำมันเครื่อง', 'ล้างแอร์', 'อื่นๆ'],
+  'ชำรุด-ซ่อมฉุกเฉิน': ['เครื่องยนต์', 'ระบบไฟฟ้า', 'ระบบเบรก', 'ระบบแอร์', 'ยางรั่ว/แตก', 'แบตเตอรี่หมด/เสีย', 'อื่นๆ'],
+  อุบัติเหตุ: ['ชนท้าย', 'ชนด้านหน้า', 'ชนด้านข้าง', 'พลิกคว่ำ', 'กระจก/ไฟหน้า-ไฟท้ายแตก', 'อื่นๆ'],
 };
 
 /** เกณฑ์คะแนน 1-5 ของแบบประเมินความพึงพอใจ */
@@ -83,11 +101,20 @@ export const ISSUE_REPORT_TYPES: IssueReportConfig[] = [
       { key: 'vehicle_model', label: 'รุ่นรถ', type: 'vehicle-model-picker', required: true },
       { key: 'mileage', label: 'เลขไมล์', type: 'text', required: true, placeholder: 'เช่น 45,000' },
       {
+        key: 'service_category',
+        label: 'หมวดหลัก (สาเหตุที่เข้าศูนย์)',
+        type: 'select',
+        required: true,
+        options: SERVICE_CATEGORY_OPTIONS,
+      },
+      {
         key: 'service_type',
-        label: 'ประเภทการเข้าศูนย์',
+        label: 'ประเภทการเข้าศูนย์ (เลือกได้มากกว่า 1 ข้อ)',
         type: 'multi-select',
         required: true,
-        options: ['เช็คระยะ', 'เปลี่ยนยาง', 'เปลี่ยนแบตเตอรี่', 'อื่นๆ'],
+        placeholder: 'กรุณาเลือกหมวดหลักก่อน',
+        optionsDependOn: 'service_category',
+        optionsByGroup: SERVICE_TYPE_OPTIONS_BY_CATEGORY,
         otherTrigger: 'อื่นๆ',
         otherField: { key: 'service_type_other', label: 'ระบุประเภทการเข้าศูนย์', placeholder: 'ระบุรายละเอียด' },
       },

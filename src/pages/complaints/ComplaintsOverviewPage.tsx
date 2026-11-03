@@ -485,9 +485,10 @@ const ComplaintsOverviewPage: React.FC = () => {
               { label: 'เลื่อน', value: data.vehicleService.postponed },
             ]}
             breakdownGroups={[
+              { key: 'category', label: 'สาเหตุหลัก', items: data.vehicleService.byCategory },
               { key: 'model', label: 'รุ่นรถ', items: data.vehicleService.byModel },
               { key: 'center', label: 'ศูนย์', items: data.vehicleService.byCenter },
-              { key: 'type', label: 'ประเภท', items: data.vehicleService.byServiceType },
+              { key: 'type', label: 'รายละเอียด', items: data.vehicleService.byServiceType },
             ]}
             accent={CATEGORY_ACCENT['vehicle-service']}
             onViewPeople={() => setActivePanel('vehicleService')}

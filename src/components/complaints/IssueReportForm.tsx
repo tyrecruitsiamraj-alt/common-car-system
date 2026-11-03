@@ -22,6 +22,14 @@ function isOtherTriggerSelected(f: IssueField, rawValue: string): boolean {
     : rawValue === f.otherTrigger;
 }
 
+/** ตัวเลือกจริงของฟิลด์นี้ — ถ้าตัวเลือกขึ้นกับฟิลด์ควบคุม (optionsDependOn) ให้ดึงตามค่าที่เลือกไว้ของฟิลด์นั้น */
+function resolveFieldOptions(f: IssueField, values: Record<string, string>): string[] {
+  if (f.optionsDependOn && f.optionsByGroup) {
+    return f.optionsByGroup[values[f.optionsDependOn] ?? ''] ?? [];
+  }
+  return f.options ?? [];
+}
+
 type DriverDirectoryEntry = {
   id: string;
   employee_code?: string;
@@ -98,7 +106,19 @@ const IssueReportForm: React.FC<Props> = ({ config, cancelHref }) => {
     keywords: d.employee_code,
   }));
 
-  const setField = (key: string, value: string) => setValues((prev) => ({ ...prev, [key]: value }));
+  const setField = (key: string, value: string) =>
+    setValues((prev) => {
+      if (prev[key] === value) return prev;
+      const next = { ...prev, [key]: value };
+      // ฟิลด์ที่ตัวเลือกขึ้นกับฟิลด์นี้ (optionsDependOn) ต้องล้างค่าเดิมทิ้ง เพราะตัวเลือกอาจไม่ตรงหมวดใหม่แล้ว
+      for (const f of config.fields) {
+        if (f.optionsDependOn === key) {
+          next[f.key] = '';
+          if (f.otherField) next[f.otherField.key] = '';
+        }
+      }
+      return next;
+    });
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -224,31 +244,37 @@ const IssueReportForm: React.FC<Props> = ({ config, cancelHref }) => {
             );
           } else if (f.type === 'multi-select') {
             const selected = parseMultiSelectValue(values[f.key]);
+            const options = resolveFieldOptions(f, values);
+            const waitingOnGroup = Boolean(f.optionsDependOn) && !(values[f.optionsDependOn ?? ''] ?? '').trim();
             input = (
               <>
-                <div className="flex flex-wrap gap-2">
-                  {(f.options ?? []).map((o) => {
-                    const checked = selected.includes(o);
-                    return (
-                      <label
-                        key={o}
-                        className={cn(
-                          'flex items-center gap-2 rounded-xl border border-border/70 px-3 py-2 text-sm cursor-pointer hover:bg-muted/40',
-                          checked && 'border-primary/50 bg-primary/5',
-                        )}
-                      >
-                        <Checkbox
-                          checked={checked}
-                          onCheckedChange={(v) => {
-                            const next = v ? [...selected, o] : selected.filter((x) => x !== o);
-                            setField(f.key, formatMultiSelectValue(next));
-                          }}
-                        />
-                        <span>{o}</span>
-                      </label>
-                    );
-                  })}
-                </div>
+                {waitingOnGroup ? (
+                  <p className="text-sm text-muted-foreground">{f.placeholder ?? 'กรุณาเลือกก่อน'}</p>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {options.map((o) => {
+                      const checked = selected.includes(o);
+                      return (
+                        <label
+                          key={o}
+                          className={cn(
+                            'flex items-center gap-2 rounded-xl border border-border/70 px-3 py-2 text-sm cursor-pointer hover:bg-muted/40',
+                            checked && 'border-primary/50 bg-primary/5',
+                          )}
+                        >
+                          <Checkbox
+                            checked={checked}
+                            onCheckedChange={(v) => {
+                              const next = v ? [...selected, o] : selected.filter((x) => x !== o);
+                              setField(f.key, formatMultiSelectValue(next));
+                            }}
+                          />
+                          <span>{o}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
                 {f.otherField && isOtherTriggerSelected(f, values[f.key] ?? '') ? (
                   <div className="mt-3">
                     {fieldBlock(
@@ -266,6 +292,7 @@ const IssueReportForm: React.FC<Props> = ({ config, cancelHref }) => {
               </>
             );
           } else if (f.type === 'select') {
+            const options = resolveFieldOptions(f, values);
             input = (
               <>
                 <Select value={values[f.key] ?? ''} onValueChange={(v) => setField(f.key, v)}>
@@ -273,7 +300,7 @@ const IssueReportForm: React.FC<Props> = ({ config, cancelHref }) => {
                     <SelectValue placeholder={f.placeholder ?? `เลือก${f.label}`} />
                   </SelectTrigger>
                   <SelectContent>
-                    {(f.options ?? []).map((o) => (
+                    {options.map((o) => (
                       <SelectItem key={o} value={o}>
                         {o}
                       </SelectItem>

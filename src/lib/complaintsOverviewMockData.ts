@@ -29,6 +29,7 @@ export type VehicleServiceData = {
   byModel: BreakdownItem[];
   byCenter: BreakdownItem[];
   byServiceType: BreakdownItem[];
+  byCategory: BreakdownItem[];
   people: PersonCaseSummary[];
 };
 
@@ -80,6 +81,7 @@ const PERIOD_MOCK: Record<'day' | 'week' | 'month' | 'year', ComplaintsOverviewD
         { label: 'เช็คระยะ', count: 2 },
         { label: 'เปลี่ยนยาง', count: 1 },
       ],
+      byCategory: [{ label: 'ซ่อมบำรุงตามแผน', count: 3 }],
       people: [
         { name: 'สมชาย ใจดี', position: 'Position', count: 1, cases: ['เช็คระยะ — Fortuner (กข 1234)'] },
         { name: 'วิไล สวยงาม', position: 'Common', count: 1, cases: ['เปลี่ยนยาง — Camry (คค 5678)'] },
@@ -140,6 +142,10 @@ const PERIOD_MOCK: Record<'day' | 'week' | 'month' | 'year', ComplaintsOverviewD
         { label: 'เปลี่ยนยาง', count: 3 },
         { label: 'เปลี่ยนแบตเตอรี่', count: 2 },
         { label: 'อื่นๆ', count: 1 },
+      ],
+      byCategory: [
+        { label: 'ซ่อมบำรุงตามแผน', count: 9 },
+        { label: 'ชำรุด-ซ่อมฉุกเฉิน', count: 2 },
       ],
       people: [
         { name: 'สมชาย ใจดี', position: 'Position', count: 3, cases: ['เช็คระยะ — Fortuner', 'เปลี่ยนยาง — Fortuner'] },
@@ -222,6 +228,11 @@ const PERIOD_MOCK: Record<'day' | 'week' | 'month' | 'year', ComplaintsOverviewD
         { label: 'เปลี่ยนยาง', count: 11 },
         { label: 'เปลี่ยนแบตเตอรี่', count: 8 },
         { label: 'อื่นๆ', count: 4 },
+      ],
+      byCategory: [
+        { label: 'ซ่อมบำรุงตามแผน', count: 34 },
+        { label: 'ชำรุด-ซ่อมฉุกเฉิน', count: 6 },
+        { label: 'อุบัติเหตุ', count: 2 },
       ],
       people: [
         { name: 'สมชาย ใจดี', position: 'Position', count: 9, cases: ['เช็คระยะ ×4', 'เปลี่ยนยาง ×3', 'อื่นๆ ×2'] },
@@ -313,6 +324,11 @@ const PERIOD_MOCK: Record<'day' | 'week' | 'month' | 'year', ComplaintsOverviewD
         { label: 'เปลี่ยนยาง', count: 124 },
         { label: 'เปลี่ยนแบตเตอรี่', count: 89 },
         { label: 'อื่นๆ', count: 44 },
+      ],
+      byCategory: [
+        { label: 'ซ่อมบำรุงตามแผน', count: 392 },
+        { label: 'ชำรุด-ซ่อมฉุกเฉิน', count: 58 },
+        { label: 'อุบัติเหตุ', count: 18 },
       ],
       people: [
         { name: 'สมชาย ใจดี', position: 'Position', count: 98, cases: ['เช็คระยะ, เปลี่ยนยาง, อื่นๆ — รวม 12 เดือน'] },

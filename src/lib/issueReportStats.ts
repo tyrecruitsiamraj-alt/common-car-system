@@ -124,6 +124,7 @@ function computeVehicleService(rows: IssueReportRow[]): VehicleServiceData {
     byModel: countBy(rows, (r) => r.data.vehicle_model),
     byCenter: countBy(rows, (r) => r.data.service_center),
     byServiceType: countByServiceType(rows),
+    byCategory: countBy(rows, (r) => r.data.service_category),
     people: peopleSummary(
       rows,
       (r) => `${serviceTypeLabel(r) ?? '-'} — ${r.data.vehicle_model ?? '-'}${r.data.vehicle_plate ? ` (${r.data.vehicle_plate})` : ''}`,
