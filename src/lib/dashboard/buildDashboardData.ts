@@ -34,7 +34,7 @@ import type {
 } from '@/lib/dashboard/types';
 import { BOOKING_CANCEL_REASON_LABELS, BOOKING_JOB_TYPE_LABELS } from '@/lib/bookingUiMessages';
 import { nowInBangkok } from '@/lib/thaiDateTimeFormat';
-import { isDriverDirectoryPosition } from '@/lib/driverListPositions';
+import { isCommonDriverPosition } from '@/lib/driverListPositions';
 import type {
   Employee,
   Vehicle,
@@ -400,10 +400,13 @@ function buildDriverUtilization(
   items: DashboardWorkItem[],
   employees: Employee[],
 ): DashboardDriverUtilization {
-  const totalDrivers = employees.filter(
-    (e) => isDriverDirectoryPosition(e.position) && e.status !== 'inactive',
-  ).length;
-  const activeDrivers = new Set(items.map((i) => i.ownerId)).size;
+  const commonDriverIds = new Set(
+    employees.filter((e) => isCommonDriverPosition(e.position) && e.status !== 'inactive').map((e) => e.id),
+  );
+  const totalDrivers = commonDriverIds.size;
+  const activeDrivers = new Set(
+    items.filter((i) => commonDriverIds.has(i.ownerId)).map((i) => i.ownerId),
+  ).size;
   const share = totalDrivers > 0 ? Math.round((activeDrivers / totalDrivers) * 100) : 0;
   return { totalDrivers, activeDrivers, share };
 }

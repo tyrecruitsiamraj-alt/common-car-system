@@ -104,9 +104,9 @@ export interface DashboardDriverSlice {
 }
 
 export interface DashboardDriverUtilization {
-  /** คนขับทั้งหมดที่ลงทะเบียนในหน้า Drivers (ไม่รวมพ้นสภาพ) */
+  /** คนขับ "Common Driver" ทั้งหมด (ไม่รวมพ้นสภาพ) — ไม่นับ Temp/Support/ขับนาย */
   totalDrivers: number;
-  /** คนขับที่มีงาน >= 1 งานในช่วงที่เลือก */
+  /** คนขับ Common Driver ที่มีงาน >= 1 งานในช่วงที่เลือก */
   activeDrivers: number;
   /** activeDrivers / totalDrivers เป็น % ปัดเศษ */
   share: number;
