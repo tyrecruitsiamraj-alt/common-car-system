@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Bar, BarChart, CartesianGrid, Line, LineChart, XAxis, YAxis } from 'recharts';
+import { Bar, BarChart, CartesianGrid, LabelList, Line, LineChart, XAxis, YAxis } from 'recharts';
 import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { cn } from '@/lib/utils';
 import type { MonthlyStatusPoint } from '@/lib/caseReportStats';
@@ -62,9 +62,15 @@ const MonthlyStatusTrendChart: React.FC<Props> = ({ title, subtitle, data, loadi
               <YAxis tickLine={false} axisLine={false} fontSize={12} width={28} allowDecimals={false} />
               <ChartTooltip content={<ChartTooltipContent />} />
               <ChartLegend content={<ChartLegendContent />} />
-              <Line type="monotone" dataKey="wrong" stroke="var(--color-wrong)" strokeWidth={2.5} dot={{ r: 3 }} />
-              <Line type="monotone" dataKey="right" stroke="var(--color-right)" strokeWidth={2.5} dot={{ r: 3 }} />
-              <Line type="monotone" dataKey="excluded" stroke="var(--color-excluded)" strokeWidth={2.5} dot={{ r: 3 }} />
+              <Line type="monotone" dataKey="wrong" stroke="var(--color-wrong)" strokeWidth={2.5} dot={{ r: 3 }}>
+                <LabelList dataKey="wrong" position="top" fontSize={10} fill="var(--color-wrong)" />
+              </Line>
+              <Line type="monotone" dataKey="right" stroke="var(--color-right)" strokeWidth={2.5} dot={{ r: 3 }}>
+                <LabelList dataKey="right" position="top" fontSize={10} fill="var(--color-right)" />
+              </Line>
+              <Line type="monotone" dataKey="excluded" stroke="var(--color-excluded)" strokeWidth={2.5} dot={{ r: 3 }}>
+                <LabelList dataKey="excluded" position="top" fontSize={10} fill="var(--color-excluded)" />
+              </Line>
               <Line
                 type="monotone"
                 dataKey="total"
@@ -72,19 +78,29 @@ const MonthlyStatusTrendChart: React.FC<Props> = ({ title, subtitle, data, loadi
                 strokeWidth={2.5}
                 strokeDasharray="5 3"
                 dot={{ r: 3 }}
-              />
+              >
+                <LabelList dataKey="total" position="top" fontSize={10} fill="var(--color-total)" />
+              </Line>
             </LineChart>
           ) : (
-            <BarChart data={data} margin={{ left: 0, right: 8, top: 8, bottom: 0 }}>
+            <BarChart data={data} margin={{ left: 0, right: 8, top: 16, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} />
               <XAxis dataKey="label" tickLine={false} axisLine={false} fontSize={12} />
               <YAxis tickLine={false} axisLine={false} fontSize={12} width={28} allowDecimals={false} />
               <ChartTooltip content={<ChartTooltipContent />} />
               <ChartLegend content={<ChartLegendContent />} />
-              <Bar dataKey="wrong" fill="var(--color-wrong)" radius={[4, 4, 0, 0]} maxBarSize={16} />
-              <Bar dataKey="right" fill="var(--color-right)" radius={[4, 4, 0, 0]} maxBarSize={16} />
-              <Bar dataKey="excluded" fill="var(--color-excluded)" radius={[4, 4, 0, 0]} maxBarSize={16} />
-              <Bar dataKey="total" fill="var(--color-total)" radius={[4, 4, 0, 0]} maxBarSize={16} />
+              <Bar dataKey="wrong" fill="var(--color-wrong)" radius={[4, 4, 0, 0]} maxBarSize={16}>
+                <LabelList dataKey="wrong" position="top" fontSize={10} fill="var(--color-wrong)" />
+              </Bar>
+              <Bar dataKey="right" fill="var(--color-right)" radius={[4, 4, 0, 0]} maxBarSize={16}>
+                <LabelList dataKey="right" position="top" fontSize={10} fill="var(--color-right)" />
+              </Bar>
+              <Bar dataKey="excluded" fill="var(--color-excluded)" radius={[4, 4, 0, 0]} maxBarSize={16}>
+                <LabelList dataKey="excluded" position="top" fontSize={10} fill="var(--color-excluded)" />
+              </Bar>
+              <Bar dataKey="total" fill="var(--color-total)" radius={[4, 4, 0, 0]} maxBarSize={16}>
+                <LabelList dataKey="total" position="top" fontSize={10} fill="var(--color-total)" />
+              </Bar>
             </BarChart>
           )}
         </ChartContainer>
