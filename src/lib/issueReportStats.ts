@@ -1,4 +1,5 @@
 import { startOfDay, startOfWeek, startOfMonth, startOfYear, endOfDay, endOfWeek, endOfMonth, endOfYear, format } from 'date-fns';
+import { parseMultiSelectValue } from './issueReportConfig';
 import type {
   PeriodKey,
   BreakdownItem,
@@ -83,9 +84,16 @@ function peopleSummary(rows: IssueReportRow[], caseLabel: (r: IssueReportRow) =>
     .sort((a, b) => b.count - a.count);
 }
 
+/** ประเภทการเข้าศูนย์ที่เลือกไว้ของเคสหนึ่ง (เลือกได้หลายข้อ) — แทนที่ "อื่นๆ" ด้วยรายละเอียดที่ระบุ */
+function serviceTypeValues(r: IssueReportRow): string[] {
+  return parseMultiSelectValue(r.data.service_type).map((v) =>
+    v === 'อื่นๆ' ? r.data.service_type_other || 'อื่นๆ' : v,
+  );
+}
+
 function serviceTypeLabel(r: IssueReportRow): string | undefined {
-  if (r.data.service_type === 'อื่นๆ') return r.data.service_type_other || 'อื่นๆ';
-  return r.data.service_type;
+  const values = serviceTypeValues(r);
+  return values.length ? values.join(', ') : undefined;
 }
 
 export function daysInclusive(startYmd: string | undefined, endYmd: string | undefined): number {
@@ -97,6 +105,17 @@ export function daysInclusive(startYmd: string | undefined, endYmd: string | und
   return diff > 0 ? diff : 0;
 }
 
+/** นับจำนวนครั้งที่ถูกเลือกของแต่ละประเภท — หนึ่งเคสอาจถูกนับได้มากกว่า 1 ประเภทเพราะเลือกได้หลายข้อ */
+function countByServiceType(rows: IssueReportRow[]): BreakdownItem[] {
+  const counts = new Map<string, number>();
+  for (const r of rows) {
+    for (const v of serviceTypeValues(r)) {
+      counts.set(v, (counts.get(v) ?? 0) + 1);
+    }
+  }
+  return [...counts.entries()].map(([label, count]) => ({ label, count })).sort((a, b) => b.count - a.count);
+}
+
 function computeVehicleService(rows: IssueReportRow[]): VehicleServiceData {
   return {
     total: rows.length,
@@ -104,7 +123,7 @@ function computeVehicleService(rows: IssueReportRow[]): VehicleServiceData {
     postponed: rows.filter((r) => r.data.status === 'เลื่อน').length,
     byModel: countBy(rows, (r) => r.data.vehicle_model),
     byCenter: countBy(rows, (r) => r.data.service_center),
-    byServiceType: countBy(rows, serviceTypeLabel),
+    byServiceType: countByServiceType(rows),
     people: peopleSummary(
       rows,
       (r) => `${serviceTypeLabel(r) ?? '-'} — ${r.data.vehicle_model ?? '-'}${r.data.vehicle_plate ? ` (${r.data.vehicle_plate})` : ''}`,

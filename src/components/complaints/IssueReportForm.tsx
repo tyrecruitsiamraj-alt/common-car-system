@@ -6,11 +6,21 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 import SearchablePicker, { type SearchablePickerOption } from '@/components/shared/SearchablePicker';
 import ToyotaModelPicker from '@/components/fleet/ToyotaModelPicker';
 import { apiFetch } from '@/lib/apiFetch';
 import { formatEmployeeDisplayName } from '@/lib/titlePrefixOptions';
-import type { IssueReportConfig } from '@/lib/issueReportConfig';
+import { cn } from '@/lib/utils';
+import { parseMultiSelectValue, formatMultiSelectValue, type IssueField, type IssueReportConfig } from '@/lib/issueReportConfig';
+
+/** true ถ้าฟิลด์นี้มี "อื่นๆ" ถูกเลือกอยู่ (ใช้ได้ทั้ง select เดี่ยวและ multi-select) */
+function isOtherTriggerSelected(f: IssueField, rawValue: string): boolean {
+  if (!f.otherTrigger) return false;
+  return f.type === 'multi-select'
+    ? parseMultiSelectValue(rawValue).includes(f.otherTrigger)
+    : rawValue === f.otherTrigger;
+}
 
 type DriverDirectoryEntry = {
   id: string;
@@ -94,12 +104,16 @@ const IssueReportForm: React.FC<Props> = ({ config, cancelHref }) => {
     e.preventDefault();
     const missing = config.fields.find((f) => {
       if (f.required && !(values[f.key] ?? '').trim()) return true;
-      if (f.otherField && values[f.key] === f.otherTrigger && !(values[f.otherField.key] ?? '').trim()) return true;
+      if (f.otherField && isOtherTriggerSelected(f, values[f.key] ?? '') && !(values[f.otherField.key] ?? '').trim()) {
+        return true;
+      }
       return false;
     });
     if (missing) {
       const missingOtherLabel =
-        missing.otherField && values[missing.key] === missing.otherTrigger ? missing.otherField.label : missing.label;
+        missing.otherField && isOtherTriggerSelected(missing, values[missing.key] ?? '')
+          ? missing.otherField.label
+          : missing.label;
       toast.error(`กรุณากรอก ${missingOtherLabel}`);
       return;
     }
@@ -208,6 +222,49 @@ const IssueReportForm: React.FC<Props> = ({ config, cancelHref }) => {
                 className="text-sm min-h-[4.5rem]"
               />
             );
+          } else if (f.type === 'multi-select') {
+            const selected = parseMultiSelectValue(values[f.key]);
+            input = (
+              <>
+                <div className="flex flex-wrap gap-2">
+                  {(f.options ?? []).map((o) => {
+                    const checked = selected.includes(o);
+                    return (
+                      <label
+                        key={o}
+                        className={cn(
+                          'flex items-center gap-2 rounded-xl border border-border/70 px-3 py-2 text-sm cursor-pointer hover:bg-muted/40',
+                          checked && 'border-primary/50 bg-primary/5',
+                        )}
+                      >
+                        <Checkbox
+                          checked={checked}
+                          onCheckedChange={(v) => {
+                            const next = v ? [...selected, o] : selected.filter((x) => x !== o);
+                            setField(f.key, formatMultiSelectValue(next));
+                          }}
+                        />
+                        <span>{o}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+                {f.otherField && isOtherTriggerSelected(f, values[f.key] ?? '') ? (
+                  <div className="mt-3">
+                    {fieldBlock(
+                      f.otherField.label,
+                      true,
+                      <Input
+                        value={values[f.otherField.key] ?? ''}
+                        onChange={(e) => setField(f.otherField!.key, e.target.value)}
+                        placeholder={f.otherField.placeholder}
+                        className="h-10 text-sm"
+                      />,
+                    )}
+                  </div>
+                ) : null}
+              </>
+            );
           } else if (f.type === 'select') {
             input = (
               <>
@@ -223,7 +280,7 @@ const IssueReportForm: React.FC<Props> = ({ config, cancelHref }) => {
                     ))}
                   </SelectContent>
                 </Select>
-                {f.otherField && values[f.key] === f.otherTrigger ? (
+                {f.otherField && isOtherTriggerSelected(f, values[f.key] ?? '') ? (
                   <div className="mt-3">
                     {fieldBlock(
                       f.otherField.label,

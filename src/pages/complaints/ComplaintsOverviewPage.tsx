@@ -20,7 +20,7 @@ import {
 } from '@/lib/complaintsOverviewMockData';
 import { computeComplaintsOverview, filterByPeriod, daysInclusive, type IssueReportRow } from '@/lib/issueReportStats';
 import { exportComplaintsOverviewExcel } from '@/lib/complaintsExcelExport';
-import { ISSUE_REPORT_TYPES, type IssueField } from '@/lib/issueReportConfig';
+import { ISSUE_REPORT_TYPES, parseMultiSelectValue, type IssueField } from '@/lib/issueReportConfig';
 
 const PERIODS: PeriodKey[] = ['day', 'week', 'month', 'year', 'custom'];
 
@@ -44,6 +44,13 @@ function getIssueFieldValue(row: IssueReportRow, field: IssueField): string {
     const total = daysInclusive(row.data[startKey], row.data[endKey]);
     if (total <= 0) return '-';
     return `${Math.max(0, total - subtractDays)} วัน`;
+  }
+  if (field.type === 'multi-select') {
+    const selected = parseMultiSelectValue(row.data[field.key]);
+    const labels = selected.map((v) =>
+      field.otherTrigger && v === field.otherTrigger && field.otherField ? row.data[field.otherField.key] || v : v,
+    );
+    return labels.length ? labels.join(', ') : '-';
   }
   let value = row.data[field.key];
   if (field.otherTrigger && value === field.otherTrigger && field.otherField) {
@@ -255,6 +262,26 @@ function CaseDetailDialog({
                   <TableRow key={row.id}>
                     {fields.map((f) => {
                       const value = getIssueFieldValue(row, f);
+                      if (f.type === 'multi-select' && value !== '-') {
+                        return (
+                          <TableCell key={f.key} className="whitespace-nowrap">
+                            <div className="flex flex-wrap gap-1">
+                              {value.split(', ').map((v) => {
+                                const color = getBadgeColor(v);
+                                return (
+                                  <Badge
+                                    key={v}
+                                    className="border-transparent font-medium"
+                                    style={{ backgroundColor: color.bg, color: color.text }}
+                                  >
+                                    {v}
+                                  </Badge>
+                                );
+                              })}
+                            </div>
+                          </TableCell>
+                        );
+                      }
                       if ((f.type === 'select' || f.type === 'vehicle-model-picker') && value !== '-') {
                         const color = getBadgeColor(value);
                         return (

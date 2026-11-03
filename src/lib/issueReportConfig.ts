@@ -6,9 +6,24 @@ export type IssueFieldType =
   | 'date'
   | 'textarea'
   | 'select'
+  | 'multi-select'
   | 'employee-picker'
   | 'vehicle-model-picker'
   | 'computed-days';
+
+/** ตัวคั่นค่าที่เลือกหลายรายการของ type: 'multi-select' เมื่อเก็บเป็น string เดียว (ไม่ใช้ ", " เพราะตัวเลือกบางอันมีคอมมาอยู่แล้ว) */
+export const MULTI_SELECT_SEPARATOR = '|||';
+
+/** แปลง string ที่เก็บค่า multi-select กลับเป็นรายการตัวเลือกที่เลือกไว้ */
+export function parseMultiSelectValue(raw: string | undefined): string[] {
+  if (!raw || !raw.trim()) return [];
+  return raw.split(MULTI_SELECT_SEPARATOR).map((s) => s.trim()).filter(Boolean);
+}
+
+/** แปลงรายการตัวเลือกที่เลือกไว้กลับเป็น string เดียวสำหรับเก็บลง data */
+export function formatMultiSelectValue(values: string[]): string {
+  return values.join(MULTI_SELECT_SEPARATOR);
+}
 
 export type IssueField = {
   key: string;
@@ -17,7 +32,7 @@ export type IssueField = {
   required?: boolean;
   options?: string[];
   placeholder?: string;
-  /** type: 'select' — เมื่อเลือกค่านี้ ให้โชว์ช่องกรอกเพิ่มเติม (เช่น เลือก "อื่นๆ") */
+  /** type: 'select' | 'multi-select' — เมื่อเลือกค่านี้ ให้โชว์ช่องกรอกเพิ่มเติม (เช่น เลือก "อื่นๆ") */
   otherTrigger?: string;
   otherField?: { key: string; label: string; placeholder?: string };
   /** type: 'employee-picker' — คีย์ของฟิลด์ที่จะเติมรหัสพนักงานอัตโนมัติเมื่อเลือกชื่อ */
@@ -70,7 +85,7 @@ export const ISSUE_REPORT_TYPES: IssueReportConfig[] = [
       {
         key: 'service_type',
         label: 'ประเภทการเข้าศูนย์',
-        type: 'select',
+        type: 'multi-select',
         required: true,
         options: ['เช็คระยะ', 'เปลี่ยนยาง', 'เปลี่ยนแบตเตอรี่', 'อื่นๆ'],
         otherTrigger: 'อื่นๆ',
@@ -86,7 +101,7 @@ export const ISSUE_REPORT_TYPES: IssueReportConfig[] = [
           'โตโยต้าวันบางปะกง',
           'โตโยต้าวรจักรยนต์สมุทรปราการ',
           'เคมอเตอร์สุขุมวิท 43',
-          'PBS กม.25',
+          'TBS กม.25',
         ],
       },
       {

@@ -74,7 +74,7 @@ const PERIOD_MOCK: Record<'day' | 'week' | 'month' | 'year', ComplaintsOverviewD
       byCenter: [
         { label: 'โตโยต้านครธนบางบ่อ', count: 1 },
         { label: 'เคมอเตอร์สุขุมวิท 43', count: 1 },
-        { label: 'PBS กม.25', count: 1 },
+        { label: 'TBS กม.25', count: 1 },
       ],
       byServiceType: [
         { label: 'เช็คระยะ', count: 2 },
@@ -133,7 +133,7 @@ const PERIOD_MOCK: Record<'day' | 'week' | 'month' | 'year', ComplaintsOverviewD
         { label: 'โตโยต้านครธนบางบ่อ', count: 4 },
         { label: 'โตโยต้าวันบางปะกง', count: 2 },
         { label: 'เคมอเตอร์สุขุมวิท 43', count: 3 },
-        { label: 'PBS กม.25', count: 2 },
+        { label: 'TBS กม.25', count: 2 },
       ],
       byServiceType: [
         { label: 'เช็คระยะ', count: 5 },
@@ -215,7 +215,7 @@ const PERIOD_MOCK: Record<'day' | 'week' | 'month' | 'year', ComplaintsOverviewD
         { label: 'โตโยต้าวันบางปะกง', count: 8 },
         { label: 'โตโยต้าวรจักรยนต์สมุทรปราการ', count: 6 },
         { label: 'เคมอเตอร์สุขุมวิท 43', count: 9 },
-        { label: 'PBS กม.25', count: 5 },
+        { label: 'TBS กม.25', count: 5 },
       ],
       byServiceType: [
         { label: 'เช็คระยะ', count: 19 },
@@ -306,7 +306,7 @@ const PERIOD_MOCK: Record<'day' | 'week' | 'month' | 'year', ComplaintsOverviewD
         { label: 'โตโยต้าวันบางปะกง', count: 92 },
         { label: 'โตโยต้าวรจักรยนต์สมุทรปราการ', count: 68 },
         { label: 'เคมอเตอร์สุขุมวิท 43', count: 101 },
-        { label: 'PBS กม.25', count: 51 },
+        { label: 'TBS กม.25', count: 51 },
       ],
       byServiceType: [
         { label: 'เช็คระยะ', count: 211 },
