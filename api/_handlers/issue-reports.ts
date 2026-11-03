@@ -193,14 +193,20 @@ async function handlePatch(req: AuthedReq, res: ApiRes): Promise<void> {
 
 async function handleDelete(req: AuthedReq, res: ApiRes): Promise<void> {
   try {
-    const allowed =
-      req.user.role === 'admin' ||
-      req.user.role === 'supervisor' ||
-      (await userHasCapability(req.user.sub, DELETE_COMPLAINTS_CAPABILITY));
-    if (!allowed) return sendError(res, 403, 'Forbidden', 'ไม่มีสิทธิ์ลบข้อมูลนี้');
-
     const id = getString(req.query?.id);
     if (!id) return sendError(res, 400, 'Bad request', 'id is required');
+
+    const { rows: existing } = await dbQuery<{ category: string }>(`select category from ${tbl} where id = $1`, [id]);
+    if (existing.length === 0) return sendError(res, 404, 'Not found');
+
+    /** แบบประเมินความพึงพอใจ: ลบได้เฉพาะ admin เท่านั้น ไม่มีการมอบสิทธิ์เพิ่มเติม */
+    const allowed =
+      existing[0].category === 'satisfaction'
+        ? req.user.role === 'admin'
+        : req.user.role === 'admin' ||
+          req.user.role === 'supervisor' ||
+          (await userHasCapability(req.user.sub, DELETE_COMPLAINTS_CAPABILITY));
+    if (!allowed) return sendError(res, 403, 'Forbidden', 'ไม่มีสิทธิ์ลบข้อมูลนี้');
 
     const { rows } = await dbQuery<{ id: string }>(`delete from ${tbl} where id = $1 returning id`, [id]);
     if (rows.length === 0) return sendError(res, 404, 'Not found');

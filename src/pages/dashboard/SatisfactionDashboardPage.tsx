@@ -1,12 +1,14 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ExternalLink, FileSpreadsheet, RefreshCw } from 'lucide-react';
+import { toast } from 'sonner';
+import { ExternalLink, FileSpreadsheet, RefreshCw, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import SearchablePicker from '@/components/shared/SearchablePicker';
 import MonthNav from '@/components/work-hours/MonthNav';
 import { cn } from '@/lib/utils';
 import { apiFetch } from '@/lib/apiFetch';
+import { useAuth } from '@/contexts/AuthContext';
 import { monthKey } from '@/lib/caseReportStats';
 import { toYmdLocal } from '@/lib/dateTh';
 import type { IssueReportRow } from '@/lib/issueReportStats';
@@ -35,6 +37,9 @@ function StatCard({ label, value, accent, sub }: { label: string; value: string;
 }
 
 const SatisfactionDashboardPage: React.FC = () => {
+  const { hasPermission } = useAuth();
+  /** ลบแบบประเมินได้เฉพาะ admin เท่านั้น ไม่มีการมอบสิทธิ์เพิ่มเติม (ตรงกับ backend ใน api/_handlers/issue-reports.ts) */
+  const canDelete = hasPermission('admin');
   const [rows, setRows] = useState<IssueReportRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -42,6 +47,7 @@ const SatisfactionDashboardPage: React.FC = () => {
   const [trendEndMonth, setTrendEndMonth] = useState(todayYmd());
   const [driverName, setDriverName] = useState('');
   const [exporting, setExporting] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -108,6 +114,25 @@ const SatisfactionDashboardPage: React.FC = () => {
       exportSatisfactionDashboardExcel(filteredRows);
     } finally {
       setExporting(false);
+    }
+  };
+
+  const handleDelete = async (row: IssueReportRow) => {
+    const label = `${row.data.vehicle_plate ?? '-'} — ${row.data.driver_name ?? '-'} (${row.report_date ?? '-'})`;
+    if (!window.confirm(`ยืนยันลบแบบประเมินนี้?\n${label}\n\nการลบนี้ย้อนกลับไม่ได้`)) return;
+    setDeletingId(row.id);
+    try {
+      const r = await apiFetch(`/api/issue-reports?id=${encodeURIComponent(row.id)}`, { method: 'DELETE' });
+      if (!r.ok) {
+        const body = (await r.json().catch(() => ({}))) as { message?: string; error?: string };
+        throw new Error(body.message || body.error || 'ลบไม่สำเร็จ');
+      }
+      setRows((prev) => prev.filter((r2) => r2.id !== row.id));
+      toast.success('ลบแบบประเมินแล้ว');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'ลบไม่สำเร็จ');
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -233,12 +258,16 @@ const SatisfactionDashboardPage: React.FC = () => {
                     </TableHead>
                   ))}
                   <TableHead>ข้อเสนอแนะ</TableHead>
+                  {canDelete && <TableHead className="w-20" />}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {sortedTableRows.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={3 + SATISFACTION_CRITERIA.length + 1} className="text-center text-sm text-muted-foreground py-6">
+                    <TableCell
+                      colSpan={3 + SATISFACTION_CRITERIA.length + 1 + (canDelete ? 1 : 0)}
+                      className="text-center text-sm text-muted-foreground py-6"
+                    >
                       {loading ? 'กำลังโหลด…' : 'ไม่มีข้อมูล'}
                     </TableCell>
                   </TableRow>
@@ -256,6 +285,21 @@ const SatisfactionDashboardPage: React.FC = () => {
                       <TableCell className="max-w-xs truncate" title={r.data.suggestion ?? ''}>
                         {r.data.suggestion ?? '-'}
                       </TableCell>
+                      {canDelete && (
+                        <TableCell className="text-right">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                            disabled={deletingId === r.id}
+                            onClick={() => handleDelete(r)}
+                          >
+                            <Trash2 className="h-3.5 w-3.5 mr-1" />
+                            {deletingId === r.id ? 'กำลังลบ…' : 'ลบ'}
+                          </Button>
+                        </TableCell>
+                      )}
                     </TableRow>
                   ))
                 )}
