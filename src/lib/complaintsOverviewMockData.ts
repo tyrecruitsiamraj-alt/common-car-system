@@ -3,13 +3,14 @@
  * ใช้แสดงโครง UI/การจัดวางเท่านั้น ตัวเลขจะถูกแทนที่ด้วยข้อมูลจริงภายหลัง
  */
 
-export type PeriodKey = 'day' | 'week' | 'month' | 'year';
+export type PeriodKey = 'day' | 'week' | 'month' | 'year' | 'custom';
 
 export const PERIOD_LABELS: Record<PeriodKey, string> = {
   day: 'วันนี้',
   week: 'สัปดาห์นี้',
   month: 'เดือนนี้',
   year: 'ปีนี้',
+  custom: 'กำหนดเอง',
 };
 
 export type BreakdownItem = { label: string; count: number };
@@ -59,7 +60,7 @@ export type ComplaintsOverviewData = {
   speed: SpeedData;
 };
 
-export const COMPLAINTS_OVERVIEW_MOCK: Record<PeriodKey, ComplaintsOverviewData> = {
+const PERIOD_MOCK: Record<'day' | 'week' | 'month' | 'year', ComplaintsOverviewData> = {
   day: {
     vehicleService: {
       total: 3,
@@ -379,4 +380,10 @@ export const COMPLAINTS_OVERVIEW_MOCK: Record<PeriodKey, ComplaintsOverviewData>
       ],
     },
   },
+};
+
+/** โหมดกำหนดเอง ยังไม่มีข้อมูลตัวอย่างเฉพาะ — ใช้ชุด "เดือนนี้" แทนไปก่อน (ข้อมูลจริงจะมาแทนที่เมื่อเชื่อมฐานข้อมูล) */
+export const COMPLAINTS_OVERVIEW_MOCK: Record<PeriodKey, ComplaintsOverviewData> = {
+  ...PERIOD_MOCK,
+  custom: PERIOD_MOCK.month,
 };

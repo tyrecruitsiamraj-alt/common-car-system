@@ -9,6 +9,7 @@ const PERIOD_FILE_LABEL: Record<PeriodKey, string> = {
   week: 'week',
   month: 'month',
   year: 'year',
+  custom: 'custom',
 };
 
 function toSheetRow(r: IssueReportRow) {
@@ -22,12 +23,20 @@ function toSheetRow(r: IssueReportRow) {
   };
 }
 
-export function exportComplaintsOverviewExcel(allRows: IssueReportRow[], period: PeriodKey): void {
+export function exportComplaintsOverviewExcel(
+  allRows: IssueReportRow[],
+  period: PeriodKey,
+  customFromYmd?: string,
+  customToYmd?: string,
+): void {
   const byCategory = ISSUE_REPORT_TYPES.map((t) => ({
     config: t,
     rows: filterByPeriod(
       allRows.filter((r) => r.category === t.slug),
       period,
+      new Date(),
+      customFromYmd,
+      customToYmd,
     ),
   }));
 
@@ -45,6 +54,10 @@ export function exportComplaintsOverviewExcel(allRows: IssueReportRow[], period:
     })),
   ];
 
-  const filename = `complaints-overview-${PERIOD_FILE_LABEL[period]}-${format(new Date(), 'yyyy-MM-dd')}`;
+  const periodTag =
+    period === 'custom' && customFromYmd && customToYmd
+      ? `${customFromYmd}_to_${customToYmd}`
+      : PERIOD_FILE_LABEL[period];
+  const filename = `complaints-overview-${periodTag}-${format(new Date(), 'yyyy-MM-dd')}`;
   downloadExcelFile(filename, sheets);
 }

@@ -23,7 +23,12 @@ export type IssueReportRow = {
   created_at: string;
 };
 
-function periodBounds(period: PeriodKey, now: Date): { fromYmd: string; toYmd: string } {
+function periodBounds(
+  period: PeriodKey,
+  now: Date,
+  customFromYmd?: string,
+  customToYmd?: string,
+): { fromYmd: string; toYmd: string } {
   const ymd = (d: Date) => format(d, 'yyyy-MM-dd');
   switch (period) {
     case 'day':
@@ -32,14 +37,25 @@ function periodBounds(period: PeriodKey, now: Date): { fromYmd: string; toYmd: s
       return { fromYmd: ymd(startOfWeek(now, { weekStartsOn: 1 })), toYmd: ymd(endOfWeek(now, { weekStartsOn: 1 })) };
     case 'year':
       return { fromYmd: ymd(startOfYear(now)), toYmd: ymd(endOfYear(now)) };
+    case 'custom': {
+      const fromYmd = customFromYmd || ymd(startOfMonth(now));
+      const toYmd = customToYmd && customToYmd >= fromYmd ? customToYmd : fromYmd;
+      return { fromYmd, toYmd };
+    }
     case 'month':
     default:
       return { fromYmd: ymd(startOfMonth(now)), toYmd: ymd(endOfMonth(now)) };
   }
 }
 
-export function filterByPeriod(rows: IssueReportRow[], period: PeriodKey, now = new Date()): IssueReportRow[] {
-  const { fromYmd, toYmd } = periodBounds(period, now);
+export function filterByPeriod(
+  rows: IssueReportRow[],
+  period: PeriodKey,
+  now = new Date(),
+  customFromYmd?: string,
+  customToYmd?: string,
+): IssueReportRow[] {
+  const { fromYmd, toYmd } = periodBounds(period, now, customFromYmd, customToYmd);
   return rows.filter((r) => r.report_date && r.report_date >= fromYmd && r.report_date <= toYmd);
 }
 
@@ -156,8 +172,11 @@ export function computeComplaintsOverview(
   allRows: IssueReportRow[],
   period: PeriodKey,
   now = new Date(),
+  customFromYmd?: string,
+  customToYmd?: string,
 ): ComplaintsOverviewData {
-  const byCategory = (cat: string) => filterByPeriod(allRows.filter((r) => r.category === cat), period, now);
+  const byCategory = (cat: string) =>
+    filterByPeriod(allRows.filter((r) => r.category === cat), period, now, customFromYmd, customToYmd);
   return {
     vehicleService: computeVehicleService(byCategory('vehicle-service')),
     supervisorAbsent: computeSupervisorAbsent(byCategory('supervisor-absent')),

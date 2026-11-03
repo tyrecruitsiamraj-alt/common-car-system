@@ -5,6 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import DateSelectDmyBe from '@/components/shared/DateSelectDmyBe';
+import { formatYmdDmyBe, toYmdLocal } from '@/lib/dateTh';
 import { cn } from '@/lib/utils';
 import { apiFetch } from '@/lib/apiFetch';
 import { isDemoMode } from '@/lib/demoMode';
@@ -20,7 +22,7 @@ import { computeComplaintsOverview, filterByPeriod, daysInclusive, type IssueRep
 import { exportComplaintsOverviewExcel } from '@/lib/complaintsExcelExport';
 import { ISSUE_REPORT_TYPES, type IssueField } from '@/lib/issueReportConfig';
 
-const PERIODS: PeriodKey[] = ['day', 'week', 'month', 'year'];
+const PERIODS: PeriodKey[] = ['day', 'week', 'month', 'year', 'custom'];
 
 type BreakdownGroup = { key: string; label: string; items: BreakdownItem[] };
 
@@ -302,6 +304,8 @@ function CaseDetailDialog({
 
 const ComplaintsOverviewPage: React.FC = () => {
   const [period, setPeriod] = useState<PeriodKey>('month');
+  const [customFrom, setCustomFrom] = useState(() => toYmdLocal(new Date()));
+  const [customTo, setCustomTo] = useState(() => toYmdLocal(new Date()));
   const [activePanel, setActivePanel] = useState<PanelKey | null>(null);
   const [rows, setRows] = useState<IssueReportRow[]>([]);
   const [loading, setLoading] = useState(!isDemoMode());
@@ -332,8 +336,11 @@ const ComplaintsOverviewPage: React.FC = () => {
 
   const usingMockData = isDemoMode() && rows.length === 0;
   const data = useMemo(
-    () => (usingMockData ? COMPLAINTS_OVERVIEW_MOCK[period] : computeComplaintsOverview(rows, period)),
-    [usingMockData, rows, period],
+    () =>
+      usingMockData
+        ? COMPLAINTS_OVERVIEW_MOCK[period]
+        : computeComplaintsOverview(rows, period, new Date(), customFrom, customTo),
+    [usingMockData, rows, period, customFrom, customTo],
   );
 
   const caseRowsBySlug = useMemo(() => {
@@ -342,10 +349,16 @@ const ComplaintsOverviewPage: React.FC = () => {
       bySlug[type.slug] = filterByPeriod(
         rows.filter((r) => r.category === type.slug),
         period,
+        new Date(),
+        customFrom,
+        customTo,
       ).sort((a, b) => (b.report_date ?? '').localeCompare(a.report_date ?? ''));
     }
     return bySlug;
-  }, [rows, period]);
+  }, [rows, period, customFrom, customTo]);
+
+  const periodDisplayLabel =
+    period === 'custom' ? `${formatYmdDmyBe(customFrom)} – ${formatYmdDmyBe(customTo)}` : PERIOD_LABELS[period];
 
   const panelMeta = useMemo(
     () => ({
@@ -392,6 +405,29 @@ const ComplaintsOverviewPage: React.FC = () => {
                 </button>
               ))}
             </div>
+            {period === 'custom' ? (
+              <div className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-2 py-1">
+                <DateSelectDmyBe
+                  value={customFrom}
+                  onChange={(ymd) => {
+                    setCustomFrom(ymd);
+                    if (customTo < ymd) setCustomTo(ymd);
+                  }}
+                  yearKind="ce"
+                  triggerClassName="h-8 w-[8.5rem] bg-transparent border-0 px-1.5 text-xs"
+                  aria-label="ตั้งแต่วันที่"
+                />
+                <span className="text-xs text-slate-400">ถึง</span>
+                <DateSelectDmyBe
+                  value={customTo}
+                  onChange={setCustomTo}
+                  yearKind="ce"
+                  minYmd={customFrom}
+                  triggerClassName="h-8 w-[8.5rem] bg-transparent border-0 px-1.5 text-xs"
+                  aria-label="ถึงวันที่"
+                />
+              </div>
+            ) : null}
             <Button type="button" variant="outline" size="sm" asChild>
               <Link to="/complaints/history">
                 <History className="h-3.5 w-3.5 mr-1.5" />
@@ -403,7 +439,7 @@ const ComplaintsOverviewPage: React.FC = () => {
               variant="outline"
               size="sm"
               disabled={usingMockData || rows.length === 0}
-              onClick={() => exportComplaintsOverviewExcel(rows, period)}
+              onClick={() => exportComplaintsOverviewExcel(rows, period, customFrom, customTo)}
             >
               <FileSpreadsheet className="h-3.5 w-3.5 mr-1.5" />
               Export Excel
@@ -473,7 +509,7 @@ const ComplaintsOverviewPage: React.FC = () => {
         <CaseDetailDialog
           open
           onOpenChange={(open) => !open && setActivePanel(null)}
-          title={`รายละเอียด — ${panelMeta[activePanel].title} (${PERIOD_LABELS[period]})`}
+          title={`รายละเอียด — ${panelMeta[activePanel].title} (${periodDisplayLabel})`}
           categorySlug={panelMeta[activePanel].slug}
           people={panelMeta[activePanel].people}
           caseRows={caseRowsBySlug[panelMeta[activePanel].slug] ?? []}
