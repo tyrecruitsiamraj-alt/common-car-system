@@ -101,6 +101,14 @@ const SatisfactionTrendCharts: React.FC<Props> = ({ trend, criteriaAverages, dis
             ))}
           </LineChart>
         </ChartContainer>
+        <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5">
+          {SATISFACTION_CRITERIA.map((c) => (
+            <div key={c.key} className="flex items-center gap-1.5 text-xs text-slate-600">
+              <span className="h-2 w-2 rounded-full" style={{ backgroundColor: CRITERIA_COLORS[c.key] }} />
+              {c.label}
+            </div>
+          ))}
+        </div>
       </ChartCard>
 
       <ChartCard title="เปรียบเทียบคะแนนเฉลี่ยแต่ละหัวข้อ" subtitle="ช่วงเวลาที่เลือก — เขียว ≥ 4 (ดี), ส้ม 3-4, แดง < 3 (ควรปรับปรุง)">
