@@ -546,12 +546,14 @@ async function handler(req: AuthedReq, res: ApiRes): Promise<void> {
       }
 
       if (markCompleted) {
-        const now = roundDateToMinuteStep(new Date());
-        completedAt = now;
         const userSetEnds = b.ends_at !== undefined;
         const userSetStarts = b.starts_at !== undefined;
         if (!userSetStarts && !starts) starts = roundDateToMinuteStep(new Date(cur.starts_at));
-        if (!userSetEnds) {
+        if (userSetEnds) {
+          // ผู้ใช้แก้ "สิ้นสุด" เองตอนปิดงาน — ค่านี้คือเวลาปิดงานจริงที่ตั้งใจบันทึก ไม่ใช่เวลา ณ ตอนนี้
+          completedAt = ends;
+        } else {
+          completedAt = roundDateToMinuteStep(new Date());
           ends = roundDateToMinuteStep(new Date(cur.ends_at));
         }
       }
