@@ -58,6 +58,7 @@ async function handler(req: AuthedReq, res: ApiRes) {
     const dateParam = getString(req.query?.date);
     const anchor = dateParam && !Number.isNaN(new Date(dateParam).getTime()) ? new Date(dateParam) : new Date();
     const employeeId = getString(req.query?.employee_id);
+    const includeDaily = !!employeeId || getString(req.query?.include_daily) === 'true';
 
     const { from, to } = periodBounds(period, anchor);
 
@@ -127,6 +128,8 @@ async function handler(req: AuthedReq, res: ApiRes) {
 
     const daily: {
       booking_id: string;
+      employee_id: string;
+      employee_name: string;
       date: string;
       vehicle_plate: string | null;
       starts_at: string;
@@ -154,9 +157,11 @@ async function handler(req: AuthedReq, res: ApiRes) {
       acc.ot_cost += otCost;
       acc.days.add(dateYmd);
 
-      if (employeeId) {
+      if (includeDaily) {
         daily.push({
           booking_id: b.booking_id,
+          employee_id: acc.employee_id,
+          employee_name: acc.name,
           date: dateYmd,
           vehicle_plate: b.plate_no,
           starts_at: startsAt.toISOString(),
@@ -214,7 +219,7 @@ async function handler(req: AuthedReq, res: ApiRes) {
         estimated_ot_cost: Math.round(totalOtCostAll),
       },
       employees: employeeSummaries,
-      ...(employeeId ? { daily } : {}),
+      ...(includeDaily ? { daily } : {}),
     });
   } catch (e) {
     return handleApiError(res, e, 'work-hours-summary GET', { userId: req.user.sub });

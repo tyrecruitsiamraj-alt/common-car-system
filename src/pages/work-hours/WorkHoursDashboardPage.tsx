@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Settings as SettingsIcon } from 'lucide-react';
+import { ChevronLeft, ChevronRight, FileSpreadsheet, Settings as SettingsIcon } from 'lucide-react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -19,6 +20,7 @@ import {
   type WorkHoursSummaryResponse,
   type WorkHoursTrendResponse,
 } from '@/lib/workHoursConfig';
+import { exportWorkHoursExcel } from '@/lib/workHoursExcelExport';
 import WorkHoursTrendCharts from '@/components/work-hours/WorkHoursTrendCharts';
 
 const TREND_MONTH_OPTIONS = [3, 6, 12] as const;
@@ -102,6 +104,7 @@ const WorkHoursDashboardPage: React.FC = () => {
   const [trendEmployeeId, setTrendEmployeeId] = useState('');
   const [trendData, setTrendData] = useState<WorkHoursTrendResponse | null>(null);
   const [trendLoading, setTrendLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -165,6 +168,23 @@ const WorkHoursDashboardPage: React.FC = () => {
     };
   }, [detailEmployee, period, anchorDate]);
 
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const r = await apiFetch(`/api/work-hours-summary?period=${period}&date=${anchorDate}&include_daily=true`);
+      if (!r.ok) {
+        toast.error('ดึงข้อมูลสำหรับ Export ไม่สำเร็จ');
+        return;
+      }
+      const full = (await r.json()) as WorkHoursSummaryResponse;
+      exportWorkHoursExcel(full);
+    } catch {
+      toast.error('Export Excel ไม่สำเร็จ');
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <main className="min-h-[calc(100dvh-4rem)] -mx-4 sm:-mx-5 md:-mx-6 lg:-mx-8 px-4 py-6 text-slate-900 md:px-8">
       <div className="mx-auto max-w-6xl space-y-6">
@@ -197,6 +217,16 @@ const WorkHoursDashboardPage: React.FC = () => {
               ))}
             </div>
             <AnchorPicker period={period} value={anchorDate} onChange={setAnchorDate} />
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={exporting || loading || !data || data.employees.length === 0}
+              onClick={() => void handleExport()}
+            >
+              <FileSpreadsheet className="h-3.5 w-3.5 mr-1.5" />
+              Export Excel
+            </Button>
             <Button type="button" variant="outline" size="sm" asChild>
               <Link to="/work-hours/settings">
                 <SettingsIcon className="h-3.5 w-3.5 mr-1.5" />

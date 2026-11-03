@@ -42,6 +42,8 @@ export type WorkHoursEmployeeSummary = {
 
 export type WorkHoursDailyEntry = {
   booking_id: string;
+  employee_id: string;
+  employee_name: string;
   date: string;
   vehicle_plate: string | null;
   starts_at: string;
