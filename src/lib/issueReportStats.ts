@@ -163,6 +163,8 @@ export function summarizeIssueReportRow(row: IssueReportRow): string {
       return leaveTypeLabel(row) ?? '-';
     case 'speed':
       return `${row.data.speed_over ?? '-'} — ${row.data.speed_reason ?? '-'}`;
+    case 'satisfaction':
+      return `${row.data.vehicle_plate ?? '-'} — ${row.data.driver_name ?? '-'}`;
     default:
       return '-';
   }

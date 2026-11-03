@@ -18,7 +18,7 @@ const DELETE_COMPLAINTS_CAPABILITY = 'delete_complaints';
 
 const tbl = tableInAppSchema('issue_reports');
 
-const KNOWN_CATEGORIES = ['vehicle-service', 'supervisor-absent', 'leave', 'speed'] as const;
+const KNOWN_CATEGORIES = ['vehicle-service', 'supervisor-absent', 'leave', 'speed', 'satisfaction'] as const;
 
 const DEFAULT_LIST_LIMIT = 2000;
 const MAX_LIST_LIMIT = 2000;

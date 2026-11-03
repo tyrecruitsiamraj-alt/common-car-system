@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
-import { Wrench, UserX, CalendarOff, Gauge } from 'lucide-react';
+import { Wrench, UserX, CalendarOff, Gauge, Smile } from 'lucide-react';
 
 export type IssueFieldType =
   | 'text'
@@ -40,6 +40,15 @@ export type IssueReportConfig = {
   /** คีย์ของฟิลด์วันที่หลัก — ใช้กรองตามช่วงเวลา (วัน/สัปดาห์/เดือน/ปี) ในหน้าภาพรวม */
   primaryDateField: string;
 };
+
+/** เกณฑ์คะแนน 1-5 ของแบบประเมินความพึงพอใจ */
+const SATISFACTION_SCORE_OPTIONS = [
+  '5 - ดีเยี่ยม (Excellent)',
+  '4 - ดี (Good)',
+  '3 - ปานกลาง/พอใช้ (Fair)',
+  '2 - ควรปรับปรุง (Poor)',
+  '1 - ปรับปรุงเร่งด่วน (Very Poor)',
+];
 
 /** หมวดหมู่ย่อยของแบบฟอร์ม — เมนูซ้าย > แบบฟอร์ม — เนื้อหา/ฟิลด์ปรับได้ภายหลัง */
 export const ISSUE_REPORT_TYPES: IssueReportConfig[] = [
@@ -217,6 +226,53 @@ export const ISSUE_REPORT_TYPES: IssueReportConfig[] = [
       },
       { key: 'speed_over', label: 'ความเร็วที่ขับเกิน', type: 'text', required: true, placeholder: 'เช่น 120 กม./ชม.' },
       { key: 'speed_reason', label: 'เหตุผลที่ขับเร็ว', type: 'text', required: true },
+    ],
+  },
+  {
+    slug: 'satisfaction',
+    path: '/complaints/satisfaction',
+    label: 'แบบประเมินความพึงพอใจ',
+    icon: Smile,
+    description: 'แบบประเมินความพึงพอใจของผู้ใช้บริการต่อพนักงานขับรถ',
+    primaryDateField: 'service_date',
+    fields: [
+      { key: 'vehicle_plate', label: 'ทะเบียนรถ', type: 'text', required: true, placeholder: 'เช่น กข 1234' },
+      { key: 'driver_name', label: 'ชื่อ พขร.', type: 'text', required: true },
+      { key: 'service_date', label: 'วันที่ใช้บริการ', type: 'date', required: true },
+      {
+        key: 'courtesy_score',
+        label: 'ความสุภาพและบริการ (กิริยามารยาท การทักทาย และความพร้อมให้บริการ)',
+        type: 'select',
+        required: true,
+        options: SATISFACTION_SCORE_OPTIONS,
+      },
+      {
+        key: 'safety_score',
+        label: 'ความปลอดภัยในการขับขี่ (ขับรถตามกฎจราจร ไม่เร็วหรือหวาดเสียว ไม่ใช้โทรศัพท์ขณะขับขี่)',
+        type: 'select',
+        required: true,
+        options: SATISFACTION_SCORE_OPTIONS,
+      },
+      {
+        key: 'cleanliness_score',
+        label: 'ความสะอาดของรถ (สภาพภายในและภายนอกรถสะอาด ไม่มีกลิ่นอับ)',
+        type: 'select',
+        required: true,
+        options: SATISFACTION_SCORE_OPTIONS,
+      },
+      {
+        key: 'punctuality_score',
+        label: 'การตรงต่อเวลา (มารับ-ส่งตรงเวลาตามที่นัดหมาย)',
+        type: 'select',
+        required: true,
+        options: SATISFACTION_SCORE_OPTIONS,
+      },
+      {
+        key: 'suggestion',
+        label: 'ข้อเสนอแนะอื่นๆ',
+        type: 'textarea',
+        placeholder: 'สำหรับชมเชยหรือแจ้งเรื่องที่ต้องปรับปรุง',
+      },
     ],
   },
 ];
