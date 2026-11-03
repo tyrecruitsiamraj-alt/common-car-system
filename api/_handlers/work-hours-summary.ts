@@ -6,6 +6,7 @@ import { userHasCapability } from '../_lib/userPermissions.js';
 import {
   ACCESS_WORK_HOURS_CAPABILITY,
   avgHoursPerDay,
+  bangkokYmd,
   periodBounds,
   splitWorkHours,
   type WorkHoursPeriod,
@@ -85,7 +86,7 @@ async function handler(req: AuthedReq, res: ApiRes) {
     );
 
     const bookingParams: unknown[] = [from, to];
-    let bookingWhere = `where b.completed_at is not null and b.starts_at::date >= $1::date and b.starts_at::date <= $2::date`;
+    let bookingWhere = `where b.completed_at is not null and (b.starts_at at time zone 'Asia/Bangkok')::date >= $1::date and (b.starts_at at time zone 'Asia/Bangkok')::date <= $2::date`;
     if (employeeId) {
       bookingParams.push(employeeId);
       bookingWhere += ` and b.employee_id = $${bookingParams.length}::uuid`;
@@ -142,7 +143,7 @@ async function handler(req: AuthedReq, res: ApiRes) {
       if (!acc) continue;
       const startsAt = b.starts_at instanceof Date ? b.starts_at : new Date(b.starts_at);
       const completedAt = b.completed_at instanceof Date ? b.completed_at : new Date(b.completed_at);
-      const dateYmd = startsAt.toISOString().slice(0, 10);
+      const dateYmd = bangkokYmd(startsAt);
       const isHoliday = holidaySet.has(dateYmd);
       const { totalHours, normalHours, otHours } = splitWorkHours(startsAt, completedAt);
       const otCost = otHours * (isHoliday ? otRate3 : otRate15);

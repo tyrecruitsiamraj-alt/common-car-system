@@ -3,7 +3,14 @@ import { withAuth, sendError, handleApiError, type ApiRes, type AuthedReq } from
 import { getString } from '../_lib/body.js';
 import { tableInAppSchema } from '../_lib/schema.js';
 import { userHasCapability } from '../_lib/userPermissions.js';
-import { ACCESS_WORK_HOURS_CAPABILITY, avgHoursPerDay, lastMonthBuckets, splitWorkHours } from '../_lib/workHours.js';
+import {
+  ACCESS_WORK_HOURS_CAPABILITY,
+  avgHoursPerDay,
+  bangkokYearMonth,
+  bangkokYmd,
+  lastMonthBuckets,
+  splitWorkHours,
+} from '../_lib/workHours.js';
 
 const bookingsTbl = tableInAppSchema('vehicle_bookings');
 const employeesTbl = tableInAppSchema('employees');
@@ -66,7 +73,7 @@ async function handler(req: AuthedReq, res: ApiRes) {
     );
 
     const bookingParams: unknown[] = [rangeFrom, rangeTo];
-    let bookingWhere = `where completed_at is not null and starts_at::date >= $1::date and starts_at::date <= $2::date`;
+    let bookingWhere = `where completed_at is not null and (starts_at at time zone 'Asia/Bangkok')::date >= $1::date and (starts_at at time zone 'Asia/Bangkok')::date <= $2::date`;
     if (employeeId) {
       bookingParams.push(employeeId);
       bookingWhere += ` and employee_id = $${bookingParams.length}::uuid`;
@@ -90,13 +97,13 @@ async function handler(req: AuthedReq, res: ApiRes) {
     for (const b of bookings) {
       const startsAt = b.starts_at instanceof Date ? b.starts_at : new Date(b.starts_at);
       const completedAt = b.completed_at instanceof Date ? b.completed_at : new Date(b.completed_at);
-      const monthKey = `${startsAt.getFullYear()}-${String(startsAt.getMonth() + 1).padStart(2, '0')}`;
+      const monthKey = bangkokYearMonth(startsAt);
       const bucketIdx = bucketIndexByKey.get(monthKey);
       if (bucketIdx === undefined) continue;
       const acc = perMonth[bucketIdx].get(b.employee_id);
       if (!acc) continue;
 
-      const dateYmd = startsAt.toISOString().slice(0, 10);
+      const dateYmd = bangkokYmd(startsAt);
       const isHoliday = holidaySet.has(dateYmd);
       const { totalHours, normalHours, otHours } = splitWorkHours(startsAt, completedAt);
       const otCost = otHours * (isHoliday ? otRate3 : otRate15);

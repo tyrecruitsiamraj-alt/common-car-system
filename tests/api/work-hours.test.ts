@@ -2,9 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { avgHoursPerDay, periodBounds, splitWorkHours } from '../../api/_lib/workHours.js';
 
 describe('splitWorkHours', () => {
+  // ใช้ offset +07:00 (Asia/Bangkok) ชัดเจนเสมอ กัน test พังเมื่อรันบนเครื่อง/CI ที่ตั้งเขตเวลาอื่น
   it('counts a shift entirely inside 08:00-17:00 as all normal hours', () => {
-    const starts = new Date('2026-10-15T08:00:00');
-    const completed = new Date('2026-10-15T16:00:00');
+    const starts = new Date('2026-10-15T08:00:00+07:00');
+    const completed = new Date('2026-10-15T16:00:00+07:00');
     const { totalHours, normalHours, otHours } = splitWorkHours(starts, completed);
     expect(totalHours).toBe(8);
     expect(normalHours).toBe(8);
@@ -12,8 +13,8 @@ describe('splitWorkHours', () => {
   });
 
   it('counts time before 08:00 and after 17:00 as OT', () => {
-    const starts = new Date('2026-10-15T06:00:00');
-    const completed = new Date('2026-10-15T19:00:00');
+    const starts = new Date('2026-10-15T06:00:00+07:00');
+    const completed = new Date('2026-10-15T19:00:00+07:00');
     const { totalHours, normalHours, otHours } = splitWorkHours(starts, completed);
     expect(totalHours).toBe(13);
     expect(normalHours).toBe(9);
@@ -21,19 +22,30 @@ describe('splitWorkHours', () => {
   });
 
   it('counts a shift entirely after 17:00 as all OT', () => {
-    const starts = new Date('2026-10-15T18:00:00');
-    const completed = new Date('2026-10-15T20:00:00');
+    const starts = new Date('2026-10-15T18:00:00+07:00');
+    const completed = new Date('2026-10-15T20:00:00+07:00');
     const { normalHours, otHours } = splitWorkHours(starts, completed);
     expect(normalHours).toBe(0);
     expect(otHours).toBe(2);
   });
 
   it('never returns negative hours when completed before starts', () => {
-    const starts = new Date('2026-10-15T10:00:00');
-    const completed = new Date('2026-10-15T09:00:00');
+    const starts = new Date('2026-10-15T10:00:00+07:00');
+    const completed = new Date('2026-10-15T09:00:00+07:00');
     const { totalHours, normalHours, otHours } = splitWorkHours(starts, completed);
     expect(totalHours).toBe(0);
     expect(normalHours).toBe(0);
+    expect(otHours).toBe(0);
+  });
+
+  it('gives the same result regardless of the server process timezone', () => {
+    // จำลองกะงาน 08:00-16:00 เวลาไทย (01:00-09:00 UTC) — ต้องได้ normalHours = 8 เสมอ
+    // ไม่ว่าเครื่อง/เซิร์ฟเวอร์ที่รันโค้ดจะตั้งเขตเวลาใดไว้ (Vercel รันเป็น UTC โดย default)
+    const starts = new Date('2026-10-15T01:00:00Z');
+    const completed = new Date('2026-10-15T09:00:00Z');
+    const { totalHours, normalHours, otHours } = splitWorkHours(starts, completed);
+    expect(totalHours).toBe(8);
+    expect(normalHours).toBe(8);
     expect(otHours).toBe(0);
   });
 });
