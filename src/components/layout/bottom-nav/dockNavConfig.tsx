@@ -8,11 +8,24 @@ export type DockNavItem = {
   icon: LucideIcon;
 };
 
+/** แบบฟอร์มย่อยที่อยู่ใต้ dropdown "แบบฟอร์ม" เมนูซ้าย (ไม่รวมแบบที่แยกเป็นเมนูของตัวเอง) */
+export const FORM_GROUP_TYPES = ISSUE_REPORT_TYPES.filter((t) => (t.menuGroup ?? 'forms') === 'forms');
+
+/** แบบฟอร์มที่แยกเป็นปุ่มเมนูซ้ายของตัวเอง เช่น แบบประเมินความพึงพอใจ */
+const STANDALONE_TYPES = ISSUE_REPORT_TYPES.filter((t) => t.menuGroup === 'standalone');
+
 /** หมวดหมู่ภาพรวม + แบบฟอร์มย่อย (รถเข้าศูนย์/นายบิน/การลา/ความเร็ว) — แยกออกจาก Complaints เพราะไม่ใช่เรื่องร้องเรียน */
-const FORMS_GROUP_PATHS = ['/complaints/overview', '/complaints/history', ...ISSUE_REPORT_TYPES.map((t) => t.path)];
+const FORMS_GROUP_PATHS = ['/complaints/overview', '/complaints/history', ...FORM_GROUP_TYPES.map((t) => t.path)];
+
+/** เส้นทางทั้งหมดที่ไม่ถือเป็นหน้า Complaints หลัก (ฟอร์มกลุ่ม + ฟอร์มที่แยกเมนูของตัวเอง) */
+const NON_COMPLAINTS_PATHS = [...FORMS_GROUP_PATHS, ...STANDALONE_TYPES.map((t) => t.path)];
 
 function isFormsGroupPath(pathname: string): boolean {
   return FORMS_GROUP_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+}
+
+function isNonComplaintsPath(pathname: string): boolean {
+  return NON_COMPLAINTS_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 }
 
 /** เมนูหลัก — ลำดับต้องตรงกับ bottom dock / header */
@@ -25,6 +38,7 @@ export const DOCK_NAV_ITEMS: DockNavItem[] = [
   { path: '/accidents', label: 'Accidents', icon: AlertTriangle },
   { path: '/complaints', label: 'Complaints', icon: MessageSquareWarning },
   { path: '/complaints/overview', label: 'แบบฟอร์ม', icon: ClipboardList },
+  ...STANDALONE_TYPES.map((t) => ({ path: t.path, label: t.label, icon: t.icon })),
 ];
 
 export function isDockPathActive(path: string, pathname: string): boolean {
@@ -35,8 +49,10 @@ export function isDockPathActive(path: string, pathname: string): boolean {
   if (path === '/fleet/drivers') return p.startsWith('/fleet/drivers');
   if (path === '/dashboard') return p.startsWith('/dashboard');
   if (path === '/accidents') return p.startsWith('/accidents');
-  if (path === '/complaints') return p.startsWith('/complaints') && !isFormsGroupPath(p);
+  if (path === '/complaints') return p.startsWith('/complaints') && !isNonComplaintsPath(p);
   if (path === '/complaints/overview') return isFormsGroupPath(p);
+  const standalone = STANDALONE_TYPES.find((t) => t.path === path);
+  if (standalone) return p === path || p.startsWith(`${path}/`);
   return false;
 }
 

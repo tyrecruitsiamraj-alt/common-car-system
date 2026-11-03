@@ -39,6 +39,8 @@ export type IssueReportConfig = {
   fields: IssueField[];
   /** คีย์ของฟิลด์วันที่หลัก — ใช้กรองตามช่วงเวลา (วัน/สัปดาห์/เดือน/ปี) ในหน้าภาพรวม */
   primaryDateField: string;
+  /** 'forms' (ค่าเริ่มต้น) = อยู่ใต้ dropdown "แบบฟอร์ม" เมนูซ้าย, 'standalone' = แยกเป็นปุ่มเมนูของตัวเอง */
+  menuGroup?: 'forms' | 'standalone';
 };
 
 /** เกณฑ์คะแนน 1-5 ของแบบประเมินความพึงพอใจ */
@@ -235,6 +237,7 @@ export const ISSUE_REPORT_TYPES: IssueReportConfig[] = [
     icon: Smile,
     description: 'แบบประเมินความพึงพอใจของผู้ใช้บริการต่อพนักงานขับรถ',
     primaryDateField: 'service_date',
+    menuGroup: 'standalone',
     fields: [
       { key: 'vehicle_plate', label: 'ทะเบียนรถ', type: 'text', required: true, placeholder: 'เช่น กข 1234' },
       { key: 'driver_name', label: 'ชื่อ พขร.', type: 'text', required: true },

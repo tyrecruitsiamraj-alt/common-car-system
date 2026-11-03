@@ -9,8 +9,7 @@ import { isDemoMode, isRuntimeDemoFallback, clearRuntimeDemoFlag } from '@/lib/d
 import NotificationPanel from '@/components/notifications/NotificationPanel';
 import { BrandMark, BrandTitle } from '@/components/shared/BrandMark';
 import BottomDockNav from '@/components/layout/bottom-nav/BottomDockNav';
-import { DOCK_NAV_ITEMS, isDockPathActive } from '@/components/layout/bottom-nav/dockNavConfig';
-import { ISSUE_REPORT_TYPES } from '@/lib/issueReportConfig';
+import { DOCK_NAV_ITEMS, FORM_GROUP_TYPES, isDockPathActive } from '@/components/layout/bottom-nav/dockNavConfig';
 import { ACCESS_WORK_HOURS_CAPABILITY } from '@/lib/workHoursConfig';
 import { fetchCapabilityStatus } from '@/lib/userPermissions';
 import {
@@ -29,11 +28,11 @@ const AppLayout: React.FC = () => {
   const shellBg = getAppShellBackgroundStyle(config);
 
   const [formsOpen, setFormsOpen] = useState(() =>
-    ISSUE_REPORT_TYPES.some((t) => t.path === location.pathname) || location.pathname === '/complaints/overview',
+    FORM_GROUP_TYPES.some((t) => t.path === location.pathname) || location.pathname === '/complaints/overview',
   );
 
   useEffect(() => {
-    if (ISSUE_REPORT_TYPES.some((t) => t.path === location.pathname) || location.pathname === '/complaints/overview') {
+    if (FORM_GROUP_TYPES.some((t) => t.path === location.pathname) || location.pathname === '/complaints/overview') {
       setFormsOpen(true);
     }
   }, [location.pathname]);
@@ -152,7 +151,7 @@ const AppLayout: React.FC = () => {
                     </div>
                     <CollapsibleContent className="overflow-hidden data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down">
                       <div className="mt-0.5 ml-4 pl-3 border-l border-border flex flex-col gap-0.5">
-                        {ISSUE_REPORT_TYPES.map((sub) => {
+                        {FORM_GROUP_TYPES.map((sub) => {
                           const SubIcon = sub.icon;
                           const subActive = location.pathname === sub.path;
                           return (
