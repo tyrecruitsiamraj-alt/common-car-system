@@ -282,7 +282,7 @@ export const ISSUE_REPORT_TYPES: IssueReportConfig[] = [
     menuGroup: 'standalone',
     fields: [
       { key: 'vehicle_plate', label: 'ทะเบียนรถ', type: 'text', required: true, placeholder: 'เช่น กข 1234' },
-      { key: 'driver_name', label: 'ชื่อ พขร.', type: 'text', required: true },
+      { key: 'driver_name', label: 'ชื่อ พขร.', type: 'employee-picker', required: true, placeholder: 'พิมพ์ชื่อเพื่อค้นหาพนักงานขับรถ…' },
       { key: 'service_date', label: 'วันที่ใช้บริการ', type: 'date', required: true },
       {
         key: 'courtesy_score',
