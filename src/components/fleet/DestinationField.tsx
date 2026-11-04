@@ -1,4 +1,4 @@
-import React, { useEffect, useId, useMemo, useState } from 'react';
+import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Plus, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -26,14 +26,21 @@ export default function DestinationField({
 }: Props) {
   const listId = useId();
   const [stops, setStops] = useState<string[]>(() => splitDestinations(value));
+  // ค่าล่าสุดที่ component นี้เป็นคนส่งออกไปเอง — ใช้แยกว่า value ที่เปลี่ยนเป็น echo ของตัวเอง
+  // (ตัด trailing space ระหว่างพิมพ์) หรือเป็นการเปลี่ยนจากภายนอกจริงๆ (เช่น สลับไปแก้ booking อื่น)
+  const lastEmittedRef = useRef(value);
 
   useEffect(() => {
+    if (value === lastEmittedRef.current) return;
+    lastEmittedRef.current = value;
     setStops(splitDestinations(value));
   }, [value]);
 
   const emit = (next: string[]) => {
     setStops(next);
-    onChange(joinDestinations(next));
+    const joined = joinDestinations(next);
+    lastEmittedRef.current = joined;
+    onChange(joined);
   };
 
   const updateStop = (index: number, text: string) => {

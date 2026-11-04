@@ -657,7 +657,12 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
     }
   }, [isMonitor, viewMode, dayValue, monthValue]);
 
+  const refreshTokenRef = useRef(0);
+
   const refresh = useCallback(async () => {
+    const token = ++refreshTokenRef.current;
+    const isStale = () => token !== refreshTokenRef.current;
+
     if (!listRange) {
       setBookings([]);
       setAvailability(null);
@@ -689,6 +694,7 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
         apiFetch('/api/employees?limit=500'),
         apiFetch('/api/vehicles'),
       ]);
+      if (isStale()) return;
 
       let bookingRows: VehicleBooking[] = [];
       if (rBook.ok) {
@@ -758,30 +764,37 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
         setAvailabilityError(availErr || 'โหลดความว่างไม่สำเร็จ');
       }
     } catch {
+      if (isStale()) return;
       toast.error('โหลดข้อมูลไม่สำเร็จ');
       setAvailability(null);
       setSelEmp('');
       setSelVeh('');
       setAvailabilityError('เครือข่ายหรือเซิร์ฟเวอร์ไม่ตอบ — ลองอีกครั้ง');
     } finally {
-      setLoading(false);
-      notifyFleetBookingsChanged();
-      if (listRange) {
-        try {
-          const qAudit = new URLSearchParams({
-            from: listRange.from.toISOString(),
-            to: listRange.to.toISOString(),
-            auditLog: '1',
-          });
-          const rAudit = await apiFetch(`/api/vehicle-bookings?${qAudit}`);
-          if (rAudit.ok) {
-            const auditData = (await rAudit.json()) as { audit?: VehicleBookingAudit[] };
-            setDayAudit(Array.isArray(auditData.audit) ? auditData.audit : []);
-          } else {
-            setDayAudit([]);
+      if (!isStale()) {
+        setLoading(false);
+        notifyFleetBookingsChanged();
+        if (listRange) {
+          try {
+            const qAudit = new URLSearchParams({
+              from: listRange.from.toISOString(),
+              to: listRange.to.toISOString(),
+              auditLog: '1',
+            });
+            const rAudit = await apiFetch(`/api/vehicle-bookings?${qAudit}`);
+            if (!isStale()) {
+              if (rAudit.ok) {
+                const auditData = (await rAudit.json()) as { audit?: VehicleBookingAudit[] };
+                setDayAudit(Array.isArray(auditData.audit) ? auditData.audit : []);
+              } else {
+                setDayAudit([]);
+              }
+            }
+          } catch {
+            if (!isStale()) {
+              setDayAudit([]);
+            }
           }
-        } catch {
-          setDayAudit([]);
         }
       }
     }
