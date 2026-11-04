@@ -1,12 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
+import { CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import SearchablePicker, { type SearchablePickerOption } from '@/components/shared/SearchablePicker';
 import ToyotaModelPicker from '@/components/fleet/ToyotaModelPicker';
 import { apiFetch } from '@/lib/apiFetch';
@@ -36,6 +38,7 @@ type DriverDirectoryEntry = {
   title_prefix?: string;
   first_name: string;
   last_name: string;
+  position?: string;
 };
 
 /** จำนวนวันรวมแบบนับวันเริ่มและวันสิ้นสุด (inclusive) — ว่างหรือวันที่ไม่ถูกต้องคืนค่าว่าง */
@@ -80,6 +83,7 @@ const IssueReportForm: React.FC<Props> = ({ config, cancelHref }) => {
   const [saving, setSaving] = useState(false);
   /** เพิ่มขึ้นทุกครั้งที่บันทึกสำเร็จ — ใช้เป็น key บังคับ ToyotaModelPicker รีเซ็ตกลับ (ตัวมันเองไม่ใช่ controlled component) */
   const [formVersion, setFormVersion] = useState(0);
+  const [successOpen, setSuccessOpen] = useState(false);
 
   const needsDriverDirectory = config.fields.some((f) => f.type === 'employee-picker');
 
@@ -100,11 +104,15 @@ const IssueReportForm: React.FC<Props> = ({ config, cancelHref }) => {
     };
   }, [needsDriverDirectory]);
 
-  const driverOptions: SearchablePickerOption[] = drivers.map((d) => ({
-    value: d.id,
-    label: formatEmployeeDisplayName(d),
-    keywords: d.employee_code,
-  }));
+  /** ตัวเลือกของ employee-picker — กรองตาม positionFilter ของฟิลด์ (ถ้ามี) */
+  const driverOptionsFor = (f: IssueField): SearchablePickerOption[] =>
+    drivers
+      .filter((d) => !f.positionFilter || f.positionFilter.includes(d.position ?? ''))
+      .map((d) => ({
+        value: d.id,
+        label: formatEmployeeDisplayName(d),
+        keywords: d.employee_code,
+      }));
 
   const setField = (key: string, value: string) =>
     setValues((prev) => {
@@ -169,7 +177,8 @@ const IssueReportForm: React.FC<Props> = ({ config, cancelHref }) => {
         const j = (await r.json().catch(() => ({}))) as { message?: string };
         throw new Error(j.message || `HTTP ${r.status}`);
       }
-      toast.success('บันทึกข้อมูลแล้ว');
+      if (config.successMessage) setSuccessOpen(true);
+      else toast.success('บันทึกข้อมูลแล้ว');
       setValues({});
       setPickerIds({});
       setReporterName('');
@@ -209,7 +218,7 @@ const IssueReportForm: React.FC<Props> = ({ config, cancelHref }) => {
                     setField(f.linkedCodeField, driver?.employee_code ?? '');
                   }
                 }}
-                options={driverOptions}
+                options={driverOptionsFor(f)}
                 placeholder={f.placeholder ?? 'พิมพ์ชื่อเพื่อค้นหาพนักงาน…'}
                 emptyMessage="ไม่พบพนักงานในระบบ"
                 inputClassName="h-10 text-sm"
@@ -368,6 +377,25 @@ const IssueReportForm: React.FC<Props> = ({ config, cancelHref }) => {
           <Link to={cancelHref}>ยกเลิก</Link>
         </Button>
       </div>
+
+      {config.successMessage ? (
+        <Dialog open={successOpen} onOpenChange={setSuccessOpen}>
+          <DialogContent className="max-w-md rounded-2xl text-center">
+            <DialogHeader className="items-center text-center sm:text-center">
+              <CheckCircle2 className="h-12 w-12 text-emerald-500" />
+              <DialogTitle>บันทึกแบบประเมินเรียบร้อย</DialogTitle>
+              <DialogDescription className="text-base leading-relaxed text-foreground">
+                {config.successMessage}
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className="sm:justify-center">
+              <Button type="button" className="rounded-2xl min-w-[120px]" onClick={() => setSuccessOpen(false)}>
+                ปิด
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      ) : null}
     </form>
   );
 };

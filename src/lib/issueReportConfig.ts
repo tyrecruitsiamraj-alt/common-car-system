@@ -45,6 +45,8 @@ export type IssueField = {
   otherField?: { key: string; label: string; placeholder?: string };
   /** type: 'employee-picker' — คีย์ของฟิลด์ที่จะเติมรหัสพนักงานอัตโนมัติเมื่อเลือกชื่อ */
   linkedCodeField?: string;
+  /** type: 'employee-picker' — แสดงเฉพาะพนักงานที่ตำแหน่ง (position) ตรงกับค่าใดค่าหนึ่งในนี้ (ไม่กำหนด = แสดงทุกตำแหน่ง) */
+  positionFilter?: string[];
   /** type: 'vehicle-model-picker' — เลือกรุ่นรถ Toyota + รุ่นย่อย/เกรด (Model) เหมือนหน้า /fleet/vehicles */
   /**
    * type: 'computed-days' — คำนวณจำนวนวัน (รวมวันเริ่ม-สิ้นสุด) จากอีก 2 ฟิลด์วันที่
@@ -64,6 +66,8 @@ export type IssueReportConfig = {
   primaryDateField: string;
   /** 'forms' (ค่าเริ่มต้น) = อยู่ใต้ dropdown "แบบฟอร์ม" เมนูซ้าย, 'standalone' = แยกเป็นปุ่มเมนูของตัวเอง */
   menuGroup?: 'forms' | 'standalone';
+  /** ข้อความใน pop-up หลังบันทึกสำเร็จ (ไม่กำหนด = แสดง toast "บันทึกข้อมูลแล้ว" ตามปกติ) */
+  successMessage?: string;
 };
 
 /** หมวดหลัก (สาเหตุที่เข้าศูนย์) ของแบบฟอร์ม "รถเข้าศูนย์" — บอกภาพรวมว่าเป็นแผนปกติหรือปัญหาที่ต้องติดตาม */
@@ -280,36 +284,40 @@ export const ISSUE_REPORT_TYPES: IssueReportConfig[] = [
     description: 'แบบประเมินความพึงพอใจของผู้ใช้บริการต่อพนักงานขับรถ',
     primaryDateField: 'service_date',
     menuGroup: 'standalone',
+    successMessage:
+      'ขอขอบคุณในความร่วมมือที่ท่านได้เสียสละเวลาทำแบบประเมิน ความคิดเห็นของท่านมีคุณค่าอย่างยิ่งเพื่อนำไปพัฒนาการดำเนินงานต่อไป',
     fields: [
       { key: 'vehicle_plate', label: 'ทะเบียนรถ', type: 'text', required: true, placeholder: 'เช่น กข 1234' },
-      { key: 'driver_name', label: 'ชื่อ พขร.', type: 'employee-picker', required: true, placeholder: 'พิมพ์ชื่อเพื่อค้นหาพนักงานขับรถ…' },
+      {
+        key: 'driver_name',
+        label: 'ชื่อ พขร.',
+        type: 'employee-picker',
+        positionFilter: ['Common Driver'],
+        placeholder: 'พิมพ์ชื่อเพื่อค้นหาพนักงานขับรถ…',
+      },
       { key: 'service_date', label: 'วันที่ใช้บริการ', type: 'date', required: true },
       {
         key: 'courtesy_score',
         label: 'ความสุภาพและบริการ (กิริยามารยาท การทักทาย และความพร้อมให้บริการ)',
         type: 'select',
-        required: true,
         options: SATISFACTION_SCORE_OPTIONS,
       },
       {
         key: 'safety_score',
         label: 'ความปลอดภัยในการขับขี่ (ขับรถตามกฎจราจร ไม่เร็วหรือหวาดเสียว ไม่ใช้โทรศัพท์ขณะขับขี่)',
         type: 'select',
-        required: true,
         options: SATISFACTION_SCORE_OPTIONS,
       },
       {
         key: 'cleanliness_score',
         label: 'ความสะอาดของรถ (สภาพภายในและภายนอกรถสะอาด ไม่มีกลิ่นอับ)',
         type: 'select',
-        required: true,
         options: SATISFACTION_SCORE_OPTIONS,
       },
       {
         key: 'punctuality_score',
         label: 'การตรงต่อเวลา (มารับ-ส่งตรงเวลาตามที่นัดหมาย)',
         type: 'select',
-        required: true,
         options: SATISFACTION_SCORE_OPTIONS,
       },
       {
