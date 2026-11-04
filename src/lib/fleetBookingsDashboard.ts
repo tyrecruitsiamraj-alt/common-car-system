@@ -34,11 +34,6 @@ export function bookingEffectiveEnd(b: VehicleBooking): Date {
   return parseISO(b.ends_at);
 }
 
-/** วันงานของใบจอง — นับตามวันเริ่มงาน ไม่ใช่วันกดปิด */
-export function bookingWorkDay(b: VehicleBooking): Date {
-  return startOfDay(parseISO(b.starts_at));
-}
-
 export function isBookingOnWorkDay(b: VehicleBooking, day: Date): boolean {
   return isSameDay(parseISO(b.starts_at), day);
 }

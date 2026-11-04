@@ -23,7 +23,3 @@ export const FLEET_FORM_LINKS: FleetFormLink[] = syncedExams.map((e) => ({
   url: e.msFormUrl,
   stickerNote: e.stickerNote,
 }));
-
-export function countUniqueFormUrls(links: FleetFormLink[] = FLEET_FORM_LINKS): number {
-  return new Set(links.map((l) => l.url)).size;
-}

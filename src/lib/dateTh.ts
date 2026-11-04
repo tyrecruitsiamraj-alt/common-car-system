@@ -91,13 +91,6 @@ export function monthYearLabelBe(ymd: string): string {
   return `${label} ${ceToBeYear(p.y)}`;
 }
 
-export function beYearRange(centerCeYear: number, delta = 15): number[] {
-  const centerBe = ceToBeYear(centerCeYear);
-  const out: number[] = [];
-  for (let be = centerBe - delta; be <= centerBe + delta; be += 1) out.push(be);
-  return out;
-}
-
 /** รายการ YYYY-MM-DD ทุกวันจาก from ถึง to (รวมปลายทาง); to ว่างหรือก่อน from ใช้แค่วันเดียว */
 export function buildDateRangeYmd(from: string, to: string | null): string[] {
   if (!from) return [];

@@ -69,13 +69,6 @@ export interface DashboardStatusSlice {
   share: number;
 }
 
-export interface DashboardJobTypeSlice {
-  jobType: VehicleBookingJobType | 'unspecified';
-  label: string;
-  count: number;
-  share: number;
-}
-
 export interface DashboardJobTypeTrendPoint {
   label: string;
   dateLabel: string;
@@ -127,7 +120,6 @@ export interface DashboardData {
   trendSeries: DashboardTrendPoint[];
   jobTypeTrendSeries: DashboardJobTypeTrendPoint[];
   statusSlices: DashboardStatusSlice[];
-  jobTypeSlices: DashboardJobTypeSlice[];
   cancelReasonSlices: DashboardCancelReasonSlice[];
   driverSlices: DashboardDriverSlice[];
   driverUtilization: DashboardDriverUtilization;

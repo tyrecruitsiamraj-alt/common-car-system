@@ -77,10 +77,6 @@ export function getFleetExam(key: string): FleetExam | undefined {
   return FLEET_EXAMS.find((e) => e.key === key);
 }
 
-export function isValidFleetExamKey(key: string): boolean {
-  return FLEET_EXAMS.some((e) => e.key === key);
-}
-
 /** จำนวนข้อที่ต้องตอบ (ไม่นับหัวข้อ section; ตาราง matrix นับเป็น 1 ข้อ) */
 export function countableExamQuestions(exam: FleetExam): ExamQuestion[] {
   return exam.questions.filter((q) => q.type !== 'section');

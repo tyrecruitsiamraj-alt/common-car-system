@@ -74,13 +74,6 @@ export const MOCK_DASHBOARD_DATA: DashboardData = {
     { status: 'at_risk', label: 'เสี่ยง', count: 3, share: 2 },
     { status: 'cancelled', label: 'ยกเลิก', count: 4, share: 3 },
   ],
-  jobTypeSlices: [
-    { jobType: 'job_order', label: 'ใบงาน', count: 76, share: 54 },
-    { jobType: 'trip_sabuy', label: 'งาน Trip Sabuy', count: 34, share: 24 },
-    { jobType: 'standby', label: 'สแตนบาย', count: 20, share: 14 },
-    { jobType: 'substitute', label: 'แทนงาน', count: 8, share: 6 },
-    { jobType: 'unspecified', label: 'ไม่ระบุ', count: 4, share: 3 },
-  ],
   cancelReasonSlices: [
     { cancelReason: 'user_not_using', label: 'ยกเลิกจาก user ไม่ใช้', count: 3, share: 75 },
     { cancelReason: 'employee_no_show', label: 'ยกเลิกจากพนักงานไม่ไปปฏิบัติงาน', count: 1, share: 25 },

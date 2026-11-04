@@ -23,7 +23,6 @@ import type {
   DashboardDriverSlice,
   DashboardDriverUtilization,
   DashboardFilters,
-  DashboardJobTypeSlice,
   DashboardJobTypeTrendPoint,
   DashboardKpi,
   DashboardSlaStatus,
@@ -32,7 +31,7 @@ import type {
   DashboardTrendPoint,
   DashboardWorkItem,
 } from '@/lib/dashboard/types';
-import { BOOKING_CANCEL_REASON_LABELS, BOOKING_JOB_TYPE_LABELS } from '@/lib/bookingUiMessages';
+import { BOOKING_CANCEL_REASON_LABELS } from '@/lib/bookingUiMessages';
 import { nowInBangkok } from '@/lib/thaiDateTimeFormat';
 import { isCommonDriverPosition } from '@/lib/driverListPositions';
 import type {
@@ -40,7 +39,6 @@ import type {
   Vehicle,
   VehicleBooking,
   VehicleBookingCancelReason,
-  VehicleBookingJobType,
 } from '@/types';
 
 const STATUS_LABELS: Record<DashboardTaskStatus, string> = {
@@ -322,29 +320,6 @@ function buildStatusSlices(items: DashboardWorkItem[]): DashboardStatusSlice[] {
     .filter((s) => s.count > 0);
 }
 
-const JOB_TYPE_ORDER: VehicleBookingJobType[] = ['trip_sabuy', 'job_order', 'substitute', 'standby'];
-
-function buildJobTypeSlices(items: DashboardWorkItem[]): DashboardJobTypeSlice[] {
-  const total = items.length || 1;
-  const counts = new Map<VehicleBookingJobType | 'unspecified', number>();
-  for (const item of items) {
-    const key = item.jobType ?? 'unspecified';
-    counts.set(key, (counts.get(key) ?? 0) + 1);
-  }
-  const order: (VehicleBookingJobType | 'unspecified')[] = [...JOB_TYPE_ORDER, 'unspecified'];
-  return order
-    .map((jobType) => {
-      const count = counts.get(jobType) ?? 0;
-      return {
-        jobType,
-        label: jobType === 'unspecified' ? 'ไม่ระบุ' : BOOKING_JOB_TYPE_LABELS[jobType],
-        count,
-        share: Math.round((count / total) * 100),
-      };
-    })
-    .filter((s) => s.count > 0);
-}
-
 const CANCEL_REASON_ORDER: VehicleBookingCancelReason[] = ['user_not_using', 'employee_no_show'];
 
 function buildCancelReasonSlices(items: DashboardWorkItem[]): DashboardCancelReasonSlice[] {
@@ -458,7 +433,6 @@ export function buildDashboardData(
     trendSeries: buildTrendSeries(inRange, range, inPrevRange),
     jobTypeTrendSeries: buildJobTypeTrendSeries(inRange, range),
     statusSlices: buildStatusSlices(filtered),
-    jobTypeSlices: buildJobTypeSlices(filtered),
     cancelReasonSlices: buildCancelReasonSlices(filtered),
     driverSlices: buildDriverSlices(filtered, employees),
     driverUtilization: buildDriverUtilization(filtered, employees),

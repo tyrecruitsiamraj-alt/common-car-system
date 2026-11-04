@@ -1,6 +1,5 @@
 import { format, parseISO } from 'date-fns';
 import { th } from 'date-fns/locale';
-import { formatYmdDmyCe } from '@/lib/dateTh';
 
 function toDate(d: Date | string): Date {
   return typeof d === 'string' ? parseISO(d) : d;
@@ -50,9 +49,4 @@ export function formatThaiTimeRange(start: Date | string, end: Date | string): s
 /** วัน/เดือน/ปี + เวลา น. */
 export function formatThaiDateTime(d: Date | string): string {
   return `${formatThaiDate(d)} ${formatThaiTime(d)}`;
-}
-
-/** จาก yyyy-MM-dd — วัน/เดือน/ปี ค.ศ. */
-export function formatThaiDateFromYmd(ymd: string): string {
-  return formatYmdDmyCe(ymd) || ymd;
 }
