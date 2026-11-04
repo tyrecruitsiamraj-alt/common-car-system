@@ -88,9 +88,25 @@ async function handleGet(req: AuthedReq, res: ApiRes): Promise<void> {
   try {
     const { limit, offset } = parseLimitOffset(req.query);
     const category = getString(req.query?.category);
+    /** แบบประเมินความพึงพอใจ: ดูได้เฉพาะ supervisor ขึ้นไป ไม่มีการมอบสิทธิ์ให้ staff */
+    const canViewSatisfaction = req.user.role === 'admin' || req.user.role === 'supervisor';
 
-    const where = category ? 'where category = $3' : '';
-    const params: unknown[] = category ? [limit, offset, category] : [limit, offset];
+    if (category === 'satisfaction' && !canViewSatisfaction) {
+      return sendError(res, 403, 'Forbidden', 'ไม่มีสิทธิ์เข้าถึงข้อมูลนี้');
+    }
+
+    let where: string;
+    let params: unknown[];
+    if (category) {
+      where = 'where category = $3';
+      params = [limit, offset, category];
+    } else if (!canViewSatisfaction) {
+      where = `where category <> 'satisfaction'`;
+      params = [limit, offset];
+    } else {
+      where = '';
+      params = [limit, offset];
+    }
 
     const { rows } = await dbQuery<Row>(
       `select * from ${tbl} ${where} order by report_date desc nulls last, created_at desc limit $1 offset $2`,

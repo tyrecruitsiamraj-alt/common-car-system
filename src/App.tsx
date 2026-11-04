@@ -89,7 +89,14 @@ function AppRoutes() {
         <Route path="/complaints" element={<ComplaintDashboardPage />} />
         <Route path="/complaints/overview" element={<ComplaintsOverviewPage />} />
         <Route path="/complaints/history" element={<ComplaintsHistoryPage />} />
-        <Route path="/complaints/satisfaction/dashboard" element={<SatisfactionDashboardPage />} />
+        <Route
+          path="/complaints/satisfaction/dashboard"
+          element={
+            <AdminRoute minRole="supervisor">
+              <SatisfactionDashboardPage />
+            </AdminRoute>
+          }
+        />
         <Route path="/complaints/:slug" element={<IssueReportPage />} />
         <Route path="/work-hours" element={<WorkHoursDashboardPage />} />
         <Route path="/work-hours/settings" element={<WorkHoursSettingsPage />} />
