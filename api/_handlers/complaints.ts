@@ -2,6 +2,7 @@ import { dbQuery } from '../_lib/postgres.js';
 import {
   sendError,
   handleApiError,
+  withAuth,
   withAuthStaffWrite,
   type ApiReq,
   type ApiRes,
@@ -228,13 +229,27 @@ async function handlePatch(req: AuthedReq, res: ApiRes): Promise<void> {
   }
 }
 
+async function handleDelete(req: AuthedReq, res: ApiRes): Promise<void> {
+  try {
+    const id = getString(req.query?.id);
+    if (!id) return sendError(res, 400, 'Bad request', 'query id required');
+    const { rows } = await dbQuery<{ id: string }>(`delete from ${tbl} where id = $1::uuid returning id`, [id]);
+    if (rows.length === 0) return sendError(res, 404, 'Not found');
+    return res.status(200).json({ ok: true, id: rows[0].id });
+  } catch (e) {
+    return handleApiError(res, e, 'complaints DELETE', { userId: req.user.sub });
+  }
+}
+
 const protectedGet = withAuthStaffWrite(handleGet);
 const protectedPatch = withAuthStaffWrite(handlePatch);
+const protectedDelete = withAuth(handleDelete, { roles: ['supervisor', 'admin'] });
 
 export default async function complaintsHandler(req: ApiReq, res: ApiRes): Promise<void> {
   const method = (req.method || 'GET').toUpperCase();
   if (method === 'POST') return handlePost(req, res);
   if (method === 'GET') return protectedGet(req, res);
   if (method === 'PATCH') return protectedPatch(req, res);
+  if (method === 'DELETE') return protectedDelete(req, res);
   return sendError(res, 405, 'Method not allowed');
 }
