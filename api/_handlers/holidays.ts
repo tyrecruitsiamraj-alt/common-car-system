@@ -3,7 +3,7 @@ import { withAuth, sendError, handleApiError, type ApiRes, type AuthedReq } from
 import { readJsonBody, getString } from '../_lib/body.js';
 import { tableInAppSchema } from '../_lib/schema.js';
 import { userHasCapability } from '../_lib/userPermissions.js';
-import { ACCESS_WORK_HOURS_CAPABILITY } from '../_lib/workHours.js';
+import { ACCESS_WORK_HOURS_CAPABILITY, pgDateToYmd } from '../_lib/workHours.js';
 
 const tbl = tableInAppSchema('holidays');
 
@@ -16,10 +16,7 @@ type Row = {
 
 const isDateYmd = (v: unknown): v is string => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v);
 
-function toYmd(value: string | Date): string {
-  if (value instanceof Date) return value.toISOString().slice(0, 10);
-  return value;
-}
+const toYmd = pgDateToYmd;
 
 function toEntry(row: Row) {
   return { id: row.id, holiday_date: toYmd(row.holiday_date), name: row.name, holiday_type: row.holiday_type };

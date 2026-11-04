@@ -68,18 +68,27 @@ async function handler(req: AuthedReq, res: ApiRes) {
       const cur = curRows[0];
       if (!cur) return sendError(res, 404, 'Not found', 'ยังไม่ได้ตั้งค่า');
 
-      const next = {
-        ot_rate_1_5x: b.ot_rate_1_5x !== undefined ? toPositiveNumber(b.ot_rate_1_5x) ?? Number(cur.ot_rate_1_5x) : Number(cur.ot_rate_1_5x),
-        ot_rate_3x: b.ot_rate_3x !== undefined ? toPositiveNumber(b.ot_rate_3x) ?? Number(cur.ot_rate_3x) : Number(cur.ot_rate_3x),
-        full_time_threshold_hours:
-          b.full_time_threshold_hours !== undefined
-            ? toPositiveNumber(b.full_time_threshold_hours) ?? Number(cur.full_time_threshold_hours)
-            : Number(cur.full_time_threshold_hours),
-        supervisor_ot_alert_hours:
-          b.supervisor_ot_alert_hours !== undefined
-            ? toPositiveNumber(b.supervisor_ot_alert_hours) ?? Number(cur.supervisor_ot_alert_hours)
-            : Number(cur.supervisor_ot_alert_hours),
+      const fieldLabels = {
+        ot_rate_1_5x: 'อัตรา OT 1.5 เท่า',
+        ot_rate_3x: 'อัตรา OT 3 เท่า',
+        full_time_threshold_hours: 'เกณฑ์ชั่วโมงทำงานเต็มเวลา',
+        supervisor_ot_alert_hours: 'เกณฑ์แจ้งเตือน OT วันหยุดของนาย',
+      } as const;
+
+      const next: Record<keyof typeof fieldLabels, number> = {
+        ot_rate_1_5x: Number(cur.ot_rate_1_5x),
+        ot_rate_3x: Number(cur.ot_rate_3x),
+        full_time_threshold_hours: Number(cur.full_time_threshold_hours),
+        supervisor_ot_alert_hours: Number(cur.supervisor_ot_alert_hours),
       };
+      for (const key of Object.keys(fieldLabels) as (keyof typeof fieldLabels)[]) {
+        if (b[key] === undefined) continue;
+        const n = toPositiveNumber(b[key]);
+        if (n === null) {
+          return sendError(res, 400, 'Bad request', `${fieldLabels[key]}ไม่ถูกต้อง — ต้องเป็นตัวเลขไม่ติดลบ`);
+        }
+        next[key] = n;
+      }
 
       const { rows } = await dbQuery<Row>(
         `update ${tbl} set

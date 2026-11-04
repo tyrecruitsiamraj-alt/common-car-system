@@ -8,6 +8,7 @@ import {
   avgHoursPerDay,
   bangkokYmd,
   periodBounds,
+  pgDateToYmd,
   splitWorkHours,
   type WorkHoursPeriod,
 } from '../_lib/workHours.js';
@@ -82,9 +83,7 @@ async function handler(req: AuthedReq, res: ApiRes) {
     const otRate3 = Number(settings.ot_rate_3x);
     const threshold = Number(settings.full_time_threshold_hours);
 
-    const holidaySet = new Set(
-      holidayRows.map((h) => (h.holiday_date instanceof Date ? h.holiday_date.toISOString().slice(0, 10) : h.holiday_date)),
-    );
+    const holidaySet = new Set(holidayRows.map((h) => pgDateToYmd(h.holiday_date)));
 
     const bookingParams: unknown[] = [from, to];
     let bookingWhere = `where b.completed_at is not null and (b.starts_at at time zone 'Asia/Bangkok')::date >= $1::date and (b.starts_at at time zone 'Asia/Bangkok')::date <= $2::date`;

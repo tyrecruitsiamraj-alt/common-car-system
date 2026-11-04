@@ -1,5 +1,6 @@
 import { format } from 'date-fns';
 import { downloadExcelFile, type ExcelSheetInput } from '@/lib/exportExcel';
+import { formatThaiDateTime } from '@/lib/thaiDateTimeFormat';
 import { WORK_HOURS_PERIOD_LABELS, type WorkHoursSummaryResponse } from '@/lib/workHoursConfig';
 
 function buildOverviewSheet(data: WorkHoursSummaryResponse): Record<string, string | number>[] {
@@ -39,8 +40,8 @@ function buildDailySheet(data: WorkHoursSummaryResponse) {
     วันที่: d.date,
     ชื่อพนักงาน: d.employee_name,
     ทะเบียนรถ: d.vehicle_plate ?? '-',
-    เวลาเริ่มงาน: d.starts_at,
-    เวลาปิดงาน: d.completed_at,
+    เวลาเริ่มงาน: formatThaiDateTime(d.starts_at),
+    เวลาปิดงาน: formatThaiDateTime(d.completed_at),
     'ชม.รวม': d.total_hours,
     'ชม.ปกติ': d.normal_hours,
     'ชม. OT': d.ot_hours,

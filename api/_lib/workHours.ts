@@ -7,6 +7,17 @@ const pad = (n: number) => String(n).padStart(2, '0');
 const ymd = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 
 /**
+ * วันที่ (YYYY-MM-DD) จากคอลัมน์ postgres `date` — node-postgres parse เป็น Date ด้วย
+ * เขตเวลาท้องถิ่นของเครื่องที่รัน (new Date(year, month, day)) จึงต้องอ่านกลับด้วย
+ * getFullYear/getMonth/getDate เท่านั้น ห้ามผ่าน toISOString() ซึ่งแปลงเป็น UTC ก่อน
+ * (ถ้าเครื่องตั้งเขตเวลาเร็วกว่า UTC จะได้วันที่ย้อนไป 1 วัน)
+ */
+export function pgDateToYmd(value: string | Date): string {
+  if (typeof value === 'string') return value.slice(0, 10);
+  return ymd(value);
+}
+
+/**
  * แกะวัน/เวลาแบบ wall-clock ของเขตเวลาไทย (Asia/Bangkok) จาก instant ใดๆ
  * ไม่พึ่งเขตเวลาของเครื่อง/เซิร์ฟเวอร์ที่รันโค้ด (Vercel/Node มักรันเป็น UTC)
  */
