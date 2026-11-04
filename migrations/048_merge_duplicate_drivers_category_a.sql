@@ -136,6 +136,9 @@ where dtp.employee_id = p.retired_id
 -- 5) รวมสถิติสะสม + ใช้วันเริ่มงานที่เก่าที่สุด (รักษาอายุงานจริง)
 -- reliability_score / utilization_rate เป็นค่า 0-100 (เปอร์เซ็นต์/คะแนน) การ sum จะทำให้ค่าเพี้ยน
 -- เกิน 100 ได้ จึงใช้ค่าที่สูงกว่าแทนการบวกสำหรับสองฟิลด์นี้เท่านั้น
+-- กัน double-count: ถ้ารหัสนี้ถูกรวมไปแล้วจากการรันครั้งก่อน (merged_into_employee_id ไม่ null)
+-- ให้ข้ามสถิติของคู่นี้ ไม่บวกซ้ำ — สำคัญเฉพาะกรณีไฟล์นี้ถูกรันซ้ำผ่าน db:migrate:replay เท่านั้น
+-- (npm run db:migrate ปกติไม่รันไฟล์ที่เคย apply แล้วอยู่แล้วเพราะมี ledger กันไว้)
 update employees keep_e
 set total_days_worked = keep_e.total_days_worked + old_e.total_days_worked,
     total_income = keep_e.total_income + old_e.total_income,
@@ -146,7 +149,8 @@ set total_days_worked = keep_e.total_days_worked + old_e.total_days_worked,
     join_date = least(keep_e.join_date, old_e.join_date)
 from _driver_merge_pairs p
 join employees old_e on old_e.id = p.retired_id
-where keep_e.id = p.keep_id;
+where keep_e.id = p.keep_id
+  and old_e.merged_into_employee_id is null;
 
 -- 6) ปรับตารางที่อ้างชื่อ/รหัสคนขับเป็น text ธรรมดา (ไม่มี FK) ให้ชี้มาที่คนเดียวกัน
 -- หมายเหตุ: เทียบจากชื่อ-สกุลแบบตัดคำนำหน้าออกทั้งสองฝั่ง (เหมือน logic ที่ใช้ตรวจจับชื่อซ้ำเดิม)

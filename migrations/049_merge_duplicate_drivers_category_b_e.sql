@@ -86,6 +86,8 @@ where dtp.employee_id = p.retired_id
     select 1 from driver_tma_profiles dtp2 where dtp2.employee_id = p.keep_id
   );
 
+-- กัน double-count: ถ้ารหัสนี้ถูกรวมไปแล้วจากการรันครั้งก่อน (merged_into_employee_id ไม่ null)
+-- ให้ข้ามสถิติของคู่นี้ ไม่บวกซ้ำ — สำคัญเฉพาะกรณีไฟล์นี้ถูกรันซ้ำผ่าน db:migrate:replay เท่านั้น
 update employees keep_e
 set total_days_worked = keep_e.total_days_worked + old_e.total_days_worked,
     total_income = keep_e.total_income + old_e.total_income,
@@ -96,7 +98,8 @@ set total_days_worked = keep_e.total_days_worked + old_e.total_days_worked,
     join_date = least(keep_e.join_date, old_e.join_date)
 from _driver_merge_pairs p
 join employees old_e on old_e.id = p.retired_id
-where keep_e.id = p.keep_id;
+where keep_e.id = p.keep_id
+  and old_e.merged_into_employee_id is null;
 
 update accident_cases ac
 set employee_name = trim(
