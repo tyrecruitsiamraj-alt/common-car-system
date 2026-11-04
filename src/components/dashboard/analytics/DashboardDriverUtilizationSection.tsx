@@ -24,7 +24,7 @@ const DashboardDriverUtilizationSection: React.FC<Props> = ({ utilization, loadi
     <div className="rounded-xl border border-slate-200/80 bg-white p-5 shadow-sm">
       <div className="mb-4">
         <h3 className="text-sm font-semibold text-slate-900">% คนขับที่วิ่งงาน</h3>
-        <p className="text-xs text-slate-500 mt-0.5">คนขับที่มีงาน ≥1 งาน จากคนขับทั้งหมดในระบบ</p>
+        <p className="text-xs text-slate-500 mt-0.5">คนขับที่มีงาน ≥1 งาน จากคนขับ Common Driver ทั้งหมด (ไม่รวมพ้นสภาพ)</p>
       </div>
       {loading ? (
         <div className="h-56 flex items-center justify-center text-sm text-slate-500">กำลังโหลด…</div>

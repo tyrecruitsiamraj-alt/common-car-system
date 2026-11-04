@@ -79,10 +79,10 @@ const ComplaintDashboardPage: React.FC = () => {
   const employeeAge = useMemo(() => bucketEmployeeAge(yearCases.map((c) => c.employee_age)), [yearCases]);
   const topCustomer = useMemo(() => mostCommonValue(cases.map((c) => c.customer_account)), [cases]);
 
-  const categoryBuckets = useMemo(() => bucketTopCategories(cases.map((c) => c.category)), [cases]);
+  const categoryBuckets = useMemo(() => bucketTopCategories(yearCases.map((c) => c.category)), [yearCases]);
   const complaintTypeBuckets = useMemo(
-    () => bucketTopCategories(cases.map((c) => c.complaint_type)),
-    [cases],
+    () => bucketTopCategories(yearCases.map((c) => c.complaint_type)),
+    [yearCases],
   );
   const trend = useMemo(() => buildMonthlyTrend(cases.map((c) => c.complaint_date)), [cases]);
 

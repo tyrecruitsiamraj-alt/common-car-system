@@ -71,6 +71,8 @@ type DrilldownState =
   | { view: 'cases'; title: string; cases: AccidentCase[]; backField?: FieldKey }
   | null;
 
+const KNOWN_CASE_STATUSES = ['ฝ่ายผิด', 'ฝ่ายผิดไม่นับเคส', 'ฝ่ายถูก'];
+
 const AccidentDashboardPage: React.FC = () => {
   const [cases, setCases] = useState<AccidentCase[]>([]);
   const [loading, setLoading] = useState(true);
@@ -122,10 +124,15 @@ const AccidentDashboardPage: React.FC = () => {
   /** แยกจำนวนเคสตาม "สถานะเคส" — นับตรงตัว (ไม่จัดกลุ่ม top-N) เพราะเป็นค่าคงที่จำกัดจำนวน ไม่ใช่ free text หางยาว */
   const caseStatusCounts = useMemo(() => {
     const countOf = (status: string) => cases.filter((c) => (c.case_status ?? '').trim() === status).length;
+    const other = cases.filter((c) => {
+      const s = (c.case_status ?? '').trim();
+      return s !== '' && !KNOWN_CASE_STATUSES.includes(s);
+    }).length;
     return {
       atFault: countOf('ฝ่ายผิด'),
       atFaultUncounted: countOf('ฝ่ายผิดไม่นับเคส'),
       notAtFault: countOf('ฝ่ายถูก'),
+      other,
     };
   }, [cases]);
 
@@ -353,6 +360,23 @@ const AccidentDashboardPage: React.FC = () => {
             loading={loading}
             tone="green"
             onClick={() => openCaseStatusList(`จำนวนเคสฝ่ายถูก (${caseStatusCounts.notAtFault} เคส)`, 'ฝ่ายถูก')}
+          />
+          <TopStatCard
+            index={16}
+            title="จำนวนเคสอื่นๆ (สุดวิสัย/ประมาทร่วม)"
+            value={String(caseStatusCounts.other)}
+            loading={loading}
+            tone="neutral"
+            onClick={() =>
+              setDrilldown({
+                view: 'cases',
+                title: `จำนวนเคสอื่นๆ (สุดวิสัย/ประมาทร่วม) (${caseStatusCounts.other} เคส)`,
+                cases: cases.filter((c) => {
+                  const s = (c.case_status ?? '').trim();
+                  return s !== '' && !KNOWN_CASE_STATUSES.includes(s);
+                }),
+              })
+            }
           />
         </div>
 
