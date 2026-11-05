@@ -1,4 +1,4 @@
-import { logError } from './logger.js';
+import { logError, logWarn } from './logger.js';
 import {
   getTokenFromReq,
   getTokenFromAuthHeader,
@@ -38,6 +38,31 @@ export function sendError(
   });
 }
 
+type ClientErrorReply = { status: number; error: string; message: string };
+
+const BAD_VALUE: ClientErrorReply = { status: 400, error: 'Bad request', message: 'รูปแบบข้อมูลไม่ถูกต้อง' };
+const IN_CONFLICT: ClientErrorReply = { status: 409, error: 'Conflict', message: 'ข้อมูลซ้ำหรือชนกับรายการที่มีอยู่แล้ว' };
+
+/** รหัส error ของ Postgres ที่เกิดจากข้อมูลที่ส่งมา ไม่ใช่ความผิดพลาดของระบบ */
+const POSTGRES_CLIENT_ERRORS: Record<string, ClientErrorReply> = {
+  '22P02': BAD_VALUE, // ค่าไม่ตรงชนิด เช่น id ไม่ใช่ uuid
+  '22001': { ...BAD_VALUE, message: 'ข้อมูลยาวเกินกำหนด' },
+  '22003': { ...BAD_VALUE, message: 'ตัวเลขเกินช่วงที่กำหนด' },
+  '22007': { ...BAD_VALUE, message: 'รูปแบบวันที่หรือเวลาไม่ถูกต้อง' },
+  '22008': { ...BAD_VALUE, message: 'รูปแบบวันที่หรือเวลาไม่ถูกต้อง' },
+  '23502': { ...BAD_VALUE, message: 'กรอกข้อมูลที่จำเป็นไม่ครบ' },
+  '23514': { ...BAD_VALUE, message: 'ค่าที่กรอกอยู่นอกช่วงที่อนุญาต' },
+  '23505': IN_CONFLICT,
+  '23P01': IN_CONFLICT,
+  '23503': { ...IN_CONFLICT, message: 'ข้อมูลที่อ้างอิงไม่มีอยู่ หรือยังถูกใช้งานอยู่' },
+};
+
+function clientErrorReply(e: unknown): ClientErrorReply | null {
+  if (e instanceof SyntaxError) return { ...BAD_VALUE, message: 'รูปแบบ JSON ไม่ถูกต้อง' };
+  const code = (e as { code?: unknown } | null)?.code;
+  return typeof code === 'string' ? POSTGRES_CLIENT_ERRORS[code] ?? null : null;
+}
+
 export function handleApiError(
   res: ApiRes,
   e: unknown,
@@ -46,6 +71,12 @@ export function handleApiError(
 ): void {
   const message = e instanceof Error ? e.message : String(e);
   const stack = e instanceof Error ? e.stack : undefined;
+  const clientError = clientErrorReply(e);
+  if (clientError) {
+    logWarn(context, { ...fields, message });
+    sendError(res, clientError.status, clientError.error, clientError.message);
+    return;
+  }
   logError(context, { ...fields, message, stack });
   if (isVercelProduction()) {
     res.status(500).json({ error: 'Internal server error' });

@@ -141,7 +141,12 @@ export function parseCookies(cookieHeader: string | undefined): Record<string, s
     if (idx <= 0) continue;
     const k = part.slice(0, idx).trim();
     const v = part.slice(idx + 1).trim();
-    if (k) out[k] = decodeURIComponent(v);
+    if (!k) continue;
+    try {
+      out[k] = decodeURIComponent(v);
+    } catch {
+      // cookie เสียรูปถือว่าไม่มีค่านี้ ไม่ให้ทำให้ทั้ง request ล่ม
+    }
   }
   return out;
 }
