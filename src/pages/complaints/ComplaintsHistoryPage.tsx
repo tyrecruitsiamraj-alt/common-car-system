@@ -32,6 +32,9 @@ const ComplaintsHistoryPage: React.FC = () => {
   const canDelete = hasPermission('supervisor') || canDeleteGrant;
   /** แก้ไขได้ทุก role ที่ login อยู่ (staff ขึ้นไป) */
   const canEdit = hasPermission('staff');
+  /** รายการลาแก้ไขหรือลบได้เฉพาะ supervisor ขึ้นไป ตรงกับเงื่อนไขฝั่ง backend (api/_handlers/issue-reports.ts) */
+  const canEditRow = (r: IssueReportRow) => (r.category === 'leave' ? hasPermission('supervisor') : canEdit);
+  const canDeleteRow = (r: IssueReportRow) => (r.category === 'leave' ? hasPermission('supervisor') : canDelete);
 
   useEffect(() => {
     let cancelled = false;
@@ -158,7 +161,7 @@ const ComplaintsHistoryPage: React.FC = () => {
                   {canEdit || canDelete ? (
                     <TableCell className="whitespace-nowrap">
                       <div className="flex items-center gap-1">
-                        {canEdit ? (
+                        {canEditRow(r) ? (
                           <Button
                             type="button"
                             variant="ghost"
@@ -169,7 +172,7 @@ const ComplaintsHistoryPage: React.FC = () => {
                             แก้ไข
                           </Button>
                         ) : null}
-                        {canDelete ? (
+                        {canDeleteRow(r) ? (
                           <Button
                             type="button"
                             variant="ghost"

@@ -3,14 +3,24 @@
  * นับเฉพาะพนักงานที่ตำแหน่งปัจจุบันในทะเบียนเป็น Common Driver รวมคนที่พ้นสภาพแล้ว
  * (ไม่อย่างนั้นประเภทลาออก/เกษียณจะหายไป) ส่วนตำแหน่งที่เลือกในฟอร์มไม่นำมาใช้ เพราะฟอร์มไม่ได้ตรวจกับทะเบียน
  */
-import { format, parseISO } from 'date-fns';
+import {
+  addDays,
+  eachDayOfInterval,
+  endOfMonth,
+  format,
+  parseISO,
+  startOfMonth,
+  subDays,
+  subMonths,
+} from 'date-fns';
 import { th } from 'date-fns/locale';
 import { normCode, normName } from '@/lib/driverIncidentMatch';
 import { isCommonDriverPosition } from '@/lib/driverListPositions';
 import type { CategoryBucket } from '@/lib/caseReportStats';
 import type { IssueReportRow } from '@/lib/issueReportStats';
 import { formatEmployeeDisplayName } from '@/lib/titlePrefixOptions';
-import type { Employee, EmployeeStatus } from '@/types';
+import { toYmdLocal } from '@/lib/dateTh';
+import type { DriverTmaProfile, Employee, EmployeeStatus } from '@/types';
 
 export const LEAVE_TYPES = [
   'พักร้อน',
@@ -51,7 +61,15 @@ export type LeaveRecord = {
   reason?: string;
   supervisorName?: string;
   coverPersonName?: string;
+  /** รหัสและชื่ออังกฤษของคนแทน มีเมื่อชื่อคนแทนตรงกับทะเบียนเพียงคนเดียว */
+  substituteCode?: string;
+  substituteEnglishName?: string;
+  substitutePhone?: string;
+  lineId?: string;
+  driverPictureUrl?: string;
   createdAt: string;
+  /** แถวต้นทาง ใช้ตอนแก้ไขรายการ */
+  source: IssueReportRow;
 };
 
 export type LeaveDataset = {
@@ -97,7 +115,19 @@ function optionalText(value: string | null | undefined): string | undefined {
   return value?.trim() || undefined;
 }
 
-function toLeaveRecord(row: IssueReportRow, employee: Employee): LeaveRecord {
+type EnglishNameOf = (employee: Employee) => string | undefined;
+
+function toLeaveRecord(
+  row: IssueReportRow,
+  employee: Employee,
+  byName: Map<string, Employee[]>,
+  profiles: Map<string, DriverTmaProfile>,
+  englishNameOf: EnglishNameOf,
+): LeaveRecord {
+  const profile = profiles.get(employee.id);
+  const coverPersonName = optionalText(row.data?.cover_person_name);
+  const coverHits = byName.get(normName(coverPersonName)) ?? [];
+  const substitute = coverPersonName && coverHits.length === 1 ? coverHits[0] : undefined;
   const rawType = row.data?.leave_type;
   const leaveType = normalizeLeaveType(rawType);
   // ถ้าไม่ได้กรอกเหตุผล แต่ค่าเดิมเป็นประเภทที่ไม่รู้จัก ให้เก็บค่านั้นไว้เป็นเหตุผล จะได้ไม่เสียข้อมูล
@@ -107,18 +137,34 @@ function toLeaveRecord(row: IssueReportRow, employee: Employee): LeaveRecord {
     date: row.report_date,
     employeeId: employee.id,
     employeeCode: employee.employee_code,
-    englishName: optionalText(employee.english_name),
+    englishName: englishNameOf(employee),
     thaiName: formatEmployeeDisplayName(employee),
     employeeStatus: employee.status,
     leaveType,
     reason: leaveType === OTHER_LEAVE_TYPE ? optionalText(row.data?.leave_reason) ?? fallbackReason : undefined,
     supervisorName: optionalText(row.data?.supervisor_name),
-    coverPersonName: optionalText(row.data?.cover_person_name),
+    coverPersonName,
+    substituteCode: substitute?.employee_code,
+    substituteEnglishName: substitute ? englishNameOf(substitute) : undefined,
+    substitutePhone: optionalText(row.data?.cover_phone),
+    lineId: optionalText(profile?.line_id),
+    driverPictureUrl: optionalText(profile?.driver_picture_url),
     createdAt: row.created_at,
+    source: row,
   };
 }
 
-export function buildLeaveDataset(rows: IssueReportRow[], employees: Employee[]): LeaveDataset {
+export function buildLeaveDataset(
+  rows: IssueReportRow[],
+  employees: Employee[],
+  tmaProfiles: DriverTmaProfile[] = [],
+): LeaveDataset {
+  const profiles = new Map(
+    tmaProfiles.flatMap((p) => (p.employee_id ? ([[p.employee_id, p]] as [string, DriverTmaProfile][]) : [])),
+  );
+  /** ชื่ออังกฤษ: ใช้จากทะเบียนก่อน ถ้าไม่มีจึงใช้จาก Database TMA */
+  const englishNameOf: EnglishNameOf = (e) =>
+    optionalText(e.english_name) ?? optionalText(profiles.get(e.id)?.driver_name_eng);
   const byCode = groupBy(employees, (e) => normCode(e.employee_code));
   const byName = groupBy(employees, (e) => normName(`${e.first_name} ${e.last_name}`));
 
@@ -129,7 +175,7 @@ export function buildLeaveDataset(rows: IssueReportRow[], employees: Employee[])
     const employee = matchEmployee(row, byCode, byName);
     if (!employee) excludedUnmatched += 1;
     else if (!isCommonDriverPosition(employee.position)) excludedNotCommon += 1;
-    else records.push(toLeaveRecord(row, employee));
+    else records.push(toLeaveRecord(row, employee, byName, profiles, englishNameOf));
   }
   return { records, excludedNotCommon, excludedUnmatched };
 }
@@ -202,4 +248,87 @@ export function findPeakIndex(points: { count: number }[]): number {
     }
   });
   return peak;
+}
+
+export type LeaveFilters = {
+  from?: string;
+  to?: string;
+  types: LeaveType[];
+  employeeId: string;
+  status: EmployeeStatus | 'all';
+  supervisor: string;
+};
+
+export const EMPTY_LEAVE_FILTERS: LeaveFilters = {
+  types: [],
+  employeeId: '',
+  status: 'all',
+  supervisor: '',
+};
+
+export function hasActiveLeaveFilters(f: LeaveFilters): boolean {
+  return Boolean(f.from || f.to || f.types.length || f.employeeId || f.supervisor || f.status !== 'all');
+}
+
+/** เมื่อเลือกช่วงวันที่ รายการที่ไม่มีวันที่ลาจะไม่ถูกนับ */
+export function applyLeaveFilters(records: LeaveRecord[], f: LeaveFilters): LeaveRecord[] {
+  return records.filter((r) => {
+    if (f.from && (!r.date || r.date < f.from)) return false;
+    if (f.to && (!r.date || r.date > f.to)) return false;
+    if (f.types.length > 0 && !f.types.includes(r.leaveType)) return false;
+    if (f.employeeId && r.employeeId !== f.employeeId) return false;
+    if (f.status !== 'all' && r.employeeStatus !== f.status) return false;
+    if (f.supervisor && r.supervisorName !== f.supervisor) return false;
+    return true;
+  });
+}
+
+export function withoutDateFilter(f: LeaveFilters): LeaveFilters {
+  return { ...f, from: undefined, to: undefined };
+}
+
+export type LeaveQuickRange = 'today' | 'last7' | 'thisMonth' | 'lastMonth' | 'all';
+
+export function quickLeaveRange(key: LeaveQuickRange, now = new Date()): { from?: string; to?: string } {
+  switch (key) {
+    case 'today':
+      return { from: toYmdLocal(now), to: toYmdLocal(now) };
+    case 'last7':
+      return { from: toYmdLocal(subDays(now, 6)), to: toYmdLocal(now) };
+    case 'thisMonth':
+      return { from: toYmdLocal(startOfMonth(now)), to: toYmdLocal(endOfMonth(now)) };
+    case 'lastMonth': {
+      const previous = subMonths(now, 1);
+      return { from: toYmdLocal(startOfMonth(previous)), to: toYmdLocal(endOfMonth(previous)) };
+    }
+    case 'all':
+    default:
+      return {};
+  }
+}
+
+export type LeaveDailyPoint = { ymd: string; label: string; count: number };
+
+/** จำนวนรายการของทุกวันในช่วง รวมวันที่ไม่มีรายการด้วย */
+export function buildDailySeries(records: LeaveRecord[], fromYmd: string, toYmd: string): LeaveDailyPoint[] {
+  if (fromYmd > toYmd) return [];
+  const counts = new Map<string, number>();
+  for (const r of records) {
+    if (r.date) counts.set(r.date, (counts.get(r.date) ?? 0) + 1);
+  }
+  return eachDayOfInterval({ start: parseISO(fromYmd), end: parseISO(toYmd) }).map((day) => {
+    const ymd = toYmdLocal(day);
+    return { ymd, label: format(day, 'd MMM', { locale: th }), count: counts.get(ymd) ?? 0 };
+  });
+}
+
+/** ช่วงเริ่มต้นของกราฟรายวันเมื่อยังไม่เลือกวันที่: 30 วันล่าสุด */
+export function defaultDailyRange(now = new Date()): { from: string; to: string } {
+  return { from: toYmdLocal(subDays(now, 29)), to: toYmdLocal(now) };
+}
+
+/** ช่วงที่ซูมเมื่อกดวันบนกราฟ: วันนั้น -2 ถึง +2 วัน */
+export function dailyZoomRange(ymd: string): { from: string; to: string } {
+  const day = parseISO(ymd);
+  return { from: toYmdLocal(subDays(day, 2)), to: toYmdLocal(addDays(day, 2)) };
 }

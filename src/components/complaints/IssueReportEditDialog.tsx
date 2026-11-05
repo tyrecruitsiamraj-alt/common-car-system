@@ -62,6 +62,8 @@ const IssueReportEditDialog: React.FC<Props> = ({ row, config, open, onOpenChang
         body: JSON.stringify({
           report_date: values[config.primaryDateField] || null,
           position: values.position ?? row.position,
+          // Dashboard การลาจับคู่พนักงานจากคอลัมน์นี้ ถ้าไม่ส่งไป การแก้ช่องรหัสจะไม่มีผล
+          employee_id: values.employee_id ?? row.employee_id,
           data,
         }),
       });

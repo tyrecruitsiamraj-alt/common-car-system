@@ -1,53 +1,63 @@
 import { format } from 'date-fns';
-import { downloadExcelFile, type ExcelSheetInput } from '@/lib/exportExcel';
-import { LEAVE_TYPES, countDistinctEmployees, type LeaveRecord } from '@/lib/leaveDashboard';
-import type { EmployeeStatus } from '@/types';
+import { downloadExcelFile, ymdToExcelSerial, type ExcelSheetInput } from '@/lib/exportExcel';
+import type { LeaveRecord, LeaveType } from '@/lib/leaveDashboard';
 
-const EMPLOYEE_STATUS_LABEL: Record<EmployeeStatus, string> = {
-  active: 'ทำงานอยู่',
-  inactive: 'ลาออก/พ้นสภาพ',
-  suspended: 'พักงาน',
+/** ชื่อประเภทการลาภาษาอังกฤษในไฟล์ Excel */
+const LEAVE_TYPE_ENGLISH: Record<LeaveType, string> = {
+  พักร้อน: 'Annual Leave',
+  ลาป่วย: 'Sick Leave',
+  ลากิจ: 'Private Leave',
+  ลาพิเศษ: 'Special Leave',
+  'Day Off': 'Day Off',
+  เปลี่ยนตัว: 'Driver Replacement',
+  เกษียณ: 'Retirement',
+  ลาออก: 'Resignation',
+  อื่นๆ: 'Other',
 };
 
-/** ไม่ใส่เบอร์โทร เพราะทุกคนที่ login ดาวน์โหลดไฟล์นี้ได้ */
+const COLUMN_WIDTHS: Record<string, number> = {
+  ID: 10,
+  'Driver Name Eng': 26,
+  Date: 11,
+  'Leave Type': 18,
+  'Leave Detail': 24,
+  'User Name': 12,
+  Substitute_ID: 13,
+  Substitute_Name: 24,
+  Substitute_Tel: 14,
+  Line: 16,
+  'Driver Pic': 40,
+};
+
 function toSheetRow(r: LeaveRecord) {
   return {
-    วันที่ลา: r.date ?? '',
-    รหัสพนักงาน: r.employeeCode,
-    'Name (English)': r.englishName ?? '',
-    ชื่อภาษาไทย: r.thaiName,
-    สถานะพนักงาน: EMPLOYEE_STATUS_LABEL[r.employeeStatus] ?? r.employeeStatus,
-    ประเภทการลา: r.leaveType,
-    เหตุผล: r.reason ?? '',
-    ชื่อนาย: r.supervisorName ?? '',
-    ชื่อคนแทน: r.coverPersonName ?? '',
-    วันที่บันทึก: r.createdAt,
+    ID: r.employeeCode,
+    // ทะเบียนบางคนยังไม่มีชื่ออังกฤษ จึงใช้ชื่อไทยแทน เพื่อไม่ให้ช่องชื่อว่าง
+    'Driver Name Eng': r.englishName ?? r.thaiName,
+    Date: ymdToExcelSerial(r.date),
+    'Leave Type': LEAVE_TYPE_ENGLISH[r.leaveType],
+    'Leave Detail': r.reason ?? r.leaveType,
+    // Dashboard นี้มีเฉพาะพนักงาน Common
+    'User Name': 'Common',
+    Substitute_ID: r.substituteCode ?? '',
+    Substitute_Name: r.substituteEnglishName ?? r.coverPersonName ?? '',
+    Substitute_Tel: r.substitutePhone ?? '',
+    Line: r.lineId ?? '',
+    'Driver Pic': r.driverPictureUrl ?? '',
   };
 }
 
-/** ชีตสรุป + แยกชีตตามประเภทการลา ทุกประเภทมีชีตเสมอ แม้ยังไม่มีรายการ */
+/** ชีตเดียวตามแบบฟอร์มของผู้ใช้ เรียงตามรหัสพนักงาน แล้วเรียงวันที่จากเก่าไปใหม่ */
 export function buildLeaveExcelSheets(records: LeaveRecord[]): ExcelSheetInput[] {
-  const byType = LEAVE_TYPES.map((leaveType) => ({
-    leaveType,
-    rows: records.filter((r) => r.leaveType === leaveType),
-  }));
-
-  const summaryRows = [
-    ...byType.map(({ leaveType, rows }) => ({
-      ประเภทการลา: leaveType,
-      จำนวนรายการ: rows.length,
-      จำนวนพนักงาน: countDistinctEmployees(rows),
-    })),
-    {
-      ประเภทการลา: 'รวม',
-      จำนวนรายการ: records.length,
-      จำนวนพนักงาน: countDistinctEmployees(records),
-    },
-  ];
-
+  const sorted = [...records].sort(
+    (a, b) => a.employeeCode.localeCompare(b.employeeCode) || (a.date ?? '').localeCompare(b.date ?? ''),
+  );
   return [
-    { sheetName: 'สรุป', rows: summaryRows },
-    ...byType.map(({ leaveType, rows }) => ({ sheetName: leaveType, rows: rows.map(toSheetRow) })),
+    {
+      sheetName: 'Leave',
+      rows: sorted.map(toSheetRow),
+      format: { dateColumns: ['Date'], dateFormat: 'd-mmm-yy', columnWidths: COLUMN_WIDTHS, autoFilter: true },
+    },
   ];
 }
 

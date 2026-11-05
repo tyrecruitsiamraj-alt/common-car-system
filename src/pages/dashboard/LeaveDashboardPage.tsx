@@ -1,16 +1,25 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { AlertCircle, Info, RefreshCw } from 'lucide-react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { toast } from 'sonner';
+import { AlertCircle, ExternalLink, Info, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import TopStatCard from '@/components/dashboard/shared/TopStatCard';
 import CategoryBreakdownChart from '@/components/dashboard/shared/CategoryBreakdownChart';
-import LeaveMonthlyTrendChart from '@/components/dashboard/leaves/LeaveMonthlyTrendChart';
+import IssueReportEditDialog from '@/components/complaints/IssueReportEditDialog';
+import LeaveDailyTrendChart from '@/components/dashboard/leaves/LeaveDailyTrendChart';
+import LeaveFilterBar from '@/components/dashboard/leaves/LeaveFilterBar';
+import LeaveTrendChart from '@/components/dashboard/leaves/LeaveTrendChart';
 import LeaveRecordTable from '@/components/dashboard/leaves/LeaveRecordTable';
 import DetailListDialog from '@/components/shared/DetailListDialog';
 import ExportExcelButton from '@/components/shared/ExportExcelButton';
+import { useAuth } from '@/contexts/AuthContext';
 import { apiFetch } from '@/lib/apiFetch';
 import { buildMonthlyTrend } from '@/lib/caseReportStats';
+import { ISSUE_REPORT_TYPES } from '@/lib/issueReportConfig';
 import type { IssueReportRow } from '@/lib/issueReportStats';
 import {
+  EMPTY_LEAVE_FILTERS,
+  applyLeaveFilters,
   buildLeaveDataset,
   countByLeaveType,
   countDistinctEmployees,
@@ -18,12 +27,14 @@ import {
   groupLeaveByEmployee,
   leaveRecordName,
   topLeaveType,
+  withoutDateFilter,
   type LeaveDataset,
+  type LeaveFilters,
   type LeaveRecord,
   type LeaveType,
 } from '@/lib/leaveDashboard';
 import { exportLeavesExcel } from '@/lib/leaveExcelExport';
-import type { Employee } from '@/types';
+import type { DriverTmaProfile, Employee } from '@/types';
 
 /** เพดานต่อหน้าของแต่ละ API — ดึงจนครบ เพื่อไม่ให้ยอดสถิติขาดโดยไม่รู้ตัว */
 const LEAVE_PAGE_SIZE = 2000;
@@ -38,6 +49,23 @@ async function fetchAllPages<T extends { id: string }>(path: string, pageSize: n
     const batch = (await r.json()) as T[];
     batch.forEach((row) => byId.set(row.id, row));
     if (batch.length < pageSize) return [...byId.values()];
+  }
+}
+
+/** รับข้อมูลใหม่อัตโนมัติเมื่อกลับมาจากแท็บฟอร์ม แต่ไม่ถี่กว่านี้ */
+const AUTO_REFRESH_MIN_MS = 15_000;
+const LEAVE_FORM_PATH = '/complaints/leave';
+const LEAVE_FORM_CONFIG = ISSUE_REPORT_TYPES.find((t) => t.slug === 'leave');
+
+/** ข้อมูล Line และรูปคนขับเป็นข้อมูลเสริม ถ้าโหลดไม่ได้หน้ายังต้องใช้งานได้ */
+async function fetchTmaProfiles(): Promise<DriverTmaProfile[]> {
+  try {
+    const r = await apiFetch('/api/driver-tma-profiles');
+    if (!r.ok) return [];
+    const data = (await r.json()) as unknown;
+    return Array.isArray(data) ? (data as DriverTmaProfile[]) : [];
+  } catch {
+    return [];
   }
 }
 
@@ -65,22 +93,32 @@ const LeaveDashboardPage: React.FC = () => {
   const [dataset, setDataset] = useState<LeaveDataset>(EMPTY_DATASET);
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
-  const [refreshKey, setRefreshKey] = useState(0);
+  const [reload, setReload] = useState({ key: 0, silent: false });
   const [drilldown, setDrilldown] = useState<DrilldownState>(null);
+  const [filters, setFilters] = useState<LeaveFilters>(EMPTY_LEAVE_FILTERS);
+  const [editing, setEditing] = useState<LeaveRecord | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const lastLoadedAt = useRef(0);
+  const { hasPermission } = useAuth();
+  const canManage = hasPermission('supervisor');
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
-    setFailed(false);
+    if (!reload.silent) setLoading(true);
     Promise.all([
       fetchAllPages<IssueReportRow>('/api/issue-reports?category=leave', LEAVE_PAGE_SIZE),
       fetchAllPages<Employee>('/api/employees', EMPLOYEE_PAGE_SIZE),
+      fetchTmaProfiles(),
     ])
-      .then(([rows, employees]) => {
-        if (!cancelled) setDataset(buildLeaveDataset(rows, employees));
+      .then(([rows, employees, profiles]) => {
+        if (cancelled) return;
+        setDataset(buildLeaveDataset(rows, employees, profiles));
+        setFailed(false);
+        lastLoadedAt.current = Date.now();
       })
       .catch(() => {
-        if (cancelled) return;
+        // รีเฟรชเบื้องหลังล้มเหลวให้คงข้อมูลเดิมไว้ ไม่ล้างหน้าจอ
+        if (cancelled || reload.silent) return;
         setDataset(EMPTY_DATASET);
         setFailed(true);
       })
@@ -90,18 +128,37 @@ const LeaveDashboardPage: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [refreshKey]);
+  }, [reload]);
 
-  const { records, excludedNotCommon, excludedUnmatched } = dataset;
+  /** กลับมาจากแท็บฟอร์มแจ้งลาแล้วเห็นรายการใหม่ได้โดยไม่ต้องกดรีเฟรช */
+  useEffect(() => {
+    const onFocus = () => {
+      if (Date.now() - lastLoadedAt.current < AUTO_REFRESH_MIN_MS) return;
+      setReload((r) => ({ key: r.key + 1, silent: true }));
+    };
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
+  }, []);
+
+  const reloadSilently = () => setReload((r) => ({ key: r.key + 1, silent: true }));
+
+  const allRecords = dataset.records;
+  const { excludedNotCommon, excludedUnmatched } = dataset;
   const excludedTotal = excludedNotCommon + excludedUnmatched;
+  const records = useMemo(() => applyLeaveFilters(allRecords, filters), [allRecords, filters]);
+  /** กราฟรายวันและรายเดือนกำหนดช่วงวันที่เอง จึงใช้เฉพาะตัวกรองอื่น */
+  const recordsAnyDate = useMemo(
+    () => applyLeaveFilters(allRecords, withoutDateFilter(filters)),
+    [allRecords, filters],
+  );
 
   const typeBuckets = useMemo(() => countByLeaveType(records), [records]);
   const topType = useMemo(() => topLeaveType(records), [records]);
   const distinctEmployees = useMemo(() => countDistinctEmployees(records), [records]);
   const employeeGroups = useMemo(() => groupLeaveByEmployee(records), [records]);
   const trend = useMemo(
-    () => buildMonthlyTrend(records.flatMap((r) => (r.date ? [r.date] : []))),
-    [records],
+    () => buildMonthlyTrend(recordsAnyDate.flatMap((r) => (r.date ? [r.date] : []))),
+    [recordsAnyDate],
   );
   const missingEnglishName = useMemo(() => records.filter((r) => !r.englishName).length, [records]);
 
@@ -112,6 +169,34 @@ const LeaveDashboardPage: React.FC = () => {
   function openType(type: string, back?: 'types') {
     const matched = recordsOfType(type);
     setDrilldown({ view: 'records', title: `${type} (${matched.length} รายการ)`, records: matched, back });
+  }
+
+  function openDay(ymd: string) {
+    const matched = recordsAnyDate.filter((r) => r.date === ymd);
+    setDrilldown({
+      view: 'records',
+      title: `${formatLeaveDate(ymd)} (${matched.length} รายการ)`,
+      records: matched,
+    });
+  }
+
+  async function handleDelete(record: LeaveRecord) {
+    const label = `${leaveRecordName(record)} — ${record.leaveType} (${formatLeaveDate(record.date)})`;
+    if (!window.confirm(`ยืนยันลบรายการลานี้?\n${label}\n\nการลบนี้ย้อนกลับไม่ได้`)) return;
+    setDeletingId(record.id);
+    try {
+      const r = await apiFetch(`/api/issue-reports?id=${encodeURIComponent(record.id)}`, { method: 'DELETE' });
+      if (!r.ok) {
+        const body = (await r.json().catch(() => ({}))) as { message?: string; error?: string };
+        throw new Error(body.message || body.error || 'ลบไม่สำเร็จ');
+      }
+      toast.success('ลบรายการลาแล้ว');
+      reloadSilently();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'ลบไม่สำเร็จ');
+    } finally {
+      setDeletingId(null);
+    }
   }
 
   function percentOf(count: number): number {
@@ -167,7 +252,7 @@ const LeaveDashboardPage: React.FC = () => {
           <div>
             <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-slate-900">สรุปการลา</h1>
             <p className="mt-1 text-sm text-slate-500 max-w-2xl">
-              ภาพรวมการลาของพนักงาน Common แยกตามประเภท แนวโน้มรายเดือน และรายการทั้งหมด นับเป็นจำนวนครั้งที่แจ้งลา
+              ภาพรวมการลาของพนักงาน Common แยกตามประเภทและแนวโน้ม นับเป็นจำนวนครั้งที่แจ้งลา
             </p>
           </div>
           <div className="flex flex-col sm:flex-row gap-2 w-full lg:w-auto">
@@ -175,7 +260,7 @@ const LeaveDashboardPage: React.FC = () => {
               type="button"
               variant="outline"
               className="bg-white"
-              onClick={() => setRefreshKey((k) => k + 1)}
+              onClick={() => setReload((r) => ({ key: r.key + 1, silent: false }))}
               disabled={loading}
             >
               <RefreshCw className="h-4 w-4 mr-2" />
@@ -186,6 +271,12 @@ const LeaveDashboardPage: React.FC = () => {
               onClick={() => exportLeavesExcel(records)}
               disabled={loading || records.length === 0}
             />
+            <Button type="button" variant="outline" className="bg-white" asChild>
+              <Link to={LEAVE_FORM_PATH} target="_blank" rel="noreferrer">
+                <ExternalLink className="h-4 w-4 mr-2" />
+                เปิดฟอร์มแจ้งลา
+              </Link>
+            </Button>
           </div>
         </div>
 
@@ -215,6 +306,13 @@ const LeaveDashboardPage: React.FC = () => {
             </div>
           </div>
         ) : null}
+
+        <LeaveFilterBar
+          records={allRecords}
+          filters={filters}
+          onChange={setFilters}
+          matchedCount={records.length}
+        />
 
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
           <TopStatCard
@@ -260,10 +358,18 @@ const LeaveDashboardPage: React.FC = () => {
           ))}
         </div>
 
+        <LeaveDailyTrendChart
+          records={recordsAnyDate}
+          from={filters.from}
+          to={filters.to}
+          loading={loading}
+          onOpenDay={openDay}
+        />
+
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-          <LeaveMonthlyTrendChart
+          <LeaveTrendChart
             title="แนวโน้มการลารายเดือน"
-            subtitle="จำนวนครั้งที่แจ้งลา — 6 เดือนล่าสุด"
+            subtitle="6 เดือนล่าสุดเสมอ ไม่ขึ้นกับช่วงวันที่ที่เลือก"
             data={trend}
             loading={loading}
           />
@@ -276,7 +382,14 @@ const LeaveDashboardPage: React.FC = () => {
           />
         </div>
 
-        <LeaveRecordTable records={records} loading={loading} />
+        <LeaveRecordTable
+          records={records}
+          loading={loading}
+          canManage={canManage}
+          deletingId={deletingId}
+          onEdit={setEditing}
+          onDelete={(record) => void handleDelete(record)}
+        />
       </div>
 
       <DetailListDialog
@@ -288,6 +401,22 @@ const LeaveDashboardPage: React.FC = () => {
         items={dialogItems}
         onBack={dialogBack ? () => setDrilldown({ view: dialogBack }) : undefined}
       />
+
+      {editing && LEAVE_FORM_CONFIG ? (
+        <IssueReportEditDialog
+          key={editing.id}
+          row={editing.source}
+          config={LEAVE_FORM_CONFIG}
+          open
+          onOpenChange={(open) => {
+            if (!open) setEditing(null);
+          }}
+          onSaved={() => {
+            setEditing(null);
+            reloadSilently();
+          }}
+        />
+      ) : null}
     </div>
   );
 };

@@ -1,18 +1,29 @@
 import { describe, expect, it } from 'vitest';
+import * as XLSX from 'xlsx';
+import { buildExcelWorkbook, ymdToExcelSerial } from '@/lib/exportExcel';
 import {
+  EMPTY_LEAVE_FILTERS,
   LEAVE_TYPES,
+  applyLeaveFilters,
+  buildDailySeries,
   buildLeaveDataset,
   countByLeaveType,
   countDistinctEmployees,
+  dailyZoomRange,
+  defaultDailyRange,
   findPeakIndex,
   groupLeaveByEmployee,
+  hasActiveLeaveFilters,
   leaveRecordName,
   normalizeLeaveType,
+  quickLeaveRange,
   topLeaveType,
+  withoutDateFilter,
+  type LeaveFilters,
 } from '@/lib/leaveDashboard';
 import { buildLeaveExcelSheets } from '@/lib/leaveExcelExport';
 import type { IssueReportRow } from '@/lib/issueReportStats';
-import type { Employee } from '@/types';
+import type { DriverTmaProfile, Employee } from '@/types';
 
 function emp(overrides: Partial<Employee> = {}): Employee {
   return {
@@ -186,25 +197,166 @@ describe('สถิติ', () => {
   });
 });
 
-describe('buildLeaveExcelSheets', () => {
+describe('ตัวกรอง', () => {
+  const employees = [emp(), emp({ id: 'e2', employee_code: 'SR 0002', last_name: 'สอง', status: 'inactive' })];
   const { records } = buildLeaveDataset(
-    [row({}, { leave_type: 'ลากิจพิเศษ', leave_phone: '0811111111', cover_phone: '0822222222', cover_person_name: 'คนแทน' })],
-    [emp()],
+    [
+      row({ id: 'r1', report_date: '2026-10-01' }, { leave_type: 'ลาป่วย', supervisor_name: 'นายเอ' }),
+      row({ id: 'r2', report_date: '2026-10-15' }, { leave_type: 'ลากิจ', supervisor_name: 'นายบี' }),
+      row({ id: 'r3', report_date: '2026-11-01', employee_id: 'SR 0002', employee_name: 'ทดสอบ สอง' }, { leave_type: 'ลาออก' }),
+      row({ id: 'r4', report_date: undefined }, { leave_type: 'ลาป่วย' }),
+    ],
+    employees,
   );
-  const sheets = buildLeaveExcelSheets(records);
+  const ids = (f: Partial<LeaveFilters>) =>
+    applyLeaveFilters(records, { ...EMPTY_LEAVE_FILTERS, ...f }).map((r) => r.id);
 
-  it('มีชีตสรุปและแยกชีตครบทุกประเภท', () => {
-    expect(sheets.map((s) => s.sheetName)).toEqual(['สรุป', ...LEAVE_TYPES]);
-    expect(sheets[0].rows.at(-1)).toEqual({ ประเภทการลา: 'รวม', จำนวนรายการ: 1, จำนวนพนักงาน: 1 });
+  it('ไม่มีตัวกรองได้ครบทุกรายการ', () => {
+    expect(ids({})).toEqual(['r1', 'r2', 'r3', 'r4']);
+    expect(hasActiveLeaveFilters(EMPTY_LEAVE_FILTERS)).toBe(false);
   });
 
-  it('มีรหัสและชื่ออังกฤษ แต่ไม่มีเบอร์โทร', () => {
-    const special = sheets.find((s) => s.sheetName === 'ลาพิเศษ');
-    expect(special?.rows[0]).toMatchObject({
-      รหัสพนักงาน: 'SR 0001',
-      'Name (English)': 'Test One',
-      ชื่อคนแทน: 'คนแทน',
+  it('กรองช่วงวันที่แบบรวมวันต้นและวันท้าย และตัดรายการที่ไม่มีวันที่', () => {
+    expect(ids({ from: '2026-10-01', to: '2026-10-15' })).toEqual(['r1', 'r2']);
+    expect(ids({ from: '2026-10-02' })).toEqual(['r2', 'r3']);
+  });
+
+  it('กรองประเภท พนักงาน สถานะ และชื่อนาย', () => {
+    expect(ids({ types: ['ลาป่วย', 'ลาออก'] })).toEqual(['r1', 'r3', 'r4']);
+    expect(ids({ employeeId: 'e2' })).toEqual(['r3']);
+    expect(ids({ status: 'inactive' })).toEqual(['r3']);
+    expect(ids({ supervisor: 'นายบี' })).toEqual(['r2']);
+  });
+
+  it('รวมหลายตัวกรองพร้อมกัน และเอาเฉพาะช่วงวันที่ออกได้', () => {
+    const filters: LeaveFilters = { ...EMPTY_LEAVE_FILTERS, from: '2026-11-01', types: ['ลาป่วย'] };
+    expect(hasActiveLeaveFilters(filters)).toBe(true);
+    expect(applyLeaveFilters(records, filters)).toHaveLength(0);
+    expect(applyLeaveFilters(records, withoutDateFilter(filters)).map((r) => r.id)).toEqual(['r1', 'r4']);
+  });
+
+  it('ช่วงวันที่ลัดคำนวณตามเวลาท้องถิ่น', () => {
+    const now = new Date(2026, 2, 15, 23, 30);
+    expect(quickLeaveRange('today', now)).toEqual({ from: '2026-03-15', to: '2026-03-15' });
+    expect(quickLeaveRange('last7', now)).toEqual({ from: '2026-03-09', to: '2026-03-15' });
+    expect(quickLeaveRange('thisMonth', now)).toEqual({ from: '2026-03-01', to: '2026-03-31' });
+    expect(quickLeaveRange('lastMonth', now)).toEqual({ from: '2026-02-01', to: '2026-02-28' });
+    expect(quickLeaveRange('all', now)).toEqual({});
+  });
+});
+
+describe('กราฟรายวัน', () => {
+  const { records } = buildLeaveDataset(
+    [row({ id: 'r1', report_date: '2026-03-01' }), row({ id: 'r2', report_date: '2026-03-01' }), row({ id: 'r3', report_date: '2026-03-03' })],
+    [emp()],
+  );
+
+  it('มีครบทุกวันในช่วง รวมวันที่ไม่มีรายการ และข้ามเดือนได้', () => {
+    const points = buildDailySeries(records, '2026-02-28', '2026-03-03');
+    expect(points.map((p) => [p.ymd, p.count])).toEqual([
+      ['2026-02-28', 0],
+      ['2026-03-01', 2],
+      ['2026-03-02', 0],
+      ['2026-03-03', 1],
+    ]);
+  });
+
+  it('ช่วงกลับด้านได้ผลว่าง', () => {
+    expect(buildDailySeries(records, '2026-03-03', '2026-03-01')).toEqual([]);
+  });
+
+  it('ซูมเป็น -2 ถึง +2 วัน และข้ามเดือนได้', () => {
+    expect(dailyZoomRange('2026-03-01')).toEqual({ from: '2026-02-27', to: '2026-03-03' });
+    expect(buildDailySeries(records, dailyZoomRange('2026-03-01').from, dailyZoomRange('2026-03-01').to)).toHaveLength(5);
+  });
+
+  it('ค่าเริ่มต้นคือ 30 วันล่าสุด', () => {
+    const range = defaultDailyRange(new Date(2026, 10, 5));
+    expect(range).toEqual({ from: '2026-10-07', to: '2026-11-05' });
+    expect(buildDailySeries([], range.from, range.to)).toHaveLength(30);
+  });
+});
+
+describe('ข้อมูลจาก Database TMA และคนแทน', () => {
+  const profile = (o: Partial<DriverTmaProfile> = {}): DriverTmaProfile =>
+    ({ id: 'p1', employee_id: 'e1', line_id: 'demo.line', driver_picture_url: 'https://example.test/p.jpg', ...o }) as DriverTmaProfile;
+
+  it('เติม Line และรูปคนขับจากโปรไฟล์ของคนนั้น', () => {
+    const { records } = buildLeaveDataset([row()], [emp()], [profile()]);
+    expect(records[0].lineId).toBe('demo.line');
+    expect(records[0].driverPictureUrl).toBe('https://example.test/p.jpg');
+  });
+
+  it('ใช้ชื่ออังกฤษจากทะเบียนก่อน ถ้าไม่มีจึงใช้จาก TMA', () => {
+    const fromTma = buildLeaveDataset([row()], [emp({ english_name: undefined })], [profile({ driver_name_eng: 'Tma Name' })]);
+    expect(fromTma.records[0].englishName).toBe('Tma Name');
+    const fromRegistry = buildLeaveDataset([row()], [emp()], [profile({ driver_name_eng: 'Tma Name' })]);
+    expect(fromRegistry.records[0].englishName).toBe('Test One');
+  });
+
+  it('จับคู่คนแทนด้วยชื่อที่ตรงคนเดียว ถ้าไม่เจอเก็บชื่อตามที่กรอก', () => {
+    const employees = [emp(), emp({ id: 'e2', employee_code: 'SR 0002', last_name: 'สอง', english_name: 'Test Two', position: 'Temp Driver' })];
+    const matched = buildLeaveDataset([row({}, { cover_person_name: 'นาย ทดสอบ สอง', cover_phone: '0812345678' })], employees);
+    expect(matched.records[0]).toMatchObject({ substituteCode: 'SR 0002', substituteEnglishName: 'Test Two', substitutePhone: '0812345678' });
+    const unmatched = buildLeaveDataset([row({}, { cover_person_name: 'คนนอกทะเบียน' })], employees);
+    expect(unmatched.records[0].substituteCode).toBeUndefined();
+    expect(unmatched.records[0].coverPersonName).toBe('คนนอกทะเบียน');
+  });
+});
+
+describe('buildLeaveExcelSheets', () => {
+  const employees = [emp(), emp({ id: 'e2', employee_code: 'SR 0000', last_name: 'สอง', english_name: undefined, title_prefix: 'นาย' })];
+  const { records } = buildLeaveDataset(
+    [
+      row({ id: 'r1', report_date: '2026-01-02' }, { leave_type: 'Day Off', leave_phone: '0811111111', cover_phone: '0822222222', cover_person_name: 'คนแทน' }),
+      row({ id: 'r2', report_date: '2026-01-01' }, { leave_type: 'อื่นๆ', leave_reason: 'ธุระครอบครัว' }),
+      row({ id: 'r3', report_date: '2026-01-05', employee_id: 'SR 0000', employee_name: 'ทดสอบ สอง' }, { leave_type: 'ลาป่วย' }),
+    ],
+    employees,
+    [{ id: 'p1', employee_id: 'e1', line_id: 'demo.line' } as DriverTmaProfile],
+  );
+  const [sheet] = buildLeaveExcelSheets(records);
+
+  it('เป็นชีตเดียว คอลัมน์ตรงตามแบบ', () => {
+    expect(buildLeaveExcelSheets(records)).toHaveLength(1);
+    expect(Object.keys(sheet.rows[0])).toEqual([
+      'ID', 'Driver Name Eng', 'Date', 'Leave Type', 'Leave Detail', 'User Name',
+      'Substitute_ID', 'Substitute_Name', 'Substitute_Tel', 'Line', 'Driver Pic',
+    ]);
+  });
+
+  it('เรียงตามรหัส แล้วเรียงวันที่จากเก่าไปใหม่', () => {
+    expect(sheet.rows.map((r) => [r.ID, r.Date])).toEqual([
+      ['SR 0000', ymdToExcelSerial('2026-01-05')],
+      ['SR 0001', ymdToExcelSerial('2026-01-01')],
+      ['SR 0001', ymdToExcelSerial('2026-01-02')],
+    ]);
+  });
+
+  it('แปลงค่าตามแบบ: ประเภทอังกฤษ รายละเอียดภาษาไทย ตำแหน่ง Common และเบอร์คนแทน', () => {
+    expect(sheet.rows[2]).toMatchObject({
+      'Driver Name Eng': 'Test One',
+      'Leave Type': 'Day Off',
+      'Leave Detail': 'Day Off',
+      'User Name': 'Common',
+      Substitute_Name: 'คนแทน',
+      Substitute_Tel: '0822222222',
+      Line: 'demo.line',
     });
-    expect(JSON.stringify(sheets)).not.toMatch(/081|082|080/);
+    expect(sheet.rows[1]).toMatchObject({ 'Leave Type': 'Other', 'Leave Detail': 'ธุระครอบครัว' });
+    expect(sheet.rows[0]).toMatchObject({ 'Driver Name Eng': 'นาย ทดสอบ สอง', 'Leave Type': 'Sick Leave', 'Leave Detail': 'ลาป่วย' });
+  });
+
+  it('ไม่มีเบอร์ของคนลา', () => {
+    expect(JSON.stringify(sheet.rows)).not.toContain('0811111111');
+  });
+
+  it('ไฟล์จริงแสดงวันที่แบบ 1-Jan-26 เก็บเป็นวันที่จริง และมีปุ่มกรอง', () => {
+    const wb = buildExcelWorkbook([sheet]);
+    const bytes = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
+    const ws = XLSX.read(bytes, { type: 'array', cellNF: true, cellText: true }).Sheets.Leave;
+    expect(ws.C3.t).toBe('n');
+    expect(ws.C3.w).toBe('1-Jan-26');
+    expect(ws['!autofilter']?.ref).toBe('A1:K4');
   });
 });

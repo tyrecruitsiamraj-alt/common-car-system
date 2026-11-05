@@ -1,17 +1,24 @@
 import React, { useEffect, useState } from 'react';
+import { Pencil, Trash2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import DashboardPaginationFooter from '@/components/dashboard/analytics/DashboardPaginationFooter';
 import { formatLeaveDate, leaveRecordName, type LeaveRecord } from '@/lib/leaveDashboard';
 
 const PAGE_SIZE = 10;
-const COLUMN_COUNT = 6;
 
 type Props = {
   records: LeaveRecord[];
   loading?: boolean;
+  /** Supervisor และ Admin แก้ไขหรือลบได้ ฝั่ง backend ตรวจสิทธิ์ซ้ำอีกครั้ง */
+  canManage?: boolean;
+  deletingId?: string | null;
+  onEdit?: (record: LeaveRecord) => void;
+  onDelete?: (record: LeaveRecord) => void;
 };
 
-const LeaveRecordTable: React.FC<Props> = ({ records, loading }) => {
+const LeaveRecordTable: React.FC<Props> = ({ records, loading, canManage, deletingId, onEdit, onDelete }) => {
+  const columnCount = canManage ? 7 : 6;
   const [page, setPage] = useState(1);
   const totalPages = Math.max(1, Math.ceil(records.length / PAGE_SIZE));
 
@@ -38,19 +45,20 @@ const LeaveRecordTable: React.FC<Props> = ({ records, loading }) => {
               <TableHead>ประเภทการลา</TableHead>
               <TableHead className="hidden md:table-cell">ชื่อนาย</TableHead>
               <TableHead className="hidden lg:table-cell">ชื่อคนแทน</TableHead>
+              {canManage ? <TableHead className="text-right">จัดการ</TableHead> : null}
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={COLUMN_COUNT} className="h-24 text-center text-slate-500">
+                <TableCell colSpan={columnCount} className="h-24 text-center text-slate-500">
                   กำลังโหลด…
                 </TableCell>
               </TableRow>
             ) : visible.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={COLUMN_COUNT} className="h-24 text-center text-slate-500">
-                  ยังไม่มีรายการลาของพนักงาน Common
+                <TableCell colSpan={columnCount} className="h-24 text-center text-slate-500">
+                  ไม่พบรายการลาของพนักงาน Common
                 </TableCell>
               </TableRow>
             ) : (
@@ -76,6 +84,31 @@ const LeaveRecordTable: React.FC<Props> = ({ records, loading }) => {
                   </TableCell>
                   <TableCell className="hidden md:table-cell text-slate-600">{r.supervisorName ?? '—'}</TableCell>
                   <TableCell className="hidden lg:table-cell text-slate-600">{r.coverPersonName ?? '—'}</TableCell>
+                  {canManage ? (
+                    <TableCell className="text-right whitespace-nowrap">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 px-2"
+                        aria-label={`แก้ไขรายการลาของ ${leaveRecordName(r)}`}
+                        onClick={() => onEdit?.(r)}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 px-2 text-red-600 hover:bg-red-50 hover:text-red-700"
+                        aria-label={`ลบรายการลาของ ${leaveRecordName(r)}`}
+                        disabled={deletingId === r.id}
+                        onClick={() => onDelete?.(r)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
+                  ) : null}
                 </TableRow>
               ))
             )}

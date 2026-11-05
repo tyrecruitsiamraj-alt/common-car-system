@@ -18,6 +18,11 @@ const DELETE_COMPLAINTS_CAPABILITY = 'delete_complaints';
 
 const tbl = tableInAppSchema('issue_reports');
 
+/** รายการลา: แก้ไขหรือลบได้เฉพาะ supervisor ขึ้นไป ไม่มีการมอบสิทธิ์เพิ่มให้ staff */
+function canModifyLeave(role: string): boolean {
+  return role === 'admin' || role === 'supervisor';
+}
+
 const KNOWN_CATEGORIES = ['vehicle-service', 'supervisor-absent', 'leave', 'speed', 'satisfaction'] as const;
 
 const DEFAULT_LIST_LIMIT = 2000;
@@ -168,6 +173,9 @@ async function handlePatch(req: AuthedReq, res: ApiRes): Promise<void> {
     const { rows: curRows } = await dbQuery<Row>(`select * from ${tbl} where id = $1 limit 1`, [id]);
     const cur = curRows[0];
     if (!cur) return sendError(res, 404, 'Not found');
+    if (cur.category === 'leave' && !canModifyLeave(req.user.role)) {
+      return sendError(res, 403, 'Forbidden', 'ไม่มีสิทธิ์แก้ไขรายการลา');
+    }
 
     const raw = await readJsonBody(req);
     if (typeof raw !== 'object' || raw === null) {
@@ -219,9 +227,11 @@ async function handleDelete(req: AuthedReq, res: ApiRes): Promise<void> {
     const allowed =
       existing[0].category === 'satisfaction'
         ? req.user.role === 'admin'
-        : req.user.role === 'admin' ||
-          req.user.role === 'supervisor' ||
-          (await userHasCapability(req.user.sub, DELETE_COMPLAINTS_CAPABILITY));
+        : existing[0].category === 'leave'
+          ? canModifyLeave(req.user.role)
+          : req.user.role === 'admin' ||
+            req.user.role === 'supervisor' ||
+            (await userHasCapability(req.user.sub, DELETE_COMPLAINTS_CAPABILITY));
     if (!allowed) return sendError(res, 403, 'Forbidden', 'ไม่มีสิทธิ์ลบข้อมูลนี้');
 
     const { rows } = await dbQuery<{ id: string }>(`delete from ${tbl} where id = $1 returning id`, [id]);
