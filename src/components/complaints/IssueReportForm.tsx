@@ -166,7 +166,7 @@ const IssueReportForm: React.FC<Props> = ({ config, cancelHref }) => {
           category: config.slug,
           report_date: values[config.primaryDateField] || null,
           employee_id: values.employee_id || null,
-          employee_name: values.employee_name || null,
+          employee_name: values.employee_name || values.driver_name || null,
           position: values.position || null,
           reporter_name: reporterName || null,
           reporter_phone: reporterPhone || null,
