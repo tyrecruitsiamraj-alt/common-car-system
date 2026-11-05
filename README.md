@@ -108,7 +108,7 @@ TypeScript for the API is configured in `api/tsconfig.json` (`moduleResolution: 
 | `POST /api/auth/login` | No | Sets httpOnly JWT cookie |
 | `POST /api/auth/logout` | No | Clears cookie |
 | `GET /api/auth/me` | Yes | Current user |
-| `POST /api/auth/register` | Admin | Create users |
+| `POST /api/auth/register` | No | Self sign-up; account stays inactive until an admin approves it at `/settings/users` |
 | `GET/POST/PATCH/DELETE /api/candidates` | Yes | Staff read; supervisor/admin write |
 | `GET/POST/PATCH/DELETE /api/jobs` | Yes | Same RBAC |
 | `GET/POST/PATCH/DELETE /api/employees` | Yes | Same RBAC |
@@ -137,7 +137,7 @@ Full integration tests against a live DB are optional; point `DATABASE_URL` in C
 
 ### Implemented in this phase
 
-- bcrypt password hashing, JWT in **httpOnly** cookie, `/api/auth/login|logout|me`, admin-only `/api/auth/register`
+- bcrypt password hashing, JWT in **httpOnly** cookie, `/api/auth/login|logout|me`, `/api/auth/register` with admin approval
 - RBAC on `candidates`, `jobs`, `employees`
 - Structured JSON logging for local server (`api.request` / `api.response` / `api.unhandled`)
 - Centralized API errors via `handleApiError` / `sendError`

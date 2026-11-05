@@ -48,7 +48,7 @@ const RegisterPage: React.FC = () => {
         setError(humanizeRegisterError(msg));
         return;
       }
-      toast.success('สมัครสมาชิกเรียบร้อย — เข้าสู่ระบบได้เลย');
+      toast.success('สมัครสมาชิกเรียบร้อย — รอผู้ดูแลระบบอนุมัติก่อนเข้าสู่ระบบ');
       navigate('/login', { replace: true });
     } catch {
       setError('เชื่อมต่อเซิร์ฟเวอร์ไม่ได้');
@@ -79,7 +79,7 @@ const RegisterPage: React.FC = () => {
         <div>
           <h2 className="text-lg font-semibold text-foreground">สมัครสมาชิก</h2>
           <p className="text-xs text-muted-foreground mt-1">
-            สร้างบัญชีใหม่ (สิทธิ์เริ่มต้น: staff) — เพิ่ม/ลบข้อมูลได้ แก้ไขรายการต้อง supervisor ขึ้นไป หน้าตั้งค่าระบบเฉพาะ admin
+            สร้างบัญชีใหม่ เมื่อผู้ดูแลระบบอนุมัติแล้วจะเข้าสู่ระบบได้ด้วยสิทธิ์เริ่มต้น staff
           </p>
         </div>
 

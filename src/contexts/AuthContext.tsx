@@ -96,7 +96,8 @@ function humanizeLoginFailure(status: number, message: string | undefined, error
   if (combined.includes('auth_jwt_secret'))
     return AUTH_JWT_MISSING_HINT;
   if (combined.includes('service unavailable')) return 'ระบบล็อกอินไม่พร้อม (ตรวจ AUTH_JWT_SECRET และการเชื่อมต่อฐานข้อมูล)';
-  if (combined.includes('account is disabled') || combined.includes('inactive')) return 'บัญชีถูกปิดการใช้งาน';
+  if (combined.includes('pending approval')) return 'บัญชีนี้รอผู้ดูแลระบบอนุมัติ — เข้าสู่ระบบได้เมื่ออนุมัติแล้ว';
+  if (combined.includes('inactive')) return 'บัญชีถูกปิดการใช้งาน';
   if (message && message.trim()) return message.trim();
   if (error && error.trim()) return error.trim();
 

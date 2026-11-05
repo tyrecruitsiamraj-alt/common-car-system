@@ -9,6 +9,7 @@ import {
 import { readJsonBody, getString } from '../../_lib/body.js';
 import type { UserRole } from '../../_lib/auth.js';
 import { tableInAppSchema } from '../../_lib/schema.js';
+import { enforceRateLimit } from '../../_lib/rateLimit.js';
 
 const usersTable = tableInAppSchema('users');
 
@@ -22,6 +23,8 @@ async function registerHandler(req: ApiReq, res: ApiRes) {
       code: AUTH_JWT_MISSING_API_CODE,
     });
   }
+
+  if (!enforceRateLimit(req, res, 'register')) return;
 
   try {
     const raw = await readJsonBody(req);
@@ -67,8 +70,8 @@ async function registerHandler(req: ApiReq, res: ApiRes) {
       created_at: string | Date;
     }>(
       `
-      insert into ${usersTable} (email, password_hash, role, full_name)
-      values (lower($1::text), $2, $3, $4)
+      insert into ${usersTable} (email, password_hash, role, full_name, is_active)
+      values (lower($1::text), $2, $3, $4, false)
       returning id, email, role, full_name, is_active, created_at
     `,
       [email, password_hash, role, full_name],

@@ -94,13 +94,17 @@ const UserPermissionsSettingsPage: React.FC = () => {
       }
       const updated = body as User;
       setUsers((prev) => prev.map((u) => (u.id === id ? { ...u, ...updated } : u)));
-      toast.success('บันทึกบทบาทผู้ใช้แล้ว');
+      toast.success(patch.is_active === true ? 'อนุมัติบัญชีแล้ว' : 'บันทึกบทบาทผู้ใช้แล้ว');
     } catch {
       toast.error('เกิดข้อผิดพลาดระหว่างบันทึก');
     } finally {
       setSavingUserId(null);
     }
   };
+
+  const pendingCount = users.filter((u) => !u.is_active).length;
+  // บัญชีรออนุมัติขึ้นก่อน เพื่อให้ admin เห็นทันที — sort คงลำดับเดิมภายในแต่ละกลุ่ม
+  const sortedUsers = [...users].sort((a, b) => Number(a.is_active) - Number(b.is_active));
 
   const resetPassword = async (user: User) => {
     setSavingUserId(user.id);
@@ -229,6 +233,11 @@ const UserPermissionsSettingsPage: React.FC = () => {
             <div className="px-4 py-3 border-b border-border bg-secondary/20 flex items-center gap-2 text-sm font-medium">
               <Users className="h-4 w-4 text-primary" />
               ผู้ใช้ทั้งหมด ({users.length})
+              {pendingCount > 0 ? (
+                <span className="ml-auto rounded-full bg-amber-500/15 px-2.5 py-0.5 text-xs font-semibold text-amber-900">
+                  รออนุมัติ {pendingCount}
+                </span>
+              ) : null}
             </div>
 
             <div className="hidden md:grid md:grid-cols-[1.2fr_1.2fr_0.8fr_0.6fr_1fr_1fr_1fr] gap-2 px-4 py-2 text-[11px] font-medium text-muted-foreground border-b border-border/60">
@@ -251,7 +260,7 @@ const UserPermissionsSettingsPage: React.FC = () => {
             </div>
 
             <div className="divide-y divide-border/60">
-              {users.map((u) => {
+              {sortedUsers.map((u) => {
                 const busy = savingUserId === u.id;
                 const isEditor = editorUserId === u.id;
                 const canDeleteComplaints = deleteComplaintsUserIds.has(u.id);
@@ -268,21 +277,19 @@ const UserPermissionsSettingsPage: React.FC = () => {
                   >
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-foreground truncate">{u.full_name}</p>
-                      <button
-                        type="button"
-                        disabled={busy}
-                        onClick={() => setConfirmResetUser(u)}
-                        className="text-[11px] text-primary hover:underline underline-offset-2 disabled:opacity-60"
-                      >
-                        รีเซ็ตรหัสผ่าน
-                      </button>
-                      <p className="text-[11px] text-muted-foreground md:hidden truncate">
-                        {u.is_active ? u.email : '—'}
-                      </p>
+                      {u.is_active ? (
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={() => setConfirmResetUser(u)}
+                          className="text-[11px] text-primary hover:underline underline-offset-2 disabled:opacity-60"
+                        >
+                          รีเซ็ตรหัสผ่าน
+                        </button>
+                      ) : null}
+                      <p className="text-[11px] text-muted-foreground md:hidden truncate">{u.email}</p>
                     </div>
-                    <p className="text-xs text-muted-foreground truncate hidden md:block">
-                      {u.is_active ? u.email : '—'}
-                    </p>
+                    <p className="text-xs text-muted-foreground truncate hidden md:block">{u.email}</p>
 
                     <div className="flex items-center gap-2">
                       <Label className="text-[10px] text-muted-foreground md:hidden shrink-0">บทบาท</Label>
@@ -307,20 +314,38 @@ const UserPermissionsSettingsPage: React.FC = () => {
 
                     <div className="flex md:justify-center items-center gap-2">
                       <Label className="text-[10px] text-muted-foreground md:hidden shrink-0">สถานะ</Label>
-                      <button
-                        type="button"
-                        disabled={busy}
-                        onClick={() => setConfirmDisableUser(u)}
-                        className={cn(
-                          'text-xs px-2.5 py-1 rounded-full transition-colors',
-                          u.is_active
-                            ? 'bg-emerald-500/15 text-emerald-800 hover:bg-emerald-500/25'
-                            : 'bg-red-500/15 text-red-800 hover:bg-red-500/25',
-                          busy && 'opacity-60 cursor-not-allowed',
-                        )}
-                      >
-                        {u.is_active ? 'ใช้งาน' : 'ลบออกจากระบบ'}
-                      </button>
+                      {u.is_active ? (
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={() => setConfirmDisableUser(u)}
+                          className={cn(
+                            'text-xs px-2.5 py-1 rounded-full transition-colors bg-emerald-500/15 text-emerald-800 hover:bg-emerald-500/25',
+                            busy && 'opacity-60 cursor-not-allowed',
+                          )}
+                        >
+                          ใช้งาน
+                        </button>
+                      ) : (
+                        <div className="flex flex-col gap-1">
+                          <button
+                            type="button"
+                            disabled={busy}
+                            onClick={() => void updateUser(u.id, { is_active: true })}
+                            className="text-xs px-2.5 py-1 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
+                          >
+                            อนุมัติ
+                          </button>
+                          <button
+                            type="button"
+                            disabled={busy}
+                            onClick={() => setConfirmDisableUser(u)}
+                            className="text-xs px-2.5 py-1 rounded-full bg-red-500/15 text-red-800 hover:bg-red-500/25 disabled:opacity-60"
+                          >
+                            ปฏิเสธ
+                          </button>
+                        </div>
+                      )}
                     </div>
 
                     <div className="flex items-center gap-2">

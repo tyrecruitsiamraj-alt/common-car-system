@@ -86,13 +86,15 @@ export default async function handler(req: ApiReq, res: ApiRes) {
     if (!row || !isUserRole(row.role)) {
       return sendError(res, 401, 'Unauthorized', 'Invalid email or password');
     }
-    if (!row.is_active) {
-      return sendError(res, 403, 'Forbidden', 'Account is disabled');
-    }
 
     const ok = await verifyPassword(password, row.password_hash);
     if (!ok) {
       return sendError(res, 401, 'Unauthorized', 'Invalid email or password');
+    }
+
+    // เช็กหลังรหัสผ่าน เพื่อไม่ให้คนนอกรู้สถานะของบัญชีจากอีเมลอย่างเดียว
+    if (!row.is_active) {
+      return sendError(res, 403, 'Forbidden', 'Account is pending approval');
     }
 
     const ttl = Number(process.env.AUTH_TOKEN_TTL_SECONDS || 1800) || 1800;

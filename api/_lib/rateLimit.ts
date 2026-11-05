@@ -42,6 +42,7 @@ export function checkRateLimit(key: string, max: number, windowMs: number): bool
 export type RateLimitedEndpoint =
   | 'login'
   | 'dev-role'
+  | 'register'
   | 'accident-report'
   | 'complaint-report'
   | 'issue-report';
@@ -52,6 +53,7 @@ export function readRateLimitConfig(
   const defaults: Record<RateLimitedEndpoint, { max: number; windowMs: number }> = {
     login: { max: 10, windowMs: 15 * 60 * 1000 },
     'dev-role': { max: 5, windowMs: 15 * 60 * 1000 },
+    register: { max: 5, windowMs: 60 * 60 * 1000 },
     'accident-report': { max: 10, windowMs: 60 * 60 * 1000 },
     'complaint-report': { max: 10, windowMs: 60 * 60 * 1000 },
     'issue-report': { max: 10, windowMs: 60 * 60 * 1000 },
@@ -62,11 +64,13 @@ export function readRateLimitConfig(
       ? 'AUTH_RATE_LIMIT_LOGIN'
       : endpoint === 'dev-role'
         ? 'AUTH_RATE_LIMIT_DEV_ROLE'
-        : endpoint === 'accident-report'
-          ? 'AUTH_RATE_LIMIT_ACCIDENT_REPORT'
-          : endpoint === 'complaint-report'
-            ? 'AUTH_RATE_LIMIT_COMPLAINT_REPORT'
-            : 'AUTH_RATE_LIMIT_ISSUE_REPORT';
+        : endpoint === 'register'
+          ? 'AUTH_RATE_LIMIT_REGISTER'
+          : endpoint === 'accident-report'
+            ? 'AUTH_RATE_LIMIT_ACCIDENT_REPORT'
+            : endpoint === 'complaint-report'
+              ? 'AUTH_RATE_LIMIT_COMPLAINT_REPORT'
+              : 'AUTH_RATE_LIMIT_ISSUE_REPORT';
   const maxRaw = Number(process.env[`${envPrefix}_MAX`]);
   const windowRaw = Number(process.env[`${envPrefix}_WINDOW_MS`]);
   return {
