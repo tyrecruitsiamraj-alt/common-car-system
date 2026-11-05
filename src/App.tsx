@@ -23,6 +23,7 @@ import AddEmployeePage from "@/pages/wl/AddEmployeePage";
 import SupervisorDashboard from "@/pages/dashboard/SupervisorDashboard";
 import AccidentDashboardPage from "@/pages/dashboard/AccidentDashboardPage";
 import AccidentReportPage from "@/pages/accidents/AccidentReportPage";
+import LeaveDashboardPage from "@/pages/dashboard/LeaveDashboardPage";
 import ComplaintDashboardPage from "@/pages/dashboard/ComplaintDashboardPage";
 import SatisfactionDashboardPage from "@/pages/dashboard/SatisfactionDashboardPage";
 import ComplaintReportPage from "@/pages/complaints/ComplaintReportPage";
@@ -86,6 +87,7 @@ function AppRoutes() {
         <Route path="/fleet/drivers/:id" element={<EmployeeProfile />} />
         <Route path="/dashboard" element={<SupervisorDashboard />} />
         <Route path="/accidents" element={<AccidentDashboardPage />} />
+        <Route path="/leaves" element={<LeaveDashboardPage />} />
         <Route path="/complaints" element={<ComplaintDashboardPage />} />
         <Route path="/complaints/overview" element={<ComplaintsOverviewPage />} />
         <Route path="/complaints/history" element={<ComplaintsHistoryPage />} />

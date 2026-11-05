@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
-import { CalendarPlus, LayoutGrid, Car, Users, BarChart3, AlertTriangle, MessageSquareWarning, ClipboardList } from 'lucide-react';
+import { CalendarPlus, LayoutGrid, Car, Users, BarChart3, AlertTriangle, MessageSquareWarning, ClipboardList, CalendarX2 } from 'lucide-react';
 import { ISSUE_REPORT_TYPES } from '@/lib/issueReportConfig';
 
 export type DockNavSubItem = {
@@ -62,6 +62,7 @@ export const DOCK_NAV_ITEMS: DockNavItem[] = [
   { path: '/accidents', label: 'Accidents', icon: AlertTriangle },
   { path: '/complaints', label: 'Complaints', icon: MessageSquareWarning },
   FORMS_GROUP_ITEM,
+  { path: '/leaves', label: 'Leaves', icon: CalendarX2 },
   ...STANDALONE_ITEMS,
 ];
 
@@ -73,6 +74,7 @@ export function isDockPathActive(path: string, pathname: string): boolean {
   if (path === '/fleet/drivers') return p.startsWith('/fleet/drivers');
   if (path === '/dashboard') return p.startsWith('/dashboard');
   if (path === '/accidents') return p.startsWith('/accidents');
+  if (path === '/leaves') return p.startsWith('/leaves');
   if (path === '/complaints') return p.startsWith('/complaints') && !matchesAny(NON_COMPLAINTS_PATHS, p);
   if (path === '/complaints/overview') return matchesAny(groupPaths(FORMS_GROUP_ITEM), p);
   if (STANDALONE_ITEMS.some((i) => i.path === path)) return p === path;

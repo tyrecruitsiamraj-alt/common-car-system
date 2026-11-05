@@ -9,9 +9,10 @@
  */
 import type { AccidentCase, Complaint, Employee } from '@/types';
 
-const TITLE_PREFIXES_RE = /^(นาย|นาง|นางสาว|เด็กชาย|เด็กหญิง)\s*/;
+// "นางสาว" ต้องมาก่อน "นาง" ไม่อย่างนั้นจะตัดแค่ "นาง" แล้วเหลือ "สาว..."
+const TITLE_PREFIXES_RE = /^(นางสาว|นาย|นาง|เด็กชาย|เด็กหญิง)\s*/;
 
-function normName(s: string | null | undefined): string {
+export function normName(s: string | null | undefined): string {
   return String(s ?? '')
     .normalize('NFC')
     .trim()
@@ -20,7 +21,7 @@ function normName(s: string | null | undefined): string {
     .toLowerCase();
 }
 
-function normCode(s: string | null | undefined): string {
+export function normCode(s: string | null | undefined): string {
   return String(s ?? '')
     .normalize('NFC')
     .trim()

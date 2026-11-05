@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { accidentsForEmployee, complaintsForEmployee } from '@/lib/driverIncidentMatch';
+import { accidentsForEmployee, complaintsForEmployee, normName } from '@/lib/driverIncidentMatch';
 import type { AccidentCase, Complaint, Employee } from '@/types';
 
 function emp(overrides: Partial<Employee> = {}): Employee {
@@ -72,5 +72,14 @@ describe('accidentsForEmployee', () => {
     const matching = accident({ employee_name: 'นาย สมชาย ใจดี' });
     const nonMatching = accident({ employee_name: 'สมหญิง ใจร้าย' });
     expect(accidentsForEmployee([matching, nonMatching], e)).toEqual([matching]);
+  });
+});
+
+describe('normName', () => {
+  it('ตัดคำนำหน้าออกทั้งก้อน รวมถึง "นางสาว" ที่ขึ้นต้นเหมือน "นาง"', () => {
+    expect(normName('นางสาวสมหญิง รักดี')).toBe('สมหญิง รักดี');
+    expect(normName('นางสาว สมหญิง รักดี')).toBe('สมหญิง รักดี');
+    expect(normName('นาง สมศรี ใจดี')).toBe('สมศรี ใจดี');
+    expect(normName('นาย สมชาย ใจดี')).toBe('สมชาย ใจดี');
   });
 });

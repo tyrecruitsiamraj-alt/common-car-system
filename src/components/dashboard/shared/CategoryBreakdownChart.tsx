@@ -19,13 +19,15 @@ type Props = {
   subtitle: string;
   buckets: CategoryBucket[];
   loading?: boolean;
+  /** ใส่เมื่อชื่อบนแกนบอกหมวดหมู่อยู่แล้วและหมวดหมู่เกินจำนวนสี เพื่อไม่ให้สีซ้ำจนดูเหมือนเป็นหมวดเดียวกัน */
+  color?: string;
 };
 
-const CategoryBreakdownChart: React.FC<Props> = ({ title, subtitle, buckets, loading }) => {
+const CategoryBreakdownChart: React.FC<Props> = ({ title, subtitle, buckets, loading, color }) => {
   const barData = buckets.map((b, i) => ({
     name: b.label,
     count: b.count,
-    fill: b.label === 'อื่นๆ' ? OTHER_COLOR : CATEGORY_COLORS[i % CATEGORY_COLORS.length],
+    fill: color ?? (b.label === 'อื่นๆ' ? OTHER_COLOR : CATEGORY_COLORS[i % CATEGORY_COLORS.length]),
   }));
   const total = buckets.reduce((sum, b) => sum + b.count, 0);
 
@@ -47,7 +49,7 @@ const CategoryBreakdownChart: React.FC<Props> = ({ title, subtitle, buckets, loa
           <BarChart data={barData} layout="vertical" margin={{ left: 4, right: 16, top: 4, bottom: 4 }}>
             <CartesianGrid strokeDasharray="3 3" horizontal={false} />
             <XAxis type="number" tickLine={false} axisLine={false} fontSize={12} allowDecimals={false} />
-            <YAxis type="category" dataKey="name" tickLine={false} axisLine={false} width={110} fontSize={11} />
+            <YAxis type="category" dataKey="name" interval={0} tickLine={false} axisLine={false} width={110} fontSize={11} />
             <ChartTooltip content={<ChartTooltipContent />} />
             <Bar dataKey="count" radius={[0, 4, 4, 0]}>
               {barData.map((entry) => (
