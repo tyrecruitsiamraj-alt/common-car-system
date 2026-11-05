@@ -1,3 +1,4 @@
+import { dateColumnToYmd } from '../_lib/dates.js';
 import { dbQuery } from '../_lib/postgres.js';
 import {
   withAuthStaffWrite,
@@ -39,11 +40,6 @@ type HistoryRow = {
   created_at: string | Date;
 };
 
-function toYmd(value: string | Date): string {
-  if (value instanceof Date) return value.toISOString().slice(0, 10);
-  return value;
-}
-
 function toIsoString(value: string | Date): string {
   if (value instanceof Date) return value.toISOString();
   const d = new Date(value);
@@ -61,7 +57,7 @@ function toHistoryResponse(row: HistoryRow) {
     new_position: row.new_position || undefined,
     old_boss_name: row.old_boss_name || undefined,
     new_boss_name: row.new_boss_name || undefined,
-    effective_date: toYmd(row.effective_date),
+    effective_date: dateColumnToYmd(row.effective_date),
     note: row.note || undefined,
     created_at: toIsoString(row.created_at),
   };

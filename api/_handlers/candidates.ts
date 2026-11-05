@@ -1,3 +1,4 @@
+import { dateColumnToYmd } from '../_lib/dates.js';
 import { dbQuery } from '../_lib/postgres.js';
 import {
   withAuthStaffCreateSupervisorMutate,
@@ -43,7 +44,7 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
 
 function dateToYmd(value: unknown): string | null {
   if (!value) return null;
-  if (value instanceof Date) return value.toISOString().slice(0, 10);
+  if (value instanceof Date) return dateColumnToYmd(value);
   if (typeof value === 'string') return value;
   return null;
 }

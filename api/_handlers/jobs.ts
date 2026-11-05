@@ -1,3 +1,4 @@
+import { dateColumnToYmd } from '../_lib/dates.js';
 import { dbQuery } from '../_lib/postgres.js';
 import {
   withAuthStaffCreateSupervisorMutate,
@@ -48,11 +49,6 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
 
-function toYmd(value: string | Date): string {
-  if (value instanceof Date) return value.toISOString().slice(0, 10);
-  return value;
-}
-
 function toIsoString(value: string | Date): string {
   if (value instanceof Date) return value.toISOString();
   const d = new Date(value);
@@ -100,8 +96,8 @@ function toJobResponse(row: JobRow) {
     resigned_reason: row.resigned_reason || undefined,
     resigned_employee_name: (resignedEmployeeName ?? row.resigned_employee_name) || undefined,
     unit_name: row.unit_name,
-    request_date: toYmd(row.request_date),
-    required_date: toYmd(row.required_date),
+    request_date: dateColumnToYmd(row.request_date),
+    required_date: dateColumnToYmd(row.required_date),
     urgency: row.urgency,
     total_income: row.total_income,
     location_address: row.location_address,
@@ -119,7 +115,7 @@ function toJobResponse(row: JobRow) {
     days_without_worker: row.days_without_worker,
     total_penalty: row.total_penalty,
     status: row.status,
-    closed_date: row.closed_date ? toYmd(row.closed_date) : undefined,
+    closed_date: row.closed_date ? dateColumnToYmd(row.closed_date) : undefined,
     created_at: toIsoString(row.created_at),
   };
 }
@@ -325,14 +321,14 @@ async function jobsHandler(req: AuthedReq, res: ApiRes) {
         raw.request_date !== undefined
           ? isDateYmd(raw.request_date)
             ? raw.request_date
-            : toYmd(cur.request_date)
-          : toYmd(cur.request_date);
+            : dateColumnToYmd(cur.request_date)
+          : dateColumnToYmd(cur.request_date);
       const required_date =
         raw.required_date !== undefined
           ? isDateYmd(raw.required_date)
             ? raw.required_date
-            : toYmd(cur.required_date)
-          : toYmd(cur.required_date);
+            : dateColumnToYmd(cur.required_date)
+          : dateColumnToYmd(cur.required_date);
       const job_type =
         raw.job_type !== undefined ? (isJobType(raw.job_type) ? raw.job_type : cur.job_type) : cur.job_type;
       const job_category =
@@ -392,10 +388,10 @@ async function jobsHandler(req: AuthedReq, res: ApiRes) {
             ? isDateYmd(raw.closed_date)
               ? raw.closed_date
               : cur.closed_date
-                ? toYmd(cur.closed_date)
+                ? dateColumnToYmd(cur.closed_date)
                 : null
             : cur.closed_date
-              ? toYmd(cur.closed_date)
+              ? dateColumnToYmd(cur.closed_date)
               : null;
 
       const { rows } = await dbQuery<JobRow>(

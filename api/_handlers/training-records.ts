@@ -1,3 +1,4 @@
+import { dateColumnToYmd } from '../_lib/dates.js';
 import { dbQuery } from '../_lib/postgres.js';
 import {
   withAuthDataRoute,
@@ -21,11 +22,6 @@ type Row = {
   created_at: string | Date;
 };
 
-function toYmd(value: string | Date): string {
-  if (value instanceof Date) return value.toISOString().slice(0, 10);
-  return value;
-}
-
 function toIso(value: string | Date): string {
   if (value instanceof Date) return value.toISOString();
   const d = new Date(value);
@@ -44,7 +40,7 @@ function toRow(r: Row) {
     id: r.id,
     employee_id: r.employee_id,
     training_name: r.training_name,
-    training_date: toYmd(r.training_date),
+    training_date: dateColumnToYmd(r.training_date),
     result: r.result as 'passed' | 'failed' | 'pending',
     notes: r.notes ?? undefined,
     created_at: toIso(r.created_at),
