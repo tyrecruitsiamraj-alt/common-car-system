@@ -1,6 +1,7 @@
 import { dbQuery } from '../_lib/postgres.js';
 import { withAuth, sendError, handleApiError, type ApiRes, type AuthedReq } from '../_lib/http.js';
 import { tableInAppSchema } from '../_lib/schema.js';
+import { generateTemporaryPassword, hashPassword } from '../_lib/auth.js';
 import { readJsonBody, getString } from '../_lib/body.js';
 
 const usersTable = tableInAppSchema('users');
@@ -31,11 +32,31 @@ async function handler(req: AuthedReq, res: ApiRes) {
   }
 
   const method = (req.method || 'GET').toUpperCase();
-  if (method !== 'GET' && method !== 'PATCH') {
+  if (method !== 'GET' && method !== 'PATCH' && method !== 'POST') {
     return sendError(res, 405, 'Method not allowed');
   }
 
   try {
+    if (method === 'POST') {
+      const raw = await readJsonBody(req);
+      if (!raw || typeof raw !== 'object') return sendError(res, 400, 'Bad request', 'Invalid JSON body');
+      const body = raw as Record<string, unknown>;
+      const id = getString(body.id);
+      if (!id) return sendError(res, 400, 'Bad request', 'id is required');
+      if (body.action !== 'reset_password') {
+        return sendError(res, 400, 'Bad request', 'action must be reset_password');
+      }
+
+      const temporaryPassword = generateTemporaryPassword();
+      const passwordHash = await hashPassword(temporaryPassword);
+      const { rows } = await dbQuery<{ id: string }>(
+        `update ${usersTable} set password_hash = $1 where id = $2 returning id`,
+        [passwordHash, id],
+      );
+      if (!rows[0]) return sendError(res, 404, 'Not found', 'User not found');
+      return res.status(200).json({ id: rows[0].id, temporary_password: temporaryPassword });
+    }
+
     if (method === 'PATCH') {
       const raw = await readJsonBody(req);
       if (!raw || typeof raw !== 'object') return sendError(res, 400, 'Bad request', 'Invalid JSON body');

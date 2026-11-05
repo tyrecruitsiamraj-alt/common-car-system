@@ -40,6 +40,8 @@ const UserPermissionsSettingsPage: React.FC = () => {
   const [savingDeleteUserId, setSavingDeleteUserId] = useState<string | null>(null);
   const [savingWorkHoursUserId, setSavingWorkHoursUserId] = useState<string | null>(null);
   const [confirmDisableUser, setConfirmDisableUser] = useState<User | null>(null);
+  const [confirmResetUser, setConfirmResetUser] = useState<User | null>(null);
+  const [resetResult, setResetResult] = useState<{ user: User; password: string } | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -95,6 +97,26 @@ const UserPermissionsSettingsPage: React.FC = () => {
       toast.success('บันทึกบทบาทผู้ใช้แล้ว');
     } catch {
       toast.error('เกิดข้อผิดพลาดระหว่างบันทึก');
+    } finally {
+      setSavingUserId(null);
+    }
+  };
+
+  const resetPassword = async (user: User) => {
+    setSavingUserId(user.id);
+    try {
+      const r = await apiFetch('/api/app-users', {
+        method: 'POST',
+        body: JSON.stringify({ id: user.id, action: 'reset_password' }),
+      });
+      const body = (await r.json().catch(() => ({}))) as Record<string, unknown>;
+      if (!r.ok || typeof body.temporary_password !== 'string') {
+        toast.error(typeof body.message === 'string' ? body.message : 'รีเซ็ตรหัสผ่านไม่สำเร็จ');
+        return;
+      }
+      setResetResult({ user, password: body.temporary_password });
+    } catch {
+      toast.error('เกิดข้อผิดพลาดระหว่างรีเซ็ตรหัสผ่าน');
     } finally {
       setSavingUserId(null);
     }
@@ -246,6 +268,14 @@ const UserPermissionsSettingsPage: React.FC = () => {
                   >
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-foreground truncate">{u.full_name}</p>
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => setConfirmResetUser(u)}
+                        className="text-[11px] text-primary hover:underline underline-offset-2 disabled:opacity-60"
+                      >
+                        รีเซ็ตรหัสผ่าน
+                      </button>
                       <p className="text-[11px] text-muted-foreground md:hidden truncate">
                         {u.is_active ? u.email : '—'}
                       </p>
@@ -415,6 +445,56 @@ const UserPermissionsSettingsPage: React.FC = () => {
             >
               ยืนยันลบผู้ใช้งาน
             </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={confirmResetUser !== null}
+        onOpenChange={(open) => {
+          if (!open) setConfirmResetUser(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>รีเซ็ตรหัสผ่านของผู้ใช้นี้?</AlertDialogTitle>
+            <AlertDialogDescription>
+              รหัสเดิมของ “{confirmResetUser?.full_name}” จะใช้ไม่ได้ทันที กรุณายืนยันตัวตนผู้ขอก่อนรีเซ็ต
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>ยกเลิก</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                const target = confirmResetUser;
+                setConfirmResetUser(null);
+                if (target) void resetPassword(target);
+              }}
+            >
+              ยืนยันรีเซ็ต
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={resetResult !== null}
+        onOpenChange={(open) => {
+          if (!open) setResetResult(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>รหัสชั่วคราวของ {resetResult?.user.full_name}</AlertDialogTitle>
+            <AlertDialogDescription>
+              รหัสนี้แสดงครั้งเดียว แจ้งให้เจ้าของบัญชีโดยตรง และให้เปลี่ยนรหัสใหม่ที่เมนูบัญชีหลังเข้าสู่ระบบ
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <p className="rounded-lg border border-border bg-secondary/40 px-3 py-2 font-mono text-sm break-all select-all">
+            {resetResult?.password}
+          </p>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => setResetResult(null)}>ปิด</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

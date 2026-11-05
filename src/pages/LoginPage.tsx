@@ -17,10 +17,6 @@ const LoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
-  const forgotHref = email.trim()
-    ? `/forgot-password?email=${encodeURIComponent(email.trim())}`
-    : '/forgot-password';
-
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -78,7 +74,7 @@ const LoginPage: React.FC = () => {
             <div className="flex items-center justify-between gap-2">
               <Label htmlFor="password">รหัสผ่าน</Label>
               <Link
-                to={forgotHref}
+                to="/forgot-password"
                 className="text-xs font-medium text-primary hover:underline underline-offset-4 touch-manipulation py-1"
               >
                 ลืมรหัสผ่าน?

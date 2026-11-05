@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto';
+import { createHash, randomInt } from 'node:crypto';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import { getDatabaseUrl } from './env.js';
@@ -176,6 +176,16 @@ export function buildClearCookieHeader(): string {
   const secure = isProductionLike() ? 'Secure; ' : '';
   const sameSite = process.env.AUTH_COOKIE_SAMESITE === 'strict' ? 'Strict' : 'Lax';
   return `${AUTH_COOKIE_NAME}=; Path=/; HttpOnly; ${secure}SameSite=${sameSite}; Max-Age=0`;
+}
+
+/** รหัสชั่วคราวสำหรับ admin รีเซ็ตให้ผู้ใช้ — ตัดตัวอักษรที่อ่านสับสน (I, l, O, 0, 1) ออก */
+export function generateTemporaryPassword(length = 14): string {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%';
+  let out = '';
+  for (let i = 0; i < length; i += 1) {
+    out += chars[randomInt(chars.length)];
+  }
+  return out;
 }
 
 export async function hashPassword(plain: string): Promise<string> {
