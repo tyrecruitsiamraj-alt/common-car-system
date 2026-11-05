@@ -35,12 +35,18 @@ insert into _driver_merge_map (retired_code, keep_code) values
 
 -- (หารด้วย count(*) ที่คำนวณจากข้อมูลจริง แทน literal 0 ตรงๆ เพราะ "select 1/0" เป็นค่าคงที่
 --  ที่ planner ของ Postgres จะพับ/ตรวจตอน plan เลยโดยไม่สนว่า subquery มีแถวหรือไม่)
-select 1 / (case when count(*) = 0 then 1 else 0 end) from (
-  select m.retired_code
-  from _driver_merge_map m
-  where not exists (select 1 from employees e where e.employee_code = m.retired_code)
-     or not exists (select 1 from employees e where e.employee_code = m.keep_code)
-) as missing_codes;
+-- ฐานใหม่ที่ไม่มีรหัสเหล่านี้เลยให้ผ่านไป เพราะไม่มีอะไรต้องรวม ขั้นตอนถัดไปจะไม่มีผลกับแถวใด
+select 1 / (case
+  when exists (
+    select 1 from _driver_merge_map m
+    join employees e on e.employee_code in (m.retired_code, m.keep_code)
+  ) and exists (
+    select 1 from _driver_merge_map m
+    where not exists (select 1 from employees e where e.employee_code = m.retired_code)
+       or not exists (select 1 from employees e where e.employee_code = m.keep_code)
+  ) then 0
+  else 1
+end);
 
 create temporary table _driver_merge_pairs on commit drop as
 select
