@@ -42,7 +42,7 @@ export function ExamScoreSummary({ row }: { row: Pick<ExamScoreRow, 'score_corre
     >
       {row.passed ? <CheckCircle2 className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
       {scoreLabel(result)}
-      {row.total > 0 ? (row.passed ? ' · ผ่าน' : ' · ไม่ผ่าน') : null}
+      {row.score_total > 0 ? (row.passed ? ' · ผ่าน' : ' · ไม่ผ่าน') : null}
     </div>
   );
 }
