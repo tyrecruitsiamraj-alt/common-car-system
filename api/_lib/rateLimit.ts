@@ -45,7 +45,8 @@ export type RateLimitedEndpoint =
   | 'register'
   | 'accident-report'
   | 'complaint-report'
-  | 'issue-report';
+  | 'issue-report'
+  | 'exam-submission';
 
 export function readRateLimitConfig(
   endpoint: RateLimitedEndpoint,
@@ -57,6 +58,8 @@ export function readRateLimitConfig(
     'accident-report': { max: 10, windowMs: 60 * 60 * 1000 },
     'complaint-report': { max: 10, windowMs: 60 * 60 * 1000 },
     'issue-report': { max: 10, windowMs: 60 * 60 * 1000 },
+    // พนักงานหลายคนอาจส่งจาก Wi-Fi เดียวกันตอนเริ่มงาน จึงเผื่อเพดานสูงกว่าฟอร์มอื่น
+    'exam-submission': { max: 100, windowMs: 60 * 60 * 1000 },
   };
   const d = defaults[endpoint];
   const envPrefix =
@@ -70,7 +73,9 @@ export function readRateLimitConfig(
             ? 'AUTH_RATE_LIMIT_ACCIDENT_REPORT'
             : endpoint === 'complaint-report'
               ? 'AUTH_RATE_LIMIT_COMPLAINT_REPORT'
-              : 'AUTH_RATE_LIMIT_ISSUE_REPORT';
+              : endpoint === 'exam-submission'
+                ? 'AUTH_RATE_LIMIT_EXAM_SUBMISSION'
+                : 'AUTH_RATE_LIMIT_ISSUE_REPORT';
   const maxRaw = Number(process.env[`${envPrefix}_MAX`]);
   const windowRaw = Number(process.env[`${envPrefix}_WINDOW_MS`]);
   return {

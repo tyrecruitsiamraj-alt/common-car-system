@@ -4,6 +4,7 @@ import { sendError, handleApiError, type ApiReq, type ApiRes } from '../_lib/htt
 import { readJsonBody, getString } from '../_lib/body.js';
 import { tableInAppSchema } from '../_lib/schema.js';
 import { scoreExamAnswers } from '../_lib/fleetExamScoring.js';
+import { enforceRateLimit } from '../_lib/rateLimit.js';
 
 const tbl = tableInAppSchema('fleet_exam_submissions');
 
@@ -268,6 +269,8 @@ async function handleGet(req: ApiReq, res: ApiRes): Promise<void> {
 }
 
 async function handlePost(req: ApiReq, res: ApiRes): Promise<void> {
+  if (!enforceRateLimit(req, res, 'exam-submission')) return;
+
   try {
     if (!(await ensureFleetExamSubmissionsTable())) {
       return sendError(res, 503, 'Schema not ready', 'ยังไม่มีตาราง fleet_exam_submissions — รัน npm run db:migrate');
