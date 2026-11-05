@@ -1,14 +1,14 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { CheckCircle2, Loader2 } from 'lucide-react';
 import type { ExamQuestion, FleetExam } from '@/lib/fleetExamsConfig';
 import { countableExamQuestions } from '@/lib/fleetExamsConfig';
 import { submissionToScoreResult, type ExamSubmissionPayload } from '@/lib/fleetExamScoring';
-import { tmaDriverPickerOptions } from '@/lib/tmaDriverNames';
+import { examDriverPickerOptions, type ExamDirectoryEntry } from '@/lib/examDriverOptions';
 import { apiFetch } from '@/lib/apiFetch';
 import ExamScoreResultDialog from '@/components/exams/ExamScoreResultDialog';
 import type { ExamScoreRow } from '@/components/exams/ExamScorePanel';
-import SearchablePicker from '@/components/shared/SearchablePicker';
+import SearchablePicker, { type SearchablePickerOption } from '@/components/shared/SearchablePicker';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -49,7 +49,28 @@ const ExamForm: React.FC<Props> = ({ exam }) => {
   const [done, setDone] = useState(false);
   const [scoreRow, setScoreRow] = useState<ExamScoreRow | null>(null);
   const [scoreOpen, setScoreOpen] = useState(false);
-  const driverNameOptions = useMemo(() => tmaDriverPickerOptions(), []);
+  const [driverNameOptions, setDriverNameOptions] = useState<SearchablePickerOption[]>([]);
+  const [driverLoad, setDriverLoad] = useState<'loading' | 'ready' | 'failed'>('loading');
+  const needsDriverNames = exam.questions.some((q) => q.type === 'text' && q.id === 'driver_name');
+
+  useEffect(() => {
+    if (!needsDriverNames) return;
+    let cancelled = false;
+    apiFetch('/api/driver-directory')
+      .then(async (r) => {
+        if (!r.ok) throw new Error(`driver-directory ${r.status}`);
+        const data = (await r.json()) as unknown;
+        if (cancelled) return;
+        setDriverNameOptions(examDriverPickerOptions(Array.isArray(data) ? (data as ExamDirectoryEntry[]) : []));
+        setDriverLoad('ready');
+      })
+      .catch(() => {
+        if (!cancelled) setDriverLoad('failed');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [needsDriverNames]);
 
   const setAnswer = (id: string, value: string) => {
     setAnswers((prev) => ({ ...prev, [id]: value }));
@@ -193,7 +214,13 @@ const ExamForm: React.FC<Props> = ({ exam }) => {
                   onValueChange={(v) => setAnswer(q.id, v)}
                   options={driverNameOptions}
                   placeholder="พิมพ์ชื่อเพื่อค้นหา…"
-                  emptyMessage="ไม่พบชื่อในรายการ"
+                  emptyMessage={
+                    driverLoad === 'loading'
+                      ? 'กำลังโหลดรายชื่อ…'
+                      : driverLoad === 'failed'
+                        ? 'โหลดรายชื่อไม่สำเร็จ กรุณารีเฟรชหน้านี้'
+                        : 'ไม่พบชื่อในรายการ'
+                  }
                   inputClassName="h-10 text-sm"
                   aria-label={q.label}
                 />
