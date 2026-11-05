@@ -28,7 +28,7 @@ interface AuthContextType {
     first_name: string;
     last_name: string;
   }) => Promise<string | null>;
-  logout: () => void | Promise<void>;
+  logout: () => Promise<void>;
   hasPermission: (requiredRole: UserRole | UserRole[]) => boolean;
   isAuthenticated: boolean;
   bootstrapping: boolean;

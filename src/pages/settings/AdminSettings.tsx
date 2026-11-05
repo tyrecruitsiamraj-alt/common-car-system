@@ -101,7 +101,7 @@ const AdminSettings: React.FC = () => {
         setUserActionError(msg);
         return;
       }
-      const updated = body as User;
+      const updated = body as unknown as User;
       setApiUsers((prev) => prev.map((u) => (u.id === id ? { ...u, ...updated } : u)));
       setUserActionOk('บันทึกสิทธิ์ผู้ใช้เรียบร้อย');
     } catch {

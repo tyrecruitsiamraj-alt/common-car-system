@@ -9,7 +9,8 @@ export const BOOKABLE_DRIVER_POSITIONS = new Set(['Common Driver', 'Support Driv
 export type AvailabilityPayload = {
   from: string;
   to: string;
-  availableEmployees: Pick<Employee, 'id' | 'first_name' | 'last_name' | 'employee_code'>[];
+  /** phone มีเฉพาะผลจาก API ใช้ค้นหาในช่องเลือกคนขับ */
+  availableEmployees: (Pick<Employee, 'id' | 'first_name' | 'last_name' | 'employee_code'> & { phone?: string })[];
   availableVehicles: Pick<Vehicle, 'id' | 'plate_no' | 'label' | 'seats'>[];
 };
 

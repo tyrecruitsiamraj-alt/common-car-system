@@ -119,7 +119,7 @@ const server = createServer(async (req, res) => {
     if (raw.trim()) {
       const looksJson =
         ct.includes('application/json') ||
-        /^[\s]*[\[{]/.test(raw);
+        /^\s*[[{]/.test(raw);
       if (looksJson) {
         try {
           body = JSON.parse(raw) as unknown;

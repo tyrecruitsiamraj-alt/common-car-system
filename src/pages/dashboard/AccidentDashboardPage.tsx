@@ -196,11 +196,12 @@ const AccidentDashboardPage: React.FC = () => {
             title: c.employee_name || 'ไม่ระบุชื่อ',
             subtitle: [formatCaseDate(c.case_date), c.vehicle_model].filter(Boolean).join(' · '),
             badge: c.case_status || undefined,
-            badgeVariant: (c.case_status === 'ฝ่ายผิด'
-              ? 'destructive'
-              : c.case_status === 'ฝ่ายถูก'
-                ? 'success'
-                : 'default') as const,
+            badgeVariant:
+              c.case_status === 'ฝ่ายผิด'
+                ? ('destructive' as const)
+                : c.case_status === 'ฝ่ายถูก'
+                  ? ('success' as const)
+                  : ('default' as const),
           }))
         : [];
 

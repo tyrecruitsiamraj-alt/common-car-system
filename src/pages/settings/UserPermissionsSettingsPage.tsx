@@ -92,7 +92,7 @@ const UserPermissionsSettingsPage: React.FC = () => {
         toast.success('ลบผู้ใช้งานออกจากระบบแล้ว');
         return;
       }
-      const updated = body as User;
+      const updated = body as unknown as User;
       setUsers((prev) => prev.map((u) => (u.id === id ? { ...u, ...updated } : u)));
       toast.success(patch.is_active === true ? 'อนุมัติบัญชีแล้ว' : 'บันทึกบทบาทผู้ใช้แล้ว');
     } catch {

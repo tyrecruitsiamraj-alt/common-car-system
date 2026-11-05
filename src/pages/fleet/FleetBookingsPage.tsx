@@ -865,8 +865,8 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
     const x = e.clientX - rect.left;
     const h = Math.min(23, Math.max(0, Math.floor((x / rect.width) * 24)));
     const day = timelineDay;
-    let from = setMinutes(setHours(day, h), 0);
-    let to = addHours(from, 1);
+    const from = setMinutes(setHours(day, h), 0);
+    const to = addHours(from, 1);
     setBookStart(toDatetimeLocalValue(from));
     setBookEnd(toDatetimeLocalValue(to));
     setSelVeh(vehicleId);
@@ -922,8 +922,8 @@ const FleetBookingsPage: React.FC<FleetBookingsPageProps> = ({ mode = 'book' }) 
     );
     if (busy) return;
     const day = timelineDay;
-    let from = setMinutes(setHours(day, hour), 0);
-    let to = addHours(from, 1);
+    const from = setMinutes(setHours(day, hour), 0);
+    const to = addHours(from, 1);
     setBookStart(toDatetimeLocalValue(from));
     setBookEnd(toDatetimeLocalValue(to));
     setSelEmp(employeeId);

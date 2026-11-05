@@ -120,6 +120,15 @@ export const TimeHm24Select: React.FC<TimeHm24SelectProps> = ({
   const hasValue = Boolean(parseHmStrict((value ?? '').trim().slice(0, 5)));
   const treatEmpty = allowEmpty && !hasValue;
 
+  const normalized = useMemo(() => normalizeHm(value, minHm, step), [value, minHm, step]);
+
+  useEffect(() => {
+    if (treatEmpty) return;
+    const v = (value ?? '').trim().slice(0, 5);
+    if (v === normalized) return;
+    onChange(normalized);
+  }, [treatEmpty, value, normalized, onChange]);
+
   if (treatEmpty) {
     return (
       <div className={className} role="group" aria-label={ariaLabel}>
@@ -151,14 +160,6 @@ export const TimeHm24Select: React.FC<TimeHm24SelectProps> = ({
       </div>
     );
   }
-
-  const normalized = useMemo(() => normalizeHm(value, minHm, step), [value, minHm, step]);
-
-  useEffect(() => {
-    const v = (value ?? '').trim().slice(0, 5);
-    if (v === normalized) return;
-    onChange(normalized);
-  }, [value, normalized, onChange]);
 
   const n = parseHmStrict(normalized) ?? { h: 0, m: 0 };
   let hSel = n.h;
