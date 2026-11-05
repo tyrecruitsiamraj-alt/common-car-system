@@ -1,3 +1,4 @@
+import { dateColumnToYmd } from '../_lib/dates.js';
 import { dbQuery } from '../_lib/postgres.js';
 import {
   withAuthStaffWrite,
@@ -312,7 +313,7 @@ async function handler(req: AuthedReq, res: ApiRes): Promise<void> {
             phone: e.phone,
             status: e.status,
             position: e.position,
-            join_date: e.join_date instanceof Date ? e.join_date.toISOString().slice(0, 10) : String(e.join_date).slice(0, 10),
+            join_date: dateColumnToYmd(e.join_date),
           })),
           availableVehicles: vehRows.map((v) => ({
             id: v.id,

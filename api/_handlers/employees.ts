@@ -9,6 +9,7 @@ import {
 import { readJsonBody, getString } from '../_lib/body.js';
 import { tableInAppSchema } from '../_lib/schema.js';
 import { logError } from '../_lib/logger.js';
+import { dateColumnToYmd } from '../_lib/dates.js';
 
 const tblEmp = tableInAppSchema('employees');
 const tblEmpHistory = tableInAppSchema('employee_status_history');
@@ -57,11 +58,6 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
 
-function toYmd(value: string | Date): string {
-  if (value instanceof Date) return value.toISOString().slice(0, 10);
-  return value;
-}
-
 function toIsoString(value: string | Date): string {
   if (value instanceof Date) return value.toISOString();
   const d = new Date(value);
@@ -97,7 +93,7 @@ function toEmployeeResponse(row: EmployeeRow) {
     status: row.status,
     position: row.position,
     assigned_boss_name: row.assigned_boss_name || undefined,
-    join_date: toYmd(row.join_date),
+    join_date: dateColumnToYmd(row.join_date),
     address: row.address || undefined,
     lat: row.lat === null ? undefined : row.lat,
     lng: row.lng === null ? undefined : row.lng,
@@ -115,7 +111,7 @@ function toEmployeeResponse(row: EmployeeRow) {
           pending_position: row.pending_position || undefined,
           pending_boss_name: row.pending_boss_name || undefined,
           pending_effective_date: row.pending_effective_date
-            ? toYmd(row.pending_effective_date)
+            ? dateColumnToYmd(row.pending_effective_date)
             : undefined,
           pending_change_type: row.pending_change_type,
           pending_note: row.pending_note || undefined,
@@ -417,8 +413,8 @@ async function employeesHandler(req: AuthedReq, res: ApiRes) {
         raw.join_date !== undefined
           ? isDateYmd(raw.join_date)
             ? raw.join_date
-            : toYmd(cur.join_date)
-          : toYmd(cur.join_date);
+            : dateColumnToYmd(cur.join_date)
+          : dateColumnToYmd(cur.join_date);
       const address = raw.address !== undefined ? getString(raw.address) : cur.address;
       const lat = raw.lat !== undefined ? parseFloatOrNull(raw.lat) : cur.lat;
       const lng = raw.lng !== undefined ? parseFloatOrNull(raw.lng) : cur.lng;
