@@ -1,7 +1,8 @@
 /**
  * Logic ของ Dashboard การลา (`/leaves`) — ข้อมูลมาจาก issue_reports หมวด leave
- * นับเฉพาะพนักงานที่ตำแหน่งปัจจุบันในทะเบียนเป็น Common Driver รวมคนที่พ้นสภาพแล้ว
- * (ไม่อย่างนั้นประเภทลาออก/เกษียณจะหายไป) ส่วนตำแหน่งที่เลือกในฟอร์มไม่นำมาใช้ เพราะฟอร์มไม่ได้ตรวจกับทะเบียน
+ * นับเฉพาะพนักงานที่ตำแหน่งปัจจุบันในทะเบียนเป็นคนขับ (ทุกประเภทในหน้า Drivers) และไม่ได้ลาออก/พ้นสภาพ
+ * คนที่พ้นสภาพแล้วไม่นับเลย รวมถึงรายการลาออก/เกษียณของคนนั้น ตามที่เจ้าของระบบกำหนด
+ * ส่วนตำแหน่งที่เลือกในฟอร์มไม่นำมาใช้ เพราะฟอร์มไม่ได้ตรวจกับทะเบียน
  */
 import {
   addDays,
@@ -15,7 +16,7 @@ import {
 } from 'date-fns';
 import { th } from 'date-fns/locale';
 import { normCode, normName } from '@/lib/driverIncidentMatch';
-import { isCommonDriverPosition } from '@/lib/driverListPositions';
+import { isDriverDirectoryPosition } from '@/lib/driverListPositions';
 import type { CategoryBucket } from '@/lib/caseReportStats';
 import type { IssueReportRow } from '@/lib/issueReportStats';
 import { formatEmployeeDisplayName } from '@/lib/titlePrefixOptions';
@@ -35,6 +36,22 @@ export const LEAVE_TYPES = [
 ] as const;
 
 export type LeaveType = (typeof LEAVE_TYPES)[number];
+
+/**
+ * สีประจำประเภทที่ใช้ทุกกราฟ ใช้ชุดสี categorical 8 สีตามลำดับที่ตรวจเรื่องตาบอดสีแล้ว
+ * ประเภทที่ 9 "อื่นๆ" ใช้สีเทา เพราะชุดสีมีได้ไม่เกิน 8 สี สีต้องผูกกับประเภทเสมอ ห้ามเปลี่ยนตามลำดับยอด
+ */
+export const LEAVE_TYPE_COLORS: Record<LeaveType, string> = {
+  พักร้อน: '#2a78d6',
+  ลาป่วย: '#eb6834',
+  ลากิจ: '#1baf7a',
+  ลาพิเศษ: '#eda100',
+  'Day Off': '#e87ba4',
+  เปลี่ยนตัว: '#008300',
+  เกษียณ: '#6250d6',
+  ลาออก: '#e34948',
+  อื่นๆ: '#898781',
+};
 
 const OTHER_LEAVE_TYPE: LeaveType = 'อื่นๆ';
 
@@ -56,6 +73,8 @@ export type LeaveRecord = {
   employeeCode: string;
   englishName?: string;
   thaiName: string;
+  /** ตำแหน่งปัจจุบันในทะเบียน เช่น Common Driver */
+  position: string;
   employeeStatus: EmployeeStatus;
   leaveType: LeaveType;
   reason?: string;
@@ -74,8 +93,10 @@ export type LeaveRecord = {
 
 export type LeaveDataset = {
   records: LeaveRecord[];
-  /** รายการที่จับคู่พนักงานได้ แต่ตำแหน่งปัจจุบันไม่ใช่ Common Driver */
-  excludedNotCommon: number;
+  /** รายการที่จับคู่พนักงานได้ แต่ตำแหน่งปัจจุบันไม่ใช่คนขับ */
+  excludedNotDriver: number;
+  /** รายการของคนขับที่ลาออก/พ้นสภาพแล้ว */
+  excludedInactive: number;
   /** รายการที่จับคู่กับทะเบียนไม่ได้ หรือชื่อซ้ำจนระบุตัวไม่ได้ */
   excludedUnmatched: number;
 };
@@ -91,8 +112,8 @@ function groupBy(employees: Employee[], keyOf: (e: Employee) => string): Map<str
 }
 
 /**
- * จับคู่จากทั้งทะเบียน ไม่ใช่เฉพาะ Common — ถ้ารหัสเป็นของคนตำแหน่งอื่น แต่ชื่อบังเอิญตรงกับคน Common
- * การจับคู่จากรายชื่อ Common อย่างเดียวจะนับผิดคน
+ * จับคู่จากทั้งทะเบียน ไม่ใช่เฉพาะคนขับที่ยังทำงาน — ถ้ารหัสเป็นของคนอื่น แต่ชื่อบังเอิญตรงกับคนขับ
+ * การจับคู่จากรายชื่อที่กรองแล้วอย่างเดียวจะนับผิดคน
  * ลำดับ: รหัสพนักงาน → ชื่อไทยที่ตรงเพียงคนเดียว ถ้าชื่อซ้ำให้ถือว่าจับคู่ไม่ได้ เพื่อไม่ให้เดาคน
  */
 function matchEmployee(
@@ -139,6 +160,7 @@ function toLeaveRecord(
     employeeCode: employee.employee_code,
     englishName: englishNameOf(employee),
     thaiName: formatEmployeeDisplayName(employee),
+    position: employee.position ?? '',
     employeeStatus: employee.status,
     leaveType,
     reason: leaveType === OTHER_LEAVE_TYPE ? optionalText(row.data?.leave_reason) ?? fallbackReason : undefined,
@@ -169,15 +191,17 @@ export function buildLeaveDataset(
   const byName = groupBy(employees, (e) => normName(`${e.first_name} ${e.last_name}`));
 
   const records: LeaveRecord[] = [];
-  let excludedNotCommon = 0;
+  let excludedNotDriver = 0;
+  let excludedInactive = 0;
   let excludedUnmatched = 0;
   for (const row of rows) {
     const employee = matchEmployee(row, byCode, byName);
     if (!employee) excludedUnmatched += 1;
-    else if (!isCommonDriverPosition(employee.position)) excludedNotCommon += 1;
+    else if (!isDriverDirectoryPosition(employee.position)) excludedNotDriver += 1;
+    else if (employee.status === 'inactive') excludedInactive += 1;
     else records.push(toLeaveRecord(row, employee, byName, profiles, englishNameOf));
   }
-  return { records, excludedNotCommon, excludedUnmatched };
+  return { records, excludedNotDriver, excludedInactive, excludedUnmatched };
 }
 
 export function formatLeaveDate(ymd: string | undefined): string {
@@ -307,18 +331,51 @@ export function quickLeaveRange(key: LeaveQuickRange, now = new Date()): { from?
   }
 }
 
-export type LeaveDailyPoint = { ymd: string; label: string; count: number };
+export type LeaveTypeCounts = Record<LeaveType, number>;
+
+/** จุดของกราฟแนวโน้ม: ยอดรวมและยอดแยกตามประเภท */
+export type LeaveTrendPoint = { label: string; count: number; byType: LeaveTypeCounts };
+
+export type LeaveDailyPoint = LeaveTrendPoint & { ymd: string };
+
+function emptyTypeCounts(): LeaveTypeCounts {
+  return Object.fromEntries(LEAVE_TYPES.map((t) => [t, 0])) as LeaveTypeCounts;
+}
+
+function countByKeyAndType(records: LeaveRecord[], keyOf: (date: string) => string): Map<string, LeaveTypeCounts> {
+  const buckets = new Map<string, LeaveTypeCounts>();
+  for (const r of records) {
+    if (!r.date) continue;
+    const key = keyOf(r.date);
+    const counts = buckets.get(key) ?? emptyTypeCounts();
+    counts[r.leaveType] += 1;
+    buckets.set(key, counts);
+  }
+  return buckets;
+}
+
+function trendPoint(label: string, counts: LeaveTypeCounts | undefined): LeaveTrendPoint {
+  const byType = counts ?? emptyTypeCounts();
+  const count = LEAVE_TYPES.reduce((sum, t) => sum + byType[t], 0);
+  return { label, count, byType };
+}
 
 /** จำนวนรายการของทุกวันในช่วง รวมวันที่ไม่มีรายการด้วย */
 export function buildDailySeries(records: LeaveRecord[], fromYmd: string, toYmd: string): LeaveDailyPoint[] {
   if (fromYmd > toYmd) return [];
-  const counts = new Map<string, number>();
-  for (const r of records) {
-    if (r.date) counts.set(r.date, (counts.get(r.date) ?? 0) + 1);
-  }
+  const buckets = countByKeyAndType(records, (date) => date);
   return eachDayOfInterval({ start: parseISO(fromYmd), end: parseISO(toYmd) }).map((day) => {
     const ymd = toYmdLocal(day);
-    return { ymd, label: format(day, 'd MMM', { locale: th }), count: counts.get(ymd) ?? 0 };
+    return { ymd, ...trendPoint(format(day, 'd MMM', { locale: th }), buckets.get(ymd)) };
+  });
+}
+
+/** จำนวนรายการรายเดือน N เดือนล่าสุด รวมเดือนปัจจุบัน แยกตามประเภท */
+export function buildMonthlyLeaveTrend(records: LeaveRecord[], now = new Date(), months = 6): LeaveTrendPoint[] {
+  const buckets = countByKeyAndType(records, (date) => date.slice(0, 7));
+  return Array.from({ length: months }, (_, i) => {
+    const month = startOfMonth(subMonths(now, months - 1 - i));
+    return trendPoint(format(month, 'MMM yy', { locale: th }), buckets.get(format(month, 'yyyy-MM')));
   });
 }
 

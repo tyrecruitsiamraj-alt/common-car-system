@@ -37,8 +37,8 @@ function toSheetRow(r: LeaveRecord) {
     Date: ymdToExcelSerial(r.date),
     'Leave Type': LEAVE_TYPE_ENGLISH[r.leaveType],
     'Leave Detail': r.reason ?? r.leaveType,
-    // Dashboard นี้มีเฉพาะพนักงาน Common
-    'User Name': 'Common',
+    // ตามแบบเดิมที่ใช้ "Common" แทน "Common Driver"
+    'User Name': r.position.replace(/ Driver$/, ''),
     Substitute_ID: r.substituteCode ?? '',
     Substitute_Name: r.substituteEnglishName ?? r.coverPersonName ?? '',
     Substitute_Tel: r.substitutePhone ?? '',

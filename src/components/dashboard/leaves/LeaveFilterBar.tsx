@@ -124,7 +124,6 @@ const LeaveFilterBar: React.FC<Props> = ({ records, filters, onChange, matchedCo
             <SelectContent>
               <SelectItem value={ALL}>ทุกสถานะ</SelectItem>
               <SelectItem value="active">ทำงานอยู่</SelectItem>
-              <SelectItem value="inactive">ลาออก / พ้นสภาพ</SelectItem>
               <SelectItem value="suspended">พักงาน</SelectItem>
             </SelectContent>
           </Select>

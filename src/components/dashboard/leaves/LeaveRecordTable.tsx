@@ -32,7 +32,7 @@ const LeaveRecordTable: React.FC<Props> = ({ records, loading, canManage, deleti
     <div className="rounded-xl border border-slate-200/80 bg-white shadow-sm overflow-hidden">
       <div className="px-5 py-4 border-b border-slate-100">
         <h3 className="text-sm font-semibold text-slate-900">รายการลา</h3>
-        <p className="text-xs text-slate-500 mt-0.5">เฉพาะพนักงาน Common เรียงจากวันที่ลาล่าสุดก่อน</p>
+        <p className="text-xs text-slate-500 mt-0.5">คนขับทุกประเภทที่ยังไม่พ้นสภาพ เรียงจากวันที่ลาล่าสุดก่อน</p>
       </div>
 
       <div className="overflow-x-auto">
@@ -58,7 +58,7 @@ const LeaveRecordTable: React.FC<Props> = ({ records, loading, canManage, deleti
             ) : visible.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={columnCount} className="h-24 text-center text-slate-500">
-                  ไม่พบรายการลาของพนักงาน Common
+                  ไม่พบรายการลา
                 </TableCell>
               </TableRow>
             ) : (

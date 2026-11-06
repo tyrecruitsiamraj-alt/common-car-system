@@ -14,13 +14,14 @@ import DetailListDialog from '@/components/shared/DetailListDialog';
 import ExportExcelButton from '@/components/shared/ExportExcelButton';
 import { useAuth } from '@/contexts/AuthContext';
 import { apiFetch } from '@/lib/apiFetch';
-import { buildMonthlyTrend } from '@/lib/caseReportStats';
 import { ISSUE_REPORT_TYPES } from '@/lib/issueReportConfig';
 import type { IssueReportRow } from '@/lib/issueReportStats';
 import {
   EMPTY_LEAVE_FILTERS,
+  LEAVE_TYPE_COLORS,
   applyLeaveFilters,
   buildLeaveDataset,
+  buildMonthlyLeaveTrend,
   countByLeaveType,
   countDistinctEmployees,
   formatLeaveDate,
@@ -69,7 +70,7 @@ async function fetchTmaProfiles(): Promise<DriverTmaProfile[]> {
   }
 }
 
-const EMPTY_DATASET: LeaveDataset = { records: [], excludedNotCommon: 0, excludedUnmatched: 0 };
+const EMPTY_DATASET: LeaveDataset = { records: [], excludedNotDriver: 0, excludedInactive: 0, excludedUnmatched: 0 };
 
 const TYPE_TONE: Record<LeaveType, React.ComponentProps<typeof TopStatCard>['tone']> = {
   พักร้อน: 'blue',
@@ -143,8 +144,8 @@ const LeaveDashboardPage: React.FC = () => {
   const reloadSilently = () => setReload((r) => ({ key: r.key + 1, silent: true }));
 
   const allRecords = dataset.records;
-  const { excludedNotCommon, excludedUnmatched } = dataset;
-  const excludedTotal = excludedNotCommon + excludedUnmatched;
+  const { excludedNotDriver, excludedInactive, excludedUnmatched } = dataset;
+  const excludedTotal = excludedNotDriver + excludedInactive + excludedUnmatched;
   const records = useMemo(() => applyLeaveFilters(allRecords, filters), [allRecords, filters]);
   /** กราฟรายวันและรายเดือนกำหนดช่วงวันที่เอง จึงใช้เฉพาะตัวกรองอื่น */
   const recordsAnyDate = useMemo(
@@ -156,10 +157,7 @@ const LeaveDashboardPage: React.FC = () => {
   const topType = useMemo(() => topLeaveType(records), [records]);
   const distinctEmployees = useMemo(() => countDistinctEmployees(records), [records]);
   const employeeGroups = useMemo(() => groupLeaveByEmployee(records), [records]);
-  const trend = useMemo(
-    () => buildMonthlyTrend(recordsAnyDate.flatMap((r) => (r.date ? [r.date] : []))),
-    [recordsAnyDate],
-  );
+  const trend = useMemo(() => buildMonthlyLeaveTrend(recordsAnyDate), [recordsAnyDate]);
   const missingEnglishName = useMemo(() => records.filter((r) => !r.englishName).length, [records]);
 
   function recordsOfType(type: string): LeaveRecord[] {
@@ -252,7 +250,7 @@ const LeaveDashboardPage: React.FC = () => {
           <div>
             <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-slate-900">สรุปการลา</h1>
             <p className="mt-1 text-sm text-slate-500 max-w-2xl">
-              ภาพรวมการลาของพนักงาน Common แยกตามประเภทและแนวโน้ม นับเป็นจำนวนครั้งที่แจ้งลา
+              ภาพรวมการลาของคนขับทุกประเภทที่ยังไม่พ้นสภาพ แยกตามประเภทและแนวโน้ม นับเป็นจำนวนครั้งที่แจ้งลา
             </p>
           </div>
           <div className="flex flex-col sm:flex-row gap-2 w-full lg:w-auto">
@@ -296,7 +294,8 @@ const LeaveDashboardPage: React.FC = () => {
             <div className="space-y-0.5">
               {excludedTotal > 0 ? (
                 <p>
-                  ไม่นับ {excludedTotal} รายการ: ตำแหน่งปัจจุบันไม่ใช่ Common {excludedNotCommon} รายการ
+                  ไม่นับ {excludedTotal} รายการ: ลาออก/พ้นสภาพแล้ว {excludedInactive} รายการ,
+                  ตำแหน่งปัจจุบันไม่ใช่คนขับ {excludedNotDriver} รายการ
                   และจับคู่กับทะเบียนพนักงานไม่ได้ {excludedUnmatched} รายการ
                 </p>
               ) : null}
@@ -378,7 +377,7 @@ const LeaveDashboardPage: React.FC = () => {
             subtitle="แยกตามประเภท ครบทุกประเภท"
             buckets={typeBuckets}
             loading={loading}
-            color="#2a78d6"
+            colors={LEAVE_TYPE_COLORS}
           />
         </div>
 

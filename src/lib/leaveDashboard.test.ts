@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import * as XLSX from 'xlsx';
+import { format } from 'date-fns';
+import { th } from 'date-fns/locale';
 import { buildExcelWorkbook, ymdToExcelSerial } from '@/lib/exportExcel';
 import {
   EMPTY_LEAVE_FILTERS,
@@ -7,6 +9,7 @@ import {
   applyLeaveFilters,
   buildDailySeries,
   buildLeaveDataset,
+  buildMonthlyLeaveTrend,
   countByLeaveType,
   countDistinctEmployees,
   dailyZoomRange,
@@ -93,10 +96,21 @@ describe('buildLeaveDataset', () => {
     expect(records.map(leaveRecordName)).toEqual(['Test Two']);
   });
 
-  it('ตัดคนที่ตำแหน่งปัจจุบันไม่ใช่ Common Driver แม้ฟอร์มจะเลือก Common', () => {
-    const data = buildLeaveDataset([row({ position: 'Common' })], [emp({ position: 'Temp Driver' })]);
+  it('นับคนขับทุกประเภทในหน้า Drivers', () => {
+    const positions = ['Common Driver', 'Temp Driver', 'Support Driver', 'Position Driver', 'Driver Co', 'JP Co'];
+    const employees = positions.map((position, i) =>
+      emp({ id: `e${i}`, employee_code: `SR 100${i}`, first_name: `คน${i}`, position }),
+    );
+    const rows = positions.map((_, i) => row({ id: `r${i}`, employee_id: `SR 100${i}`, employee_name: `คน${i} หนึ่ง` }));
+    const data = buildLeaveDataset(rows, employees);
+    expect(data.records.map((r) => r.position)).toEqual(positions);
+  });
+
+  it('ตัดคนที่ตำแหน่งปัจจุบันไม่ใช่คนขับ แม้ฟอร์มจะเลือก Common', () => {
+    const data = buildLeaveDataset([row({ position: 'Common' })], [emp({ position: 'Admin' })]);
     expect(data.records).toHaveLength(0);
-    expect(data.excludedNotCommon).toBe(1);
+    expect(data.excludedNotDriver).toBe(1);
+    expect(data.excludedInactive).toBe(0);
     expect(data.excludedUnmatched).toBe(0);
   });
 
@@ -105,14 +119,14 @@ describe('buildLeaveDataset', () => {
     expect(records).toHaveLength(1);
   });
 
-  it('รหัสเป็นของคนตำแหน่งอื่น ไม่ไปจับคู่คน Common ที่ชื่อเหมือนกัน', () => {
+  it('รหัสเป็นของคนตำแหน่งอื่น ไม่ไปจับคู่คนขับที่ชื่อเหมือนกัน', () => {
     const employees = [
       emp(),
-      emp({ id: 'e2', employee_code: 'SR 0002', position: 'Position Driver', english_name: 'Other Person' }),
+      emp({ id: 'e2', employee_code: 'SR 0002', position: 'Admin', english_name: 'Other Person' }),
     ];
     const data = buildLeaveDataset([row({ employee_id: 'SR 0002' })], employees);
     expect(data.records).toHaveLength(0);
-    expect(data.excludedNotCommon).toBe(1);
+    expect(data.excludedNotDriver).toBe(1);
   });
 
   it('ชื่อซ้ำกันและไม่มีรหัส ถือว่าจับคู่ไม่ได้ ไม่เดาคน', () => {
@@ -133,10 +147,19 @@ describe('buildLeaveDataset', () => {
     expect(data.excludedUnmatched).toBe(1);
   });
 
-  it('ยังนับคนที่พ้นสภาพแล้ว เพื่อไม่ให้ประเภทลาออกหาย', () => {
-    const { records } = buildLeaveDataset([row({}, { leave_type: 'ลาออก' })], [emp({ status: 'inactive' })]);
-    expect(records[0].leaveType).toBe('ลาออก');
-    expect(records[0].employeeStatus).toBe('inactive');
+  it('ไม่นับคนที่ลาออก/พ้นสภาพแล้ว รวมถึงรายการประเภทลาออก', () => {
+    const data = buildLeaveDataset(
+      [row({ id: 'r1' }), row({ id: 'r2' }, { leave_type: 'ลาออก' })],
+      [emp({ status: 'inactive' })],
+    );
+    expect(data.records).toHaveLength(0);
+    expect(data.excludedInactive).toBe(2);
+    expect(data.excludedNotDriver).toBe(0);
+  });
+
+  it('ยังนับคนที่พักงาน', () => {
+    const { records } = buildLeaveDataset([row()], [emp({ status: 'suspended' })]);
+    expect(records[0].employeeStatus).toBe('suspended');
   });
 
   it('ไม่มีชื่ออังกฤษ ให้แสดงชื่อไทยจากทะเบียนแทน', () => {
@@ -198,7 +221,7 @@ describe('สถิติ', () => {
 });
 
 describe('ตัวกรอง', () => {
-  const employees = [emp(), emp({ id: 'e2', employee_code: 'SR 0002', last_name: 'สอง', status: 'inactive' })];
+  const employees = [emp(), emp({ id: 'e2', employee_code: 'SR 0002', last_name: 'สอง', status: 'suspended' })];
   const { records } = buildLeaveDataset(
     [
       row({ id: 'r1', report_date: '2026-10-01' }, { leave_type: 'ลาป่วย', supervisor_name: 'นายเอ' }),
@@ -224,7 +247,7 @@ describe('ตัวกรอง', () => {
   it('กรองประเภท พนักงาน สถานะ และชื่อนาย', () => {
     expect(ids({ types: ['ลาป่วย', 'ลาออก'] })).toEqual(['r1', 'r3', 'r4']);
     expect(ids({ employeeId: 'e2' })).toEqual(['r3']);
-    expect(ids({ status: 'inactive' })).toEqual(['r3']);
+    expect(ids({ status: 'suspended' })).toEqual(['r3']);
     expect(ids({ supervisor: 'นายบี' })).toEqual(['r2']);
   });
 
@@ -261,6 +284,21 @@ describe('กราฟรายวัน', () => {
     ]);
   });
 
+  it('แยกยอดรายวันตามประเภท และยอดรวมเท่ากับผลรวมทุกประเภท', () => {
+    const { records: mixed } = buildLeaveDataset(
+      [
+        row({ id: 'r1', report_date: '2026-03-01' }, { leave_type: 'ลาป่วย' }),
+        row({ id: 'r2', report_date: '2026-03-01' }, { leave_type: 'Day Off' }),
+        row({ id: 'r3', report_date: '2026-03-01' }, { leave_type: 'ลาป่วย' }),
+      ],
+      [emp()],
+    );
+    const [day] = buildDailySeries(mixed, '2026-03-01', '2026-03-01');
+    expect(day.byType).toMatchObject({ ลาป่วย: 2, 'Day Off': 1, พักร้อน: 0 });
+    expect(Object.keys(day.byType)).toEqual([...LEAVE_TYPES]);
+    expect(day.count).toBe(3);
+  });
+
   it('ช่วงกลับด้านได้ผลว่าง', () => {
     expect(buildDailySeries(records, '2026-03-03', '2026-03-01')).toEqual([]);
   });
@@ -274,6 +312,30 @@ describe('กราฟรายวัน', () => {
     const range = defaultDailyRange(new Date(2026, 10, 5));
     expect(range).toEqual({ from: '2026-10-07', to: '2026-11-05' });
     expect(buildDailySeries([], range.from, range.to)).toHaveLength(30);
+  });
+});
+
+describe('กราฟรายเดือน', () => {
+  const { records } = buildLeaveDataset(
+    [
+      row({ id: 'r1', report_date: '2026-11-03' }, { leave_type: 'พักร้อน' }),
+      row({ id: 'r2', report_date: '2026-11-20' }, { leave_type: 'ลาออก' }),
+      row({ id: 'r3', report_date: '2026-06-30' }, { leave_type: 'ลาป่วย' }),
+      row({ id: 'r4', report_date: '2026-05-31' }, { leave_type: 'ลาป่วย' }),
+      row({ id: 'r5', report_date: undefined }, { leave_type: 'ลาป่วย' }),
+    ],
+    [emp()],
+  );
+  const months = buildMonthlyLeaveTrend(records, new Date(2026, 10, 6));
+
+  it('มี 6 เดือนล่าสุดรวมเดือนปัจจุบัน และตัดรายการที่เก่ากว่าหรือไม่มีวันที่', () => {
+    expect(months.map((m) => m.count)).toEqual([1, 0, 0, 0, 0, 2]);
+    expect(months[0].label).toBe(format(new Date(2026, 5, 1), 'MMM yy', { locale: th }));
+  });
+
+  it('แยกยอดรายเดือนตามประเภท', () => {
+    expect(months[5].byType).toMatchObject({ พักร้อน: 1, ลาออก: 1, ลาป่วย: 0 });
+    expect(months[0].byType.ลาป่วย).toBe(1);
   });
 });
 
@@ -305,7 +367,10 @@ describe('ข้อมูลจาก Database TMA และคนแทน', ()
 });
 
 describe('buildLeaveExcelSheets', () => {
-  const employees = [emp(), emp({ id: 'e2', employee_code: 'SR 0000', last_name: 'สอง', english_name: undefined, title_prefix: 'นาย' })];
+  const employees = [
+    emp(),
+    emp({ id: 'e2', employee_code: 'SR 0000', last_name: 'สอง', english_name: undefined, title_prefix: 'นาย', position: 'Position Driver' }),
+  ];
   const { records } = buildLeaveDataset(
     [
       row({ id: 'r1', report_date: '2026-01-02' }, { leave_type: 'Day Off', leave_phone: '0811111111', cover_phone: '0822222222', cover_person_name: 'คนแทน' }),
@@ -333,7 +398,7 @@ describe('buildLeaveExcelSheets', () => {
     ]);
   });
 
-  it('แปลงค่าตามแบบ: ประเภทอังกฤษ รายละเอียดภาษาไทย ตำแหน่ง Common และเบอร์คนแทน', () => {
+  it('แปลงค่าตามแบบ: ประเภทอังกฤษ รายละเอียดภาษาไทย ตำแหน่งจากทะเบียน และเบอร์คนแทน', () => {
     expect(sheet.rows[2]).toMatchObject({
       'Driver Name Eng': 'Test One',
       'Leave Type': 'Day Off',
@@ -344,7 +409,12 @@ describe('buildLeaveExcelSheets', () => {
       Line: 'demo.line',
     });
     expect(sheet.rows[1]).toMatchObject({ 'Leave Type': 'Other', 'Leave Detail': 'ธุระครอบครัว' });
-    expect(sheet.rows[0]).toMatchObject({ 'Driver Name Eng': 'นาย ทดสอบ สอง', 'Leave Type': 'Sick Leave', 'Leave Detail': 'ลาป่วย' });
+    expect(sheet.rows[0]).toMatchObject({
+      'Driver Name Eng': 'นาย ทดสอบ สอง',
+      'Leave Type': 'Sick Leave',
+      'Leave Detail': 'ลาป่วย',
+      'User Name': 'Position',
+    });
   });
 
   it('ไม่มีเบอร์ของคนลา', () => {

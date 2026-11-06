@@ -21,13 +21,18 @@ type Props = {
   loading?: boolean;
   /** ใส่เมื่อชื่อบนแกนบอกหมวดหมู่อยู่แล้วและหมวดหมู่เกินจำนวนสี เพื่อไม่ให้สีซ้ำจนดูเหมือนเป็นหมวดเดียวกัน */
   color?: string;
+  /** สีประจำหมวดตามชื่อ ใช้เมื่อหน้านั้นมีสีของหมวดอยู่แล้ว ให้กราฟนี้ตรงกับกราฟอื่นในหน้า */
+  colors?: Record<string, string>;
 };
 
-const CategoryBreakdownChart: React.FC<Props> = ({ title, subtitle, buckets, loading, color }) => {
+const CategoryBreakdownChart: React.FC<Props> = ({ title, subtitle, buckets, loading, color, colors }) => {
   const barData = buckets.map((b, i) => ({
     name: b.label,
     count: b.count,
-    fill: color ?? (b.label === 'อื่นๆ' ? OTHER_COLOR : CATEGORY_COLORS[i % CATEGORY_COLORS.length]),
+    fill:
+      colors?.[b.label] ??
+      color ??
+      (b.label === 'อื่นๆ' ? OTHER_COLOR : CATEGORY_COLORS[i % CATEGORY_COLORS.length]),
   }));
   const total = buckets.reduce((sum, b) => sum + b.count, 0);
 
