@@ -403,8 +403,8 @@ function overviewCaseLabel(record: LeaveRecord): string {
 export function computeLeaveOverviewData(
   rows: IssueReportRow[],
   employees: Employee[],
-  fromYmd: string,
-  toYmd: string,
+  fromYmd: string | undefined,
+  toYmd: string | undefined,
   tmaProfiles: DriverTmaProfile[] = [],
 ): LeaveData & { caseRows: IssueReportRow[] } {
   const { records } = buildLeaveDataset(rows, employees, tmaProfiles);

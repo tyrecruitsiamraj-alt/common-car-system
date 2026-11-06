@@ -3,13 +3,14 @@
  * ใช้แสดงโครง UI/การจัดวางเท่านั้น ตัวเลขจะถูกแทนที่ด้วยข้อมูลจริงภายหลัง
  */
 
-export type PeriodKey = 'day' | 'week' | 'month' | 'year' | 'custom';
+export type PeriodKey = 'day' | 'week' | 'month' | 'year' | 'all' | 'custom';
 
 export const PERIOD_LABELS: Record<PeriodKey, string> = {
   day: 'วันนี้',
   week: 'สัปดาห์นี้',
   month: 'เดือนนี้',
   year: 'ปีนี้',
+  all: 'ทุกวันที่',
   custom: 'กำหนดเอง',
 };
 
@@ -398,8 +399,9 @@ const PERIOD_MOCK: Record<'day' | 'week' | 'month' | 'year', ComplaintsOverviewD
   },
 };
 
-/** โหมดกำหนดเอง ยังไม่มีข้อมูลตัวอย่างเฉพาะ — ใช้ชุด "เดือนนี้" แทนไปก่อน (ข้อมูลจริงจะมาแทนที่เมื่อเชื่อมฐานข้อมูล) */
+/** โหมดกำหนดเองและทุกวันที่ ยังไม่มีข้อมูลตัวอย่างเฉพาะ — ใช้ชุด "เดือนนี้" และ "ปีนี้" แทนไปก่อน (ข้อมูลจริงจะมาแทนที่เมื่อเชื่อมฐานข้อมูล) */
 export const COMPLAINTS_OVERVIEW_MOCK: Record<PeriodKey, ComplaintsOverviewData> = {
   ...PERIOD_MOCK,
+  all: PERIOD_MOCK.year,
   custom: PERIOD_MOCK.month,
 };

@@ -24,14 +24,17 @@ export type IssueReportRow = {
   created_at: string;
 };
 
+/** ช่วง "ทุกวันที่" ไม่มีขอบเขต จึงได้ค่าว่างทั้งสองด้าน */
 export function periodBounds(
   period: PeriodKey,
   now: Date,
   customFromYmd?: string,
   customToYmd?: string,
-): { fromYmd: string; toYmd: string } {
+): { fromYmd?: string; toYmd?: string } {
   const ymd = (d: Date) => format(d, 'yyyy-MM-dd');
   switch (period) {
+    case 'all':
+      return {};
     case 'day':
       return { fromYmd: ymd(startOfDay(now)), toYmd: ymd(endOfDay(now)) };
     case 'week':
@@ -57,6 +60,7 @@ export function filterByPeriod(
   customToYmd?: string,
 ): IssueReportRow[] {
   const { fromYmd, toYmd } = periodBounds(period, now, customFromYmd, customToYmd);
+  if (!fromYmd || !toYmd) return rows;
   return rows.filter((r) => r.report_date && r.report_date >= fromYmd && r.report_date <= toYmd);
 }
 

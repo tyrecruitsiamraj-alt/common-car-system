@@ -33,7 +33,7 @@ import type { Employee } from '@/types';
 
 const EMPLOYEE_PAGE_SIZE = 500;
 
-const PERIODS: PeriodKey[] = ['day', 'week', 'month', 'year', 'custom'];
+const PERIODS: PeriodKey[] = ['day', 'week', 'month', 'year', 'all', 'custom'];
 
 type BreakdownGroup = { key: string; label: string; items: BreakdownItem[] };
 
@@ -341,7 +341,8 @@ function CaseDetailDialog({
 }
 
 const ComplaintsOverviewPage: React.FC = () => {
-  const [period, setPeriod] = useState<PeriodKey>('month');
+  /** เริ่มที่ทุกวันที่ ให้ตรงกับค่าเริ่มต้นของ Dashboard การลา (`/leaves`) */
+  const [period, setPeriod] = useState<PeriodKey>('all');
   const [customFrom, setCustomFrom] = useState(() => toYmdLocal(new Date()));
   const [customTo, setCustomTo] = useState(() => toYmdLocal(new Date()));
   const [activePanel, setActivePanel] = useState<PanelKey | null>(null);

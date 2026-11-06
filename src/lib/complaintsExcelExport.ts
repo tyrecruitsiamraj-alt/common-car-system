@@ -9,6 +9,7 @@ const PERIOD_FILE_LABEL: Record<PeriodKey, string> = {
   week: 'week',
   month: 'month',
   year: 'year',
+  all: 'all',
   custom: 'custom',
 };
 

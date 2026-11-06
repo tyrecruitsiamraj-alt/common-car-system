@@ -393,6 +393,16 @@ describe('computeLeaveOverviewData', () => {
     expect(result.caseRows.map((r) => r.id)).toEqual(['r2']);
   });
 
+  it('ไม่กำหนดช่วงวันที่ นับทุกรายการ รวมรายการที่ไม่มีวันที่ เหมือน Dashboard ตอนเลือก "ทุกวันที่"', () => {
+    const rows = [
+      row({ id: 'r1', report_date: '2025-01-05' }),
+      row({ id: 'r2', report_date: '2026-10-15' }),
+      row({ id: 'r3', report_date: undefined }),
+    ];
+    const result = computeLeaveOverviewData(rows, [emp()], undefined, undefined);
+    expect(result.caseRows.map((r) => r.id)).toEqual(['r1', 'r2', 'r3']);
+  });
+
   it('ประเภท "อื่นๆ" ใช้เหตุผลที่กรอกเป็นชื่อเคส เหมือน summarizeIssueReportRow', () => {
     const rows = [row({ id: 'r1' }, { leave_type: 'อื่นๆ', leave_reason: 'ไปต่างจังหวัด' })];
     const result = computeLeaveOverviewData(rows, [emp()], '2026-10-01', '2026-10-31');
