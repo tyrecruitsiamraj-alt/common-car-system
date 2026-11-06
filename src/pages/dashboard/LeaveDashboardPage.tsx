@@ -14,6 +14,7 @@ import DetailListDialog from '@/components/shared/DetailListDialog';
 import ExportExcelButton from '@/components/shared/ExportExcelButton';
 import { useAuth } from '@/contexts/AuthContext';
 import { apiFetch } from '@/lib/apiFetch';
+import { fetchAllPages } from '@/lib/fetchAllPages';
 import { ISSUE_REPORT_TYPES } from '@/lib/issueReportConfig';
 import type { IssueReportRow } from '@/lib/issueReportStats';
 import {
@@ -40,18 +41,6 @@ import type { DriverTmaProfile, Employee } from '@/types';
 /** เพดานต่อหน้าของแต่ละ API — ดึงจนครบ เพื่อไม่ให้ยอดสถิติขาดโดยไม่รู้ตัว */
 const LEAVE_PAGE_SIZE = 2000;
 const EMPLOYEE_PAGE_SIZE = 500;
-
-async function fetchAllPages<T extends { id: string }>(path: string, pageSize: number): Promise<T[]> {
-  const byId = new Map<string, T>();
-  const separator = path.includes('?') ? '&' : '?';
-  for (let offset = 0; ; offset += pageSize) {
-    const r = await apiFetch(`${path}${separator}limit=${pageSize}&offset=${offset}`);
-    if (!r.ok) throw new Error(`HTTP ${r.status}`);
-    const batch = (await r.json()) as T[];
-    batch.forEach((row) => byId.set(row.id, row));
-    if (batch.length < pageSize) return [...byId.values()];
-  }
-}
 
 /** รับข้อมูลใหม่อัตโนมัติเมื่อกลับมาจากแท็บฟอร์ม แต่ไม่ถี่กว่านี้ */
 const AUTO_REFRESH_MIN_MS = 15_000;

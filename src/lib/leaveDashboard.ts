@@ -19,6 +19,7 @@ import { normCode, normName } from '@/lib/driverIncidentMatch';
 import { isDriverDirectoryPosition } from '@/lib/driverListPositions';
 import type { CategoryBucket } from '@/lib/caseReportStats';
 import type { IssueReportRow } from '@/lib/issueReportStats';
+import type { LeaveData } from '@/lib/complaintsOverviewMockData';
 import { formatEmployeeDisplayName } from '@/lib/titlePrefixOptions';
 import { toYmdLocal } from '@/lib/dateTh';
 import type { DriverTmaProfile, Employee, EmployeeStatus } from '@/types';
@@ -388,4 +389,39 @@ export function defaultDailyRange(now = new Date()): { from: string; to: string 
 export function dailyZoomRange(ymd: string): { from: string; to: string } {
   const day = parseISO(ymd);
   return { from: toYmdLocal(subDays(day, 2)), to: toYmdLocal(addDays(day, 2)) };
+}
+
+/** ชื่อกรณีของรายการเดียว ใช้แสดงในการ์ดภาพรวม — ถ้าประเภทเป็น "อื่นๆ" ใช้เหตุผลที่กรอกแทน เหมือน summarizeIssueReportRow */
+function overviewCaseLabel(record: LeaveRecord): string {
+  return record.leaveType === OTHER_LEAVE_TYPE ? record.reason || OTHER_LEAVE_TYPE : record.leaveType;
+}
+
+/**
+ * ข้อมูลสำหรับการ์ด "การลา" บนหน้าภาพรวมแบบฟอร์ม (Complaints Overview)
+ * ใช้ logic เดียวกับ Dashboard การลา (`buildLeaveDataset`) เพื่อให้ตัวเลขสองหน้าตรงกัน — ดู leaveDashboard.ts บรรทัดบนสุด
+ */
+export function computeLeaveOverviewData(
+  rows: IssueReportRow[],
+  employees: Employee[],
+  fromYmd: string,
+  toYmd: string,
+  tmaProfiles: DriverTmaProfile[] = [],
+): LeaveData & { caseRows: IssueReportRow[] } {
+  const { records } = buildLeaveDataset(rows, employees, tmaProfiles);
+  const filtered = applyLeaveFilters(records, { ...EMPTY_LEAVE_FILTERS, from: fromYmd, to: toYmd });
+  const byLeaveType = countByLeaveType(filtered)
+    .filter((bucket) => bucket.count > 0)
+    .sort((a, b) => b.count - a.count);
+  const people = groupLeaveByEmployee(filtered).map((group) => ({
+    name: group.name,
+    position: group.records[0]?.position || '-',
+    count: group.records.length,
+    cases: group.records.map(overviewCaseLabel),
+  }));
+  return {
+    totalPeople: countDistinctEmployees(filtered),
+    byLeaveType,
+    people,
+    caseRows: filtered.map((r) => r.source),
+  };
 }

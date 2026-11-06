@@ -18,9 +18,20 @@ import {
   type BreakdownItem,
   type PersonCaseSummary,
 } from '@/lib/complaintsOverviewMockData';
-import { computeComplaintsOverview, filterByPeriod, daysInclusive, type IssueReportRow } from '@/lib/issueReportStats';
+import {
+  computeComplaintsOverview,
+  filterByPeriod,
+  periodBounds,
+  daysInclusive,
+  type IssueReportRow,
+} from '@/lib/issueReportStats';
+import { computeLeaveOverviewData } from '@/lib/leaveDashboard';
+import { fetchAllPages } from '@/lib/fetchAllPages';
 import { exportComplaintsOverviewExcel } from '@/lib/complaintsExcelExport';
 import { ISSUE_REPORT_TYPES, parseMultiSelectValue, type IssueField } from '@/lib/issueReportConfig';
+import type { Employee } from '@/types';
+
+const EMPLOYEE_PAGE_SIZE = 500;
 
 const PERIODS: PeriodKey[] = ['day', 'week', 'month', 'year', 'custom'];
 
@@ -335,6 +346,7 @@ const ComplaintsOverviewPage: React.FC = () => {
   const [customTo, setCustomTo] = useState(() => toYmdLocal(new Date()));
   const [activePanel, setActivePanel] = useState<PanelKey | null>(null);
   const [rows, setRows] = useState<IssueReportRow[]>([]);
+  const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(!isDemoMode());
 
   useEffect(() => {
@@ -344,14 +356,24 @@ const ComplaintsOverviewPage: React.FC = () => {
     }
     let cancelled = false;
     setLoading(true);
-    apiFetch('/api/issue-reports')
-      .then(async (r) => {
-        if (cancelled || !r.ok) return;
+    Promise.all([
+      apiFetch('/api/issue-reports').then(async (r) => {
+        if (!r.ok) return [] as IssueReportRow[];
         const json = (await r.json()) as unknown;
-        if (!cancelled) setRows(Array.isArray(json) ? (json as IssueReportRow[]) : []);
+        return Array.isArray(json) ? (json as IssueReportRow[]) : [];
+      }),
+      fetchAllPages<Employee>('/api/employees', EMPLOYEE_PAGE_SIZE),
+    ])
+      .then(([reportRows, employeeRows]) => {
+        if (cancelled) return;
+        setRows(reportRows);
+        setEmployees(employeeRows);
       })
       .catch(() => {
-        if (!cancelled) setRows([]);
+        if (!cancelled) {
+          setRows([]);
+          setEmployees([]);
+        }
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -362,13 +384,20 @@ const ComplaintsOverviewPage: React.FC = () => {
   }, []);
 
   const usingMockData = isDemoMode() && rows.length === 0;
-  const data = useMemo(
-    () =>
-      usingMockData
-        ? COMPLAINTS_OVERVIEW_MOCK[period]
-        : computeComplaintsOverview(rows, period, new Date(), customFrom, customTo),
-    [usingMockData, rows, period, customFrom, customTo],
-  );
+  /** การ์ด "การลา" ใช้ logic เดียวกับ Dashboard การลา (`/leaves`) ตัดคนที่จับคู่ทะเบียนไม่ได้/ไม่ใช่คนขับ Common/พ้นสภาพออก เพื่อให้ตัวเลขสองหน้าตรงกัน */
+  const leaveOverview = useMemo(() => {
+    if (usingMockData) return null;
+    const { fromYmd, toYmd } = periodBounds(period, new Date(), customFrom, customTo);
+    const leaveRows = rows.filter((r) => r.category === 'leave');
+    return computeLeaveOverviewData(leaveRows, employees, fromYmd, toYmd);
+  }, [usingMockData, rows, employees, period, customFrom, customTo]);
+
+  const data = useMemo(() => {
+    const base = usingMockData
+      ? COMPLAINTS_OVERVIEW_MOCK[period]
+      : computeComplaintsOverview(rows, period, new Date(), customFrom, customTo);
+    return leaveOverview ? { ...base, leave: leaveOverview } : base;
+  }, [usingMockData, rows, period, customFrom, customTo, leaveOverview]);
 
   const caseRowsBySlug = useMemo(() => {
     const bySlug: Record<string, IssueReportRow[]> = {};
@@ -381,8 +410,11 @@ const ComplaintsOverviewPage: React.FC = () => {
         customTo,
       ).sort((a, b) => (b.report_date ?? '').localeCompare(a.report_date ?? ''));
     }
+    if (leaveOverview) {
+      bySlug.leave = [...leaveOverview.caseRows].sort((a, b) => (b.report_date ?? '').localeCompare(a.report_date ?? ''));
+    }
     return bySlug;
-  }, [rows, period, customFrom, customTo]);
+  }, [rows, period, customFrom, customTo, leaveOverview]);
 
   const periodDisplayLabel =
     period === 'custom' ? `${formatYmdDmyBe(customFrom)} – ${formatYmdDmyBe(customTo)}` : PERIOD_LABELS[period];

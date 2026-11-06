@@ -10,6 +10,7 @@ import {
   buildDailySeries,
   buildLeaveDataset,
   buildMonthlyLeaveTrend,
+  computeLeaveOverviewData,
   countByLeaveType,
   countDistinctEmployees,
   dailyZoomRange,
@@ -363,6 +364,39 @@ describe('ข้อมูลจาก Database TMA และคนแทน', ()
     const unmatched = buildLeaveDataset([row({}, { cover_person_name: 'คนนอกทะเบียน' })], employees);
     expect(unmatched.records[0].substituteCode).toBeUndefined();
     expect(unmatched.records[0].coverPersonName).toBe('คนนอกทะเบียน');
+  });
+});
+
+describe('computeLeaveOverviewData', () => {
+  it('ตัดเคสที่จับคู่ทะเบียนไม่ได้/ไม่ใช่คนขับ Common/พ้นสภาพออก เหมือน Dashboard การลา', () => {
+    const employees = [
+      emp(),
+      emp({ id: 'e2', employee_code: 'SR 0002', first_name: 'แอดมิน', position: 'Admin' }),
+      emp({ id: 'e3', employee_code: 'SR 0003', first_name: 'พ้นสภาพ', status: 'inactive' }),
+    ];
+    const rows = [
+      row({ id: 'r1' }), // จับคู่ได้ เป็น Common ที่ยังทำงานอยู่ → นับ
+      row({ id: 'r2', employee_id: 'SR 0002', employee_name: 'แอดมิน' }), // ไม่ใช่คนขับ → ไม่นับ
+      row({ id: 'r3', employee_id: 'SR 0003', employee_name: 'พ้นสภาพ' }), // พ้นสภาพแล้ว → ไม่นับ
+      row({ id: 'r4', employee_id: 'X', employee_name: 'ไม่มีในทะเบียน' }), // จับคู่ไม่ได้ → ไม่นับ
+    ];
+    const result = computeLeaveOverviewData(rows, employees, '2026-10-01', '2026-10-31');
+    expect(result.totalPeople).toBe(1);
+    expect(result.caseRows.map((r) => r.id)).toEqual(['r1']);
+    expect(result.byLeaveType).toEqual([{ label: 'ลาป่วย', count: 1 }]);
+    expect(result.people).toEqual([{ name: 'Test One', position: 'Common Driver', count: 1, cases: ['ลาป่วย'] }]);
+  });
+
+  it('กรองตามช่วงวันที่ที่กำหนด', () => {
+    const rows = [row({ id: 'r1', report_date: '2026-09-30' }), row({ id: 'r2', report_date: '2026-10-15' })];
+    const result = computeLeaveOverviewData(rows, [emp()], '2026-10-01', '2026-10-31');
+    expect(result.caseRows.map((r) => r.id)).toEqual(['r2']);
+  });
+
+  it('ประเภท "อื่นๆ" ใช้เหตุผลที่กรอกเป็นชื่อเคส เหมือน summarizeIssueReportRow', () => {
+    const rows = [row({ id: 'r1' }, { leave_type: 'อื่นๆ', leave_reason: 'ไปต่างจังหวัด' })];
+    const result = computeLeaveOverviewData(rows, [emp()], '2026-10-01', '2026-10-31');
+    expect(result.people[0].cases).toEqual(['ไปต่างจังหวัด']);
   });
 });
 

@@ -24,7 +24,7 @@ export type IssueReportRow = {
   created_at: string;
 };
 
-function periodBounds(
+export function periodBounds(
   period: PeriodKey,
   now: Date,
   customFromYmd?: string,
