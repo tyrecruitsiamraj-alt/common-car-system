@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { format, parseISO } from 'date-fns';
 import { th } from 'date-fns/locale';
-import { Loader2, Pencil } from 'lucide-react';
+import { Loader2, Pencil, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
 import {
   Table,
   TableBody,
@@ -11,9 +12,21 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import DashboardPaginationFooter from '@/components/dashboard/analytics/DashboardPaginationFooter';
 import ComplaintCaseEditDialog from '@/components/dashboard/complaints/ComplaintCaseEditDialog';
 import { useServerPagedReport } from '@/hooks/useServerPagedReport';
+import { useAuth } from '@/contexts/AuthContext';
+import { apiFetch } from '@/lib/apiFetch';
 import { cn } from '@/lib/utils';
 import type { Complaint } from '@/types';
 
@@ -32,6 +45,8 @@ function formatComplaintDate(ymd: string): string {
 }
 
 const ComplaintCaseTable: React.FC<Props> = ({ onCaseUpdated }) => {
+  const { hasPermission } = useAuth();
+  const canDelete = hasPermission('supervisor');
   const { rows, total, totalPages, page, setPage, loading, refetch } = useServerPagedReport<Complaint>(
     '/api/complaints',
     {},
@@ -39,6 +54,8 @@ const ComplaintCaseTable: React.FC<Props> = ({ onCaseUpdated }) => {
   );
   const [editing, setEditing] = useState<Complaint | null>(null);
   const [editOpen, setEditOpen] = useState(false);
+  const [deleting, setDeleting] = useState<Complaint | null>(null);
+  const [deletingBusy, setDeletingBusy] = useState(false);
 
   const openEdit = (c: Complaint) => {
     setEditing(c);
@@ -48,6 +65,26 @@ const ComplaintCaseTable: React.FC<Props> = ({ onCaseUpdated }) => {
   const handleSaved = () => {
     refetch();
     onCaseUpdated?.();
+  };
+
+  const confirmDelete = async () => {
+    if (!deleting) return;
+    setDeletingBusy(true);
+    try {
+      const r = await apiFetch(`/api/complaints?id=${encodeURIComponent(deleting.id)}`, { method: 'DELETE' });
+      if (!r.ok) {
+        const body = (await r.json().catch(() => ({}))) as { message?: string; error?: string };
+        throw new Error(body.message || body.error || 'ลบไม่สำเร็จ');
+      }
+      toast.success('ลบเรื่องร้องเรียนแล้ว');
+      setDeleting(null);
+      refetch();
+      onCaseUpdated?.();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'ลบไม่สำเร็จ');
+    } finally {
+      setDeletingBusy(false);
+    }
   };
 
   return (
@@ -98,6 +135,16 @@ const ComplaintCaseTable: React.FC<Props> = ({ onCaseUpdated }) => {
                     <Button variant="ghost" size="sm" className="h-8 px-2" onClick={() => openEdit(c)}>
                       <Pencil className="h-4 w-4" />
                     </Button>
+                    {canDelete ? (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 px-2 text-destructive hover:text-destructive"
+                        onClick={() => setDeleting(c)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    ) : null}
                   </TableCell>
                 </TableRow>
               ))
@@ -119,6 +166,25 @@ const ComplaintCaseTable: React.FC<Props> = ({ onCaseUpdated }) => {
         onOpenChange={setEditOpen}
         onSaved={handleSaved}
       />
+
+      <AlertDialog open={deleting !== null} onOpenChange={(open) => !open && setDeleting(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>ลบเรื่องร้องเรียนนี้?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleting ? `${deleting.driver_name} — ${formatComplaintDate(deleting.complaint_date)}` : ''}
+              <br />
+              การลบนี้ย้อนกลับไม่ได้
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deletingBusy}>ยกเลิก</AlertDialogCancel>
+            <AlertDialogAction disabled={deletingBusy} onClick={() => void confirmDelete()}>
+              {deletingBusy ? 'กำลังลบ…' : 'ยืนยันลบ'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
